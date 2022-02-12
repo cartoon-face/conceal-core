@@ -636,6 +636,7 @@ simple_wallet::simple_wallet(platform_system::Dispatcher& dispatcher, const cn::
   m_consoleHandler.setHandler("exit", boost::bind(&simple_wallet::exit, this, boost::arg<1>()), "Close wallet");  
   m_consoleHandler.setHandler("get_reserve_proof", boost::bind(&simple_wallet::get_reserve_proof, this, boost::arg<1>()), "all|<amount> [<message>] - Generate a signature proving that you own at least <amount>, optionally with a challenge string <message>. ");
   m_consoleHandler.setHandler("save_keys", boost::bind(&simple_wallet::save_keys_to_file, this, boost::arg<1>()), "Saves wallet private keys to \"<wallet_name>_conceal_backup.txt\"");
+  m_consoleHandler.setHandler("deposit", boost::bind(&simple_wallet::deposit, this, boost::arg<1>()), "Create a deposit. deposit <months> <amount>");
 }
 
 std::string simple_wallet::simple_menu()
