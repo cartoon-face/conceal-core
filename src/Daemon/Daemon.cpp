@@ -1,7 +1,8 @@
 // Copyright (c) 2011-2017 The Cryptonote developers
-// Copyright (c) 2016-2018, The Karbo developers
+// Copyright (c) 2016-2022, The Karbo developers
 // Copyright (c) 2017-2018 The Circle Foundation & Conceal Devs
-// Copyright (c) 2018-2021 Conceal Network & Conceal Devs
+// Copyright (c) 2018-2022 Conceal Network & Conceal Devs
+//
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,6 +16,8 @@
 #include "Common/SignalHandler.h"
 #include "Common/PathTools.h"
 #include "crypto/hash.h"
+#include "CryptoNoteConfig.h"
+#include "CryptoNoteCore/Checkpoints.h"
 #include "CryptoNoteCore/Core.h"
 #include "CryptoNoteCore/CoreConfig.h"
 #include "CryptoNoteCore/CryptoNoteTools.h"
@@ -276,6 +279,17 @@ int main(int argc, char* argv[])
 
     cn::Currency currency = currencyBuilder.currency();
     cn::core ccore(currency, nullptr, logManager, vm["enable-blockchain-indexes"].as<bool>(), vm["enable-autosave"].as<bool>());
+
+    cn::Checkpoints checkpoints(logManager);
+    for (const auto& cp : cn::CHECKPOINTS) {
+      checkpoints.add_checkpoint(cp.height, cp.blockId);
+    }
+
+    checkpoints.load_checkpoints_from_dns();
+
+    if (!testnet_mode) {
+      ccore.set_checkpoints(std::move(checkpoints));
+    }
 
     CoreConfig coreConfig;
     coreConfig.init(vm);
