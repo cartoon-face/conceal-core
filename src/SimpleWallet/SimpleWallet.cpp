@@ -674,7 +674,7 @@ simple_wallet::simple_wallet(platform_system::Dispatcher& dispatcher, const cn::
 
   m_consoleHandler.setHandler("deposit", boost::bind(&simple_wallet::deposit, this, boost::arg<1>()), "deposit <months> <amount> - Create a deposit");
   m_consoleHandler.setHandler("withdraw", boost::bind(&simple_wallet::withdraw, this, boost::arg<1>()), "withdraw <id> - Withdraw a deposit");
-  m_consoleHandler.setHandler("list_deposits", boost::bind(&simple_wallet::deposit, this, boost::arg<1>()), "Show all known deposits from this wallet");  
+  m_consoleHandler.setHandler("list_deposits", boost::bind(&simple_wallet::list_deposits, this, boost::arg<1>()), "Show all known deposits from this wallet");  
 }
 
 std::string simple_wallet::simple_menu()
