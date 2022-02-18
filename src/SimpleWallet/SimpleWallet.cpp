@@ -684,7 +684,6 @@ std::string simple_wallet::simple_menu()
   menu_item += "\"address\"                     - Shows wallet address.\n";
   menu_item += "\"balance\"                     - Shows wallet balance.\n";
   menu_item += "\"bc_height\"                   - Shows current blockchain height.\n";
-  menu_item += "\"deposit <months <amount>\"    - Create a deposit to the blockchain.\n";
   menu_item += "\"deposit <months> <amount>\"   - Create a deposit to the blockchain.\n";
   menu_item += "\"exit\"                        - Safely exits the wallet application.\n";
   menu_item += "\"export_keys\"                 - Displays backup keys.\n";
