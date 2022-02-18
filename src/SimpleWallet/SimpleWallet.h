@@ -98,6 +98,8 @@ namespace cn
 
     bool deposit(const std::vector<std::string> &args);
 
+    bool list_deposits(const std::vector<std::string> &args);
+
     std::string simple_menu();
     std::string extended_menu();
 
