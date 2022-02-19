@@ -2038,6 +2038,12 @@ bool simple_wallet::deposit(const std::vector<std::string> &args)
       return true;
     }
 
+    if (!confirm_deposit(deposit_term, deposit_amount))
+    {
+      logger(ERROR) << "Deposit is not being created."
+      return true;
+    }
+
     /* Use defaults for fee + mix in */
     uint64_t deposit_fee = cn::parameters::MINIMUM_FEE_V2;
     uint64_t deposit_mix_in = cn::parameters::MINIMUM_MIXIN;
@@ -2193,6 +2199,38 @@ bool simple_wallet::list_deposits(const std::vector<std::string> &args)
   if (!haveDeposits) {
     success_msg_writer() << "No deposits";
   }
+
+  return true;
+}
+
+bool simple_wallet::confirm_deposit(uint64_t term, uint64_t amount)
+{
+  uint64_t interest = m_currency.calculateInterestV3(amount, term);
+
+  logger(INFO) << "Confirm deposit details:\n"
+    << "\tAmount: " << amount << "\n"
+    << "\tMonths: " << term / 21900 << "\n"
+    << "\tInterest: " << interest << "\n"
+    << "Create deposit? (y/n) ";
+
+  char c;
+  do {
+    std::string answer;
+    std::getline(std::cin, answer);
+    c = answer[0];
+
+    if (!(c == 'Y' || c == 'y' || c == 'N' || c == 'n'))
+    {
+      logger(ERROR) << "Unknown command: " << c;
+    }
+    else
+    {
+      break;
+    }
+  } while (true);
+
+  if (c == 'N' || c == 'n')
+    return false;
 
   return true;
 }
