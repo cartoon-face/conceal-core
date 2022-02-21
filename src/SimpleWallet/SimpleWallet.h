@@ -168,8 +168,11 @@ namespace cn
     std::string m_import_path;
 
     std::string m_daemon_address;
+    std::string m_daemon_path;
     std::string m_daemon_host;
     uint16_t m_daemon_port;
+    std::string m_daemon_cert;
+    bool m_daemon_no_verify;
 
     std::string m_wallet_file;
 

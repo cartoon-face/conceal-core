@@ -71,7 +71,25 @@ const command_line::arg_descriptor<std::string> arg_password = { "password", "Wa
 const command_line::arg_descriptor<uint16_t>    arg_daemon_port = { "daemon-port", "Use daemon instance at port <arg> instead of default", 0 };
 const command_line::arg_descriptor<uint32_t>    arg_log_level = { "set_log", "", INFO, true };
 const command_line::arg_descriptor<bool>        arg_testnet = { "testnet", "Used to deploy test nets. The daemon must be launched with --testnet flag", false };
+const command_line::arg_descriptor<std::string> arg_daemon_cert = { "daemon-cert", "Custom cert file for performing verification", "" };
+const command_line::arg_descriptor<bool> arg_daemon_no_verify = { "daemon-no-verify", "Disable verification procedure", false };
 const command_line::arg_descriptor< std::vector<std::string> > arg_command = { "command", "" };
+
+bool validateCertPath(std::string &path) {
+  bool res = false;
+  boost::system::error_code ec;
+  boost::filesystem::path data_dir_path(boost::filesystem::current_path());
+  boost::filesystem::path cert_file_path(path);
+  if (!cert_file_path.has_parent_path()) cert_file_path = data_dir_path / cert_file_path;
+  if (boost::filesystem::exists(cert_file_path, ec)) {
+    path = boost::filesystem::canonical(cert_file_path).string();
+    res = true;
+  } else {
+    path.clear();
+    res = false;
+  }
+  return res;
+}
 
 bool parseUrlAddress(const std::string& url, std::string& address, uint16_t& port) {
   auto pos = url.find("://");
@@ -604,6 +622,10 @@ bool simple_wallet::exit(const std::vector<std::string> &args) {
 simple_wallet::simple_wallet(platform_system::Dispatcher& dispatcher, const cn::Currency& currency, logging::LoggerManager& log) :
   m_dispatcher(dispatcher),
   m_daemon_port(0),
+  m_daemon_path("/"),
+  m_daemon_ssl(false),
+  m_daemon_cert(""),
+  m_daemon_no_verify(false),
   m_currency(currency),
   logManager(log),
   logger(log, "simplewallet"),
@@ -709,6 +731,18 @@ bool key_import = true;
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::init(const boost::program_options::variables_map& vm) {
   handle_command_line(vm);
+
+  if (!m_daemon_cert.empty()) {
+    if (!validateCertPath(m_daemon_cert)) {
+      fail_msg_writer() << "Custom cert file could not be found" << std::endl;
+    }
+  }
+
+  if (!m_daemon_address.empty() && (!m_daemon_host.empty() || 0 != m_daemon_port))
+  {
+    fail_msg_writer() << "you can't specify daemon host or port several times";
+    return false;
+  }
 
   if (!m_daemon_address.empty() && (!m_daemon_host.empty() || 0 != m_daemon_port)) {
     fail_msg_writer() << "you can't specify daemon host or port several times";
@@ -829,7 +863,9 @@ bool simple_wallet::init(const boost::program_options::variables_map& vm) {
     return false;
   }
 
-  this->m_node.reset(new NodeRpcProxy(m_daemon_host, m_daemon_port));
+  if (!m_daemon_cert.empty()) this->m_node->setRootCert(m_daemon_cert);
+  if (m_daemon_no_verify) this->m_node->disableVerify();
+  this->m_node.reset(new NodeRpcProxy(m_daemon_host, m_daemon_port, m_daemon_path, m_daemon_ssl));
 
   std::promise<std::error_code> errorPromise;
   std::future<std::error_code> f_error = errorPromise.get_future();
@@ -1022,6 +1058,8 @@ void simple_wallet::handle_command_line(const boost::program_options::variables_
   m_daemon_address = command_line::get_arg(vm, arg_daemon_address);
   m_daemon_host = command_line::get_arg(vm, arg_daemon_host);
   m_daemon_port = command_line::get_arg(vm, arg_daemon_port);
+  m_daemon_cert = command_line::get_arg(vm, arg_daemon_cert);
+  m_daemon_no_verify = command_line::get_arg(vm, arg_daemon_no_verify);
 }
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::new_wallet(const std::string &wallet_file, const std::string& password) {
@@ -1755,8 +1793,7 @@ std::string simple_wallet::resolveAlias(const std::string& aliasUrl) {
 
 /* This extracts the fee address from the remote node */
 std::string simple_wallet::getFeeAddress() {
-  
-  HttpClient httpClient(m_dispatcher, m_daemon_host, m_daemon_port);
+  HttpClient httpClient(m_dispatcher, m_daemon_host, m_daemon_port, m_daemon_ssl);
 
   HttpRequest req;
   HttpResponse res;
@@ -1974,6 +2011,8 @@ int main(int argc, char* argv[]) {
   command_line::add_arg(desc_params, arg_command);
   command_line::add_arg(desc_params, arg_log_level);
   command_line::add_arg(desc_params, arg_testnet);
+  command_line::add_arg(desc_params, arg_daemon_cert);
+  command_line::add_arg(desc_params, arg_daemon_no_verify);
   tools::wallet_rpc_server::init_options(desc_params);
 
   po::positional_options_description positional_options;
@@ -2048,7 +2087,10 @@ int main(int argc, char* argv[]) {
     std::string wallet_password = command_line::get_arg(vm, arg_password);
     std::string daemon_address = command_line::get_arg(vm, arg_daemon_address);
     std::string daemon_host = command_line::get_arg(vm, arg_daemon_host);
+    std::string daemon_cert = command_line::get_arg(vm, arg_daemon_cert);
     uint16_t daemon_port = command_line::get_arg(vm, arg_daemon_port);
+    bool daemon_no_verify = command_line::get_arg(vm, arg_daemon_no_verify);
+
     if (daemon_host.empty())
       daemon_host = "localhost";
     if (!daemon_port)
@@ -2061,7 +2103,16 @@ int main(int argc, char* argv[]) {
       }
     }
 
+    if (!daemon_cert.empty()) {
+      if (!validateCertPath(daemon_cert)) {
+        logger(ERROR, BRIGHT_RED) << "Custom cert file could not be found" << std::endl;
+      }
+    }
+
     std::unique_ptr<INode> node(new NodeRpcProxy(daemon_host, daemon_port));
+
+    if (!daemon_cert.empty()) node->setRootCert(daemon_cert);
+    if (daemon_no_verify) node->disableVerify();
 
     std::promise<std::error_code> errorPromise;
     std::future<std::error_code> error = errorPromise.get_future();

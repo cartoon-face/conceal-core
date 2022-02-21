@@ -55,8 +55,27 @@ add_executable(SimpleWallet ${SimpleWallet})
 add_executable(PaymentGateService ${PaymentGateService})
 add_executable(Optimizer ${Optimizer})
 
+if (OPENSSL_FOUND)
+    target_link_libraries(Daemon ${OPENSSL_LIBRARIES})
+    target_link_libraries(SimpleWallet ${OPENSSL_LIBRARIES})
+    target_link_libraries(Optimizer ${OPENSSL_LIBRARIES})
+    target_link_libraries(PaymentGateService ${OPENSSL_LIBRARIES})
+	
+  # prevent error LNK2019: unresolved external symbol _vsnprintf
+  if(MSVC AND NOT (MSVC_VERSION LESS 1900))
+    target_link_libraries(Daemon "legacy_stdio_definitions.lib")
+    target_link_libraries(SimpleWallet "legacy_stdio_definitions.lib")
+    target_link_libraries(PaymentGateService "legacy_stdio_definitions.lib")
+    target_link_libraries(Optimizer "legacy_stdio_definitions.lib")
+  endif()
+endif ()
+
 if (MSVC)
-  target_link_libraries(System ws2_32)
+  target_link_libraries(System crypt32 ws2_32)
+  target_link_libraries(Daemon Rpcrt4 ws2_32 advapi32 crypt32 gdi32 user32)
+  target_link_libraries(SimpleWallet Rpcrt4 ws2_32 advapi32 crypt32 gdi32 user32)
+  target_link_libraries(PaymentGateService Rpcrt4 ws2_32 advapi32 crypt32 gdi32 user32)
+  target_link_libraries(Optimizer Rpcrt4 ws2_32 advapi32 crypt32 gdi32 user32)
 endif ()
 
 target_link_libraries(Daemon CryptoNoteCore P2P Rpc System Http Logging Common crypto upnpc-static BlockchainExplorer ${Boost_LIBRARIES} Serialization)

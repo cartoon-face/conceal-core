@@ -15,13 +15,13 @@ namespace payment_service {
 
 class NodeFactory {
 public:
-  static cn::INode* createNode(const std::string& daemonAddress, uint16_t daemonPort);
+  static cn::INode* createNode(const std::string& daemonAddress, uint16_t daemonPort, const std::string &daemonPath, const bool &daemonSSL);
   static cn::INode* createNodeStub();
 private:
   NodeFactory();
   ~NodeFactory();
 
-  cn::INode* getNode(const std::string& daemonAddress, uint16_t daemonPort);
+  cn::INode* getNode(const std::string& daemonAddress, uint16_t daemonPort, const std::string &daemonPath, const bool &daemonSSL);
 
   static NodeFactory factory;
 };

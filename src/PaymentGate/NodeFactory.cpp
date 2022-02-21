@@ -107,8 +107,8 @@ NodeFactory::NodeFactory() {
 NodeFactory::~NodeFactory() {
 }
 
-cn::INode* NodeFactory::createNode(const std::string& daemonAddress, uint16_t daemonPort) {
-  std::unique_ptr<cn::INode> node(new cn::NodeRpcProxy(daemonAddress, daemonPort));
+cn::INode* NodeFactory::createNode(const std::string& daemonAddress, uint16_t daemonPort, const std::string &daemonPath, const bool &daemonSSL) {
+  std::unique_ptr<cn::INode> node(new cn::NodeRpcProxy(daemonAddress, daemonPort, daemonPath, daemonSSL));
 
   NodeInitObserver initObserver;
   node->init(std::bind(&NodeInitObserver::initCompleted, &initObserver, std::placeholders::_1));

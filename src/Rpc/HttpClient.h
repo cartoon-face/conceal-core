@@ -18,6 +18,9 @@
 #pragma once
 
 #include <memory>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/asio/ssl/stream.hpp>
 
 #include <Common/Base64.h>
 #include <HTTP/HttpRequest.h>
@@ -28,6 +31,8 @@
 
 #include "Serialization/SerializationTools.h"
 
+using boost::asio::ip::tcp;
+
 namespace cn {
 
 class ConnectException : public std::runtime_error  {
@@ -37,12 +42,14 @@ public:
 
 class HttpClient {
 public:
-
-  HttpClient(platform_system::Dispatcher& dispatcher, const std::string& address, uint16_t port);
+  HttpClient(platform_system::Dispatcher& dispatcher, const std::string& address, uint16_t port, bool ssl_enable);
   ~HttpClient();
-  void request(const HttpRequest& req, HttpResponse& res);
+  void request(HttpRequest& req, HttpResponse& res);
   
   bool isConnected() const;
+
+  void setRootCert(const std::string &path);
+  void disableVerify();
 
 private:
   void connect();
@@ -50,11 +57,17 @@ private:
 
   const std::string m_address;
   const uint16_t m_port;
+  std::string m_ssl_cert;
 
   bool m_connected = false;
+  bool m_ssl_enable;
+  bool m_ssl_no_verify;
+
   platform_system::Dispatcher& m_dispatcher;
   platform_system::TcpConnection m_connection;
   std::unique_ptr<platform_system::TcpStreambuf> m_streamBuf;
+  boost::asio::io_service m_io_service;
+  std::unique_ptr<boost::asio::ssl::stream<tcp::socket>> m_ssl_sock;
 };
 
 template <typename Request, typename Response>

@@ -35,7 +35,7 @@ public:
 
 class NodeRpcProxy : public cn::INode {
 public:
-  NodeRpcProxy(const std::string& nodeHost, unsigned short nodePort);
+  NodeRpcProxy(const std::string& nodeHost, unsigned short nodePort, const std::string &daemon_path, const bool &daemon_ssl);
   virtual ~NodeRpcProxy();
 
   virtual bool addObserver(cn::INodeObserver* observer) override;
@@ -73,6 +73,9 @@ public:
 
   unsigned int rpcTimeout() const { return m_rpcTimeout; }
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
+
+  virtual void setRootCert(const std::string &path) override;
+  virtual void disableVerify() override;
 
 private:
   void resetInternalState();
@@ -130,11 +133,17 @@ private:
   unsigned int m_rpcTimeout;
   HttpClient* m_httpClient = nullptr;
   platform_system::Event* m_httpEvent = nullptr;
+  const bool m_daemon_ssl;
+  const std::string m_daemon_path;
+
 
   uint64_t m_pullInterval;
 
   // Internal state
   bool m_stop = false;
+  bool m_connected;
+  bool m_daemon_no_verify;
+  std::string m_daemon_cert;
   std::atomic<size_t> m_peerCount;
   std::atomic<uint32_t> m_nodeHeight;
   std::atomic<uint32_t> m_networkHeight;
@@ -143,8 +152,6 @@ private:
   crypto::Hash m_lastKnowHash;
   std::atomic<uint64_t> m_lastLocalBlockTimestamp;
   std::unordered_set<crypto::Hash> m_knownTxs;
-
-  bool m_connected;
 };
 
 }
