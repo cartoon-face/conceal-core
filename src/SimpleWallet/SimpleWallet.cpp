@@ -2214,23 +2214,20 @@ bool simple_wallet::confirm_deposit(uint64_t term, uint64_t amount)
     << "Create deposit? (y/n) ";
 
   char c;
-  do {
-    std::string answer;
-    std::getline(std::cin, answer);
-    c = answer[0];
+  std::string answer;
+  std::getline(std::cin, answer);
+  c = answer[0];
 
-    if (!(c == 'Y' || c == 'y' || c == 'N' || c == 'n'))
-    {
-      logger(ERROR) << "Unknown command: " << c;
-    }
-    else
-    {
-      break;
-    }
-  } while (true);
+  if (!(c == 'Y' || c == 'y' || c == 'N' || c == 'n'))
+  {
+    logger(ERROR) << "Unknown command: " << c;
+    return false;
+  }
 
   if (c == 'N' || c == 'n')
+  {
     return false;
+  }
 
   return true;
 }
