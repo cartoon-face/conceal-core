@@ -151,8 +151,12 @@ namespace cn
 	const uint32_t GENESIS_NONCE = 10000;
 	const uint64_t GENESIS_TIMESTAMP = 1527078920;
 
+	const uint64_t INVALID_COLOR_ID = 0;
+	const uint64_t DEFAULT_COLOR_ID = 1;
+
 	const uint8_t TRANSACTION_VERSION_1 = 1;
-	const uint8_t TRANSACTION_VERSION_2 = 2;
+	const uint8_t TRANSACTION_VERSION_2 = 2; // Multisig
+	const uint8_t TRANSACTION_VERSION_3 = 3; // Colors
 	const uint8_t BLOCK_MAJOR_VERSION_1 = 1; // (Consensus I)
 	const uint8_t BLOCK_MAJOR_VERSION_2 = 2; // (Consensus II)
 	const uint8_t BLOCK_MAJOR_VERSION_3 = 3; // (Consensus III)
@@ -169,7 +173,7 @@ namespace cn
 
 	const int P2P_DEFAULT_PORT = 15000;
 	const int RPC_DEFAULT_PORT = 16000;
-    const int PAYMENT_GATE_DEFAULT_PORT = 8070;
+	const int PAYMENT_GATE_DEFAULT_PORT = 8070;
 
 	const int TESTNET_P2P_DEFAULT_PORT = 15500;
 	const int TESTNET_RPC_DEFAULT_PORT = 16600;

@@ -176,9 +176,10 @@ namespace cn {
 void serialize(TransactionPrefix& txP, ISerializer& serializer) {
   serializer(txP.version, "version");
 
-  if (TRANSACTION_VERSION_2 < txP.version) {
+  if (txP.version > TRANSACTION_VERSION_3) {
     throw std::runtime_error("Wrong transaction version");
   }
+  serializer.setObjectVersion(txP.version);
 
   serializer(txP.unlockTime, "unlock_time");
   serializer(txP.inputs, "vin");
@@ -274,6 +275,8 @@ void serialize(TransactionInputs & inputs, ISerializer & serializer) {
 
 void serialize(TransactionOutput& output, ISerializer& serializer) {
   serializer(output.amount, "amount");
+  if(serializer.getObjectVersion() >= TRANSACTION_VERSION_3)
+    serializer(output.color, "color");
   serializer(output.target, "target");
 }
 
