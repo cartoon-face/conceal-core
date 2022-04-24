@@ -11,6 +11,7 @@
 #include <cstdint>
 
 #include <Common/StringView.h>
+#include <boost/optional.hpp>
 
 namespace cn {
 
@@ -48,6 +49,23 @@ public:
 
   template<typename T>
   bool operator()(T& value, common::StringView name);
+
+  // This mechanism is can be used to pass version of the macro object (eg. trasaction) to sub-objects, 
+  // eg. TransactionOutput. For safety and security, it can only be set once and getting an undefined version throws.
+  void setObjectVersion(uint64_t v) { 
+    if(objectVersion)
+      throw std::runtime_error("Object version is already set");
+    objectVersion = v;
+  }
+
+  uint64_t getObjectVersion() { 
+    if(!objectVersion)
+      throw std::runtime_error("Object version is not set");
+    return objectVersion.get();
+  }
+
+private:
+  boost::optional<uint64_t> objectVersion;
 };
 
 template<typename T>
