@@ -2,12 +2,13 @@
 *.ycm_extra_conf.py
 *.ycm_extra_conf.pyc
 
-build/
+build*/
 tags/
 Release/
 Debug/
 CMakeFiles/
 .vscode/
+*.kdev4
 
 # Mac OS
 *.DS_Store
