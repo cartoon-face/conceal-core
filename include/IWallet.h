@@ -117,6 +117,7 @@ struct WalletOrder
 {
   std::string address;
   uint64_t amount;
+  uint64_t color = INVALID_COLOR_ID;
 };
 
 struct WalletMessage
@@ -130,6 +131,7 @@ struct WalletTransfer
   WalletTransferType type;
   std::string address;
   int64_t amount;
+  uint64_t color = INVALID_COLOR_ID;
 };
 
 struct DonationSettings

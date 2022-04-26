@@ -11,6 +11,9 @@
 #include <cstdint>
 #include <initializer_list>
 
+//TODO: Better place to put it?
+typedef uint64_t color_t;
+
 namespace cn
 {
 	namespace parameters
@@ -151,8 +154,8 @@ namespace cn
 	const uint32_t GENESIS_NONCE = 10000;
 	const uint64_t GENESIS_TIMESTAMP = 1527078920;
 
-	const uint64_t INVALID_COLOR_ID = 0;
-	const uint64_t DEFAULT_COLOR_ID = 1;
+    const color_t INVALID_COLOR_ID = 0;
+    const color_t DEFAULT_COLOR_ID = 1;
 
 	const uint8_t TRANSACTION_VERSION_1 = 1;
 	const uint8_t TRANSACTION_VERSION_2 = 2; // Multisig

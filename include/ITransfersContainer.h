@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include "CryptoNoteConfig.h"
 #include "crypto/hash.h"
 #include "ITransaction.h"
 #include "IObservable.h"
@@ -42,6 +43,7 @@ namespace cn
     // output info
     transaction_types::OutputType type;
     uint64_t amount;
+    color_t color = INVALID_COLOR_ID;
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
 

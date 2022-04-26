@@ -86,12 +86,16 @@ namespace
     }
   }
 
-  uint64_t countNeededMoney(
+  std::unordered_map<color_t, uint64_t> countNeededMoney(
       const std::vector<cn::WalletTransfer> &destinations,
       uint64_t fee)
   {
-    uint64_t neededMoney = 0;
-    for (const auto &transfer : destinations)
+    std::unordered_map<color_t, uint64_t> neededMoney;
+    neededMoney.insert(std::make_pair(DEFAULT_COLOR_ID, 0));
+    for (const cn::WalletTransfer &transfer : destinations)
+      neededMoney.insert(std::make_pair(transfer.color, 0));
+
+    for (const cn::WalletTransfer &transfer : destinations)
     {
       if (transfer.amount == 0)
       {
@@ -104,15 +108,15 @@ namespace
 
       //to supress warning
       uint64_t uamount = static_cast<uint64_t>(transfer.amount);
-      neededMoney += uamount;
-      if (neededMoney < uamount)
+      neededMoney[transfer.color] += uamount;
+      if (neededMoney[transfer.color]  < uamount)
       {
         throw std::system_error(make_error_code(cn::error::SUM_OVERFLOW));
       }
     }
 
-    neededMoney += fee;
-    if (neededMoney < fee)
+    neededMoney[DEFAULT_COLOR_ID] += fee;
+    if (neededMoney[DEFAULT_COLOR_ID] < fee)
     {
       throw std::system_error(make_error_code(cn::error::SUM_OVERFLOW));
     }
@@ -202,6 +206,7 @@ namespace
       transfer.type = WalletTransferType::USUAL;
       transfer.address = order.address;
       transfer.amount = static_cast<int64_t>(order.amount);
+      transfer.color = order.color;
 
       transfers.emplace_back(std::move(transfer));
     }
@@ -245,7 +250,8 @@ namespace
       donationAmount = calculateDonationAmount(freeAmount, donation.threshold, dustThreshold);
       if (donationAmount != 0)
       {
-        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount)});
+        // TODO: change it to main color probably
+        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount)}, INVALID_COLOR_ID);
       }
     }
 
@@ -377,7 +383,7 @@ namespace cn
 
     for (auto amount : outputAmounts)
     {
-      transaction->addOutput(amount, account.address);
+      transaction->addOutput(amount, INVALID_COLOR_ID, account.address);
     }
 
     transaction->setUnlockTime(0);
@@ -523,7 +529,7 @@ namespace cn
 
     /* Add the deposit outputs to the transaction */
     auto depositIndex = transaction->addOutput(
-        neededMoney - fee,
+        neededMoney - fee, INVALID_COLOR_ID,
         {destAddr},
         1,
         term);
@@ -560,7 +566,7 @@ namespace cn
     {
       for (const auto &amountToAddress : amountsToAddresses)
       {
-        transaction->addOutput(amountToAddress.second,
+        transaction->addOutput(amountToAddress.second, INVALID_COLOR_ID,
                                *amountToAddress.first);
       }
     }
@@ -1986,13 +1992,14 @@ namespace cn
     preparedTransaction.neededMoney = countNeededMoney(preparedTransaction.destinations, fee);
 
     std::vector<OutputToTransfer> selectedTransfers;
-    uint64_t foundMoney = selectTransfers(preparedTransaction.neededMoney, m_currency.defaultDustThreshold(), std::move(wallets), selectedTransfers);
+    auto selectTransfersRv = selectTransfers(preparedTransaction.neededMoney, m_currency.defaultDustThreshold(), std::move(wallets), selectedTransfers);
 
-    if (foundMoney < preparedTransaction.neededMoney)
+    if (!selectTransfersRv.hasEnough)
     {
       throw std::system_error(make_error_code(error::WRONG_AMOUNT), "Not enough money");
     }
 
+    //TODO: continue
     typedef cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount outs_for_amount;
     std::vector<outs_for_amount> mixinResult;
 
@@ -2719,24 +2726,31 @@ namespace cn
       tx->appendExtra(ba);
     }
 
-    typedef std::pair<const AccountPublicAddress *, uint64_t> AmountToAddress;
+    struct AmountToAddress
+    {
+      const AccountPublicAddress* receiver;
+      color_t color;
+      uint64_t amount;
+    };
     std::vector<AmountToAddress> amountsToAddresses;
+    amountsToAddresses.reserve(decomposedOutputs.size() * 8);
+
     for (const auto &output : decomposedOutputs)
     {
       for (auto amount : output.amounts)
       {
-        amountsToAddresses.emplace_back(AmountToAddress{&output.receiver, amount});
+        amountsToAddresses.emplace_back(AmountToAddress{&output.receiver, output.color, amount});
       }
     }
 
     std::shuffle(amountsToAddresses.begin(), amountsToAddresses.end(), std::default_random_engine{crypto::rand<std::default_random_engine::result_type>()});
     std::sort(amountsToAddresses.begin(), amountsToAddresses.end(), [](const AmountToAddress &left, const AmountToAddress &right) {
-      return left.second < right.second;
+      return left.amount < right.amount;
     });
 
     for (const auto &amountToAddress : amountsToAddresses)
     {
-      tx->addOutput(amountToAddress.second, *amountToAddress.first);
+      tx->addOutput(amountToAddress.amount, amountToAddress.color, *amountToAddress.receiver);
     }
 
     tx->setUnlockTime(unlockTimestamp);
@@ -2882,63 +2896,79 @@ namespace cn
     }
   }
 
-  uint64_t WalletGreen::selectTransfers(
-      uint64_t neededMoney,
+  WalletGreen::selectedTransfersRet_t WalletGreen::selectTransfers(
+      const std::unordered_map<color_t, uint64_t>& neededMoney,
       uint64_t dustThreshold,
       std::vector<WalletOuts> &&wallets,
       std::vector<OutputToTransfer> &selectedTransfers)
   {
-    uint64_t foundMoney = 0;
+    selectedTransfersRet_t rv;
+    rv.hasEnough = true;
 
-    typedef std::pair<WalletRecord *, TransactionOutputInformation> OutputData;
-    std::vector<OutputData> walletOuts;
-    std::unordered_map<uint64_t, std::vector<OutputData>> buckets;
-
-    for (auto walletIt = wallets.begin(); walletIt != wallets.end(); ++walletIt)
+    for(const auto& nm : neededMoney)
     {
-      for (auto outIt = walletIt->outs.begin(); outIt != walletIt->outs.end(); ++outIt)
-      {
-        int numberOfDigits = floor(log10(outIt->amount)) + 1;
+      color_t color = nm.first;
+      uint64_t needMoneyColor = nm.second;
+      uint64_t foundMoneyColor = 0;
 
-        if (outIt->amount > dustThreshold)
-        {
-          buckets[numberOfDigits].emplace_back(
-              std::piecewise_construct,
-              std::forward_as_tuple(walletIt->wallet),
-              std::forward_as_tuple(*outIt));
-        }
-      }
-    }
+      typedef std::pair<WalletRecord *, TransactionOutputInformation> OutputData;
+      std::vector<OutputData> walletOuts;
+      std::unordered_map<uint64_t, std::vector<OutputData>> buckets;
 
-    while (foundMoney < neededMoney && !buckets.empty())
-    {
-      /* Take one element from each bucket, smallest first. */
-      for (auto bucket = buckets.begin(); bucket != buckets.end();)
+      for (auto walletIt = wallets.begin(); walletIt != wallets.end(); ++walletIt)
       {
-        /* Bucket has been exhausted, remove from list */
-        if (bucket->second.empty())
+        for (auto outIt = walletIt->outs.begin(); outIt != walletIt->outs.end(); ++outIt)
         {
-          bucket = buckets.erase(bucket);
-        }
-        else
-        {
-          /** Add the amount to the selected transfers so long as 
-           * foundMoney is still less than neededMoney. This prevents 
-           * larger outputs than we need when we already have enough funds */
-          if (foundMoney < neededMoney)
+          if( outIt->color != color)
+            continue;
+
+          int numberOfDigits = floor(log10(outIt->amount)) + 1;
+
+          if (outIt->amount > dustThreshold)
           {
-            auto out = bucket->second.back();
-            selectedTransfers.emplace_back(OutputToTransfer{std::move(out.second), std::move(out.first)});
-            foundMoney += out.second.amount;
+            buckets[numberOfDigits].emplace_back(
+                std::piecewise_construct,
+                std::forward_as_tuple(walletIt->wallet),
+                std::forward_as_tuple(*outIt));
           }
-
-          /* Remove amount we just added */
-          bucket->second.pop_back();
-          bucket++;
         }
       }
-    }
-    return foundMoney;
+
+      while (foundMoneyColor < needMoneyColor && !buckets.empty())
+      {
+        /* Take one element from each bucket, smallest first. */
+        for (auto bucket = buckets.begin(); bucket != buckets.end();)
+        {
+          /* Bucket has been exhausted, remove from list */
+          if (bucket->second.empty())
+          {
+            bucket = buckets.erase(bucket);
+          }
+          else
+          {
+            /** Add the amount to the selected transfers so long as 
+            * foundMoney is still less than neededMoney. This prevents 
+            * larger outputs than we need when we already have enough funds */
+            if (foundMoneyColor < needMoneyColor)
+            {
+              auto out = bucket->second.back();
+              selectedTransfers.emplace_back(OutputToTransfer{std::move(out.second), std::move(out.first)});
+              foundMoneyColor += out.second.amount;
+            }
+
+            /* Remove amount we just added */
+            bucket->second.pop_back();
+            bucket++;
+          }
+        }
+      }
+
+      if(needMoneyColor > foundMoneyColor)
+        rv.hasEnough = false;
+
+      rv.foundMoney.insert(std::make_pair(color, foundMoneyColor));
+    }      
+    return rv;
   };
 
   std::vector<WalletGreen::WalletOuts> WalletGreen::pickWalletsWithMoney() const
@@ -3000,11 +3030,13 @@ namespace cn
   {
 
     std::vector<ReceiverAmounts> decomposedOutputs;
+    decomposedOutputs.reserve(destinations.size());
+
     for (const auto &destination : destinations)
     {
       AccountPublicAddress address;
       parseAddressString(destination.address, currency, address);
-      decomposedOutputs.push_back(splitAmount(destination.amount, address, dustThreshold));
+      decomposedOutputs.push_back(splitAmount(destination.amount, destination.color, address, dustThreshold));
     }
 
     return decomposedOutputs;
@@ -3012,13 +3044,16 @@ namespace cn
 
   cn::WalletGreen::ReceiverAmounts WalletGreen::splitAmount(
       uint64_t amount,
+      color_t color,
       const AccountPublicAddress &destination,
       uint64_t dustThreshold)
   {
 
     ReceiverAmounts receiverAmounts;
+    receiverAmounts.amounts.reserve(4);
 
     receiverAmounts.receiver = destination;
+    receiverAmounts.color = color;
     decomposeAmount(amount, dustThreshold, receiverAmounts.amounts);
     return receiverAmounts;
   }

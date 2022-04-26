@@ -164,6 +164,7 @@ protected:
   struct ReceiverAmounts
   {
     cn::AccountPublicAddress receiver;
+    color_t color = INVALID_COLOR_ID;
     std::vector<uint64_t> amounts;
   };
 
@@ -248,7 +249,7 @@ protected:
   {
     std::unique_ptr<ITransaction> transaction;
     std::vector<WalletTransfer> destinations;
-    uint64_t neededMoney;
+    std::unordered_map<color_t, uint64_t> neededMoney;
     uint64_t changeAmount;
   };
 
@@ -280,14 +281,20 @@ protected:
                      uint64_t mixIn,
                      std::vector<InputInfo> &keysInfo);
 
-  uint64_t selectTransfers(uint64_t needeMoney,
+  struct selectedTransfersRet_t
+  {
+    std::unordered_map<color_t, uint64_t> foundMoney;
+    bool hasEnough;
+  };
+  
+  selectedTransfersRet_t selectTransfers(const std::unordered_map<color_t, uint64_t>& neededMoney,
                            uint64_t dustThreshold,
                            std::vector<WalletOuts> &&wallets,
                            std::vector<OutputToTransfer> &selectedTransfers);
 
   std::vector<ReceiverAmounts> splitDestinations(const std::vector<WalletTransfer> &destinations,
                                                  uint64_t dustThreshold, const Currency &currency);
-  ReceiverAmounts splitAmount(uint64_t amount, const AccountPublicAddress &destination, uint64_t dustThreshold);
+  ReceiverAmounts splitAmount(uint64_t amount, color_t color, const AccountPublicAddress &destination, uint64_t dustThreshold);
 
   std::unique_ptr<cn::ITransaction> makeTransaction(const std::vector<ReceiverAmounts> &decomposedOutputs,
                                                             std::vector<InputInfo> &keysInfo, const std::vector<WalletMessage> &messages, const std::string &extra, uint64_t unlockTimestamp, crypto::SecretKey &transactionSK);

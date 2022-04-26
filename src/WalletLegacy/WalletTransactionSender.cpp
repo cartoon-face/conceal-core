@@ -484,14 +484,14 @@ namespace cn
       std::vector<transaction_types::InputKeyInfo> inputs = prepareKeyInputs(context->selectedTransfers, context->outs, context->mixIn);
       std::vector<uint64_t> decomposedChange = splitAmount(context->foundMoney - totalAmount, context->dustPolicy.dustThreshold);
 
-      auto depositIndex = transaction->addOutput(std::abs(transactionInfo.totalAmount) - transactionInfo.fee,
+      auto depositIndex = transaction->addOutput(std::abs(transactionInfo.totalAmount) - transactionInfo.fee, INVALID_COLOR_ID,
                                                  {m_keys.address},
                                                  1,
                                                  context->depositTerm);
 
       for (uint64_t changeOut : decomposedChange)
       {
-        transaction->addOutput(changeOut, m_keys.address);
+        transaction->addOutput(changeOut, INVALID_COLOR_ID, m_keys.address);
       }
 
       transaction->setUnlockTime(transactionInfo.unlockTime);
@@ -573,7 +573,7 @@ namespace cn
 
       for (auto amount : outputAmounts)
       {
-        transaction->addOutput(amount, m_keys.address);
+        transaction->addOutput(amount, INVALID_COLOR_ID, m_keys.address);
       }
 
       transaction->setUnlockTime(transactionInfo.unlockTime);

@@ -93,10 +93,10 @@ namespace cn {
     virtual size_t addInput(const MultisignatureInput& input) override;
     virtual size_t addInput(const AccountKeys& senderKeys, const transaction_types::InputKeyInfo& info, KeyPair& ephKeys) override;
 
-    virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) override;
-    virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) override;
-    virtual size_t addOutput(uint64_t amount, const KeyOutput& out) override;
-    virtual size_t addOutput(uint64_t amount, const MultisignatureOutput& out) override;
+    virtual size_t addOutput(uint64_t amount, color_t color, const AccountPublicAddress& to) override;
+    virtual size_t addOutput(uint64_t amount, color_t color, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) override;
+    virtual size_t addOutput(uint64_t amount, color_t color, const KeyOutput& out) override;
+    virtual size_t addOutput(uint64_t amount, color_t color, const MultisignatureOutput& out) override;
 
     virtual void signInputKey(size_t input, const transaction_types::InputKeyInfo& info, const KeyPair& ephKeys) override;
     virtual void signInputMultisignature(size_t input, const PublicKey& sourceTransactionKey, size_t outputIndex, const AccountKeys& accountKeys) override;
@@ -273,19 +273,19 @@ namespace cn {
     return transaction.inputs.size() - 1;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const AccountPublicAddress& to) {
+  size_t TransactionImpl::addOutput(uint64_t amount, color_t color, const AccountPublicAddress& to) {
     checkIfSigning();
 
     KeyOutput outKey;
     derivePublicKey(to, txSecretKey(), transaction.outputs.size(), outKey.key);
-    TransactionOutput out = { amount, outKey };
+    TransactionOutput out = { amount, color, outKey };
     transaction.outputs.emplace_back(out);
     invalidateHash();
 
     return transaction.outputs.size() - 1;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term) {
+  size_t TransactionImpl::addOutput(uint64_t amount, color_t color, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term) {
     checkIfSigning();
 
     const auto& txKey = txSecretKey();
@@ -299,7 +299,7 @@ namespace cn {
       derivePublicKey(to[i], txKey, outputIndex, outMsig.keys[i]);
     }
 
-    TransactionOutput out = { amount, outMsig };
+    TransactionOutput out = { amount, color, outMsig };
     transaction.outputs.emplace_back(out);
     transaction.version = TRANSACTION_VERSION_2;
     invalidateHash();
@@ -307,19 +307,19 @@ namespace cn {
     return outputIndex;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const KeyOutput& out) {
+  size_t TransactionImpl::addOutput(uint64_t amount, color_t color, const KeyOutput& out) {
     checkIfSigning();
     size_t outputIndex = transaction.outputs.size();
-    TransactionOutput realOut = { amount, out };
+    TransactionOutput realOut = { amount, color, out };
     transaction.outputs.emplace_back(realOut);
     invalidateHash();
     return outputIndex;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const MultisignatureOutput& out) {
+  size_t TransactionImpl::addOutput(uint64_t amount, color_t color, const MultisignatureOutput& out) {
     checkIfSigning();
     size_t outputIndex = transaction.outputs.size();
-    TransactionOutput realOut = { amount, out };
+    TransactionOutput realOut = { amount, color, out };
     transaction.outputs.emplace_back(realOut);
     invalidateHash();
     return outputIndex;

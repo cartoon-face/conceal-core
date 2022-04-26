@@ -109,10 +109,10 @@ public:
   virtual size_t addInput(const MultisignatureInput& input) = 0;
   virtual size_t addInput(const AccountKeys& senderKeys, const transaction_types::InputKeyInfo& info, KeyPair& ephKeys) = 0;
 
-  virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) = 0;
-  virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) = 0;
-  virtual size_t addOutput(uint64_t amount, const KeyOutput& out) = 0;
-  virtual size_t addOutput(uint64_t amount, const MultisignatureOutput& out) = 0;
+  virtual size_t addOutput(uint64_t amount, uint64_t color, const AccountPublicAddress& to) = 0;
+  virtual size_t addOutput(uint64_t amount, uint64_t color, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) = 0;
+  virtual size_t addOutput(uint64_t amount, uint64_t color, const KeyOutput& out) = 0;
+  virtual size_t addOutput(uint64_t amount, uint64_t color, const MultisignatureOutput& out) = 0;
 
   // transaction info
   virtual void setTransactionSecretKey(const crypto::SecretKey& key) = 0;
