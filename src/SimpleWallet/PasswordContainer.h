@@ -31,7 +31,6 @@ namespace tools
     bool read_from_file();
     bool read_from_tty();
 
-  private:
     bool m_empty;
     std::string m_password;
   };
