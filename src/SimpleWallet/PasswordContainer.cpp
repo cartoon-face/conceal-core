@@ -8,7 +8,7 @@
 #include "PasswordContainer.h"
 
 #include <iostream>
-#include <memory.h>
+#include <memory>
 #include <stdio.h>
 
 #if defined(_WIN32)
@@ -201,7 +201,7 @@ namespace tools
     m_password.reserve(max_password_size);
     while (m_password.size() < max_password_size)
     {
-      int ch = getch();
+      char ch = getch();
       if (EOF == ch)
       {
         return false;
