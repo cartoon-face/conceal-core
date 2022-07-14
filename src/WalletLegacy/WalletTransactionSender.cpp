@@ -358,11 +358,12 @@ namespace cn
   std::unique_ptr<WalletRequest> WalletTransactionSender::makeGetRandomOutsRequest(std::shared_ptr<SendTransactionContext> &&context, bool isMultisigTransaction, crypto::SecretKey &transactionSK)
   {
     uint64_t outsCount = context->mixIn + 1; // add one to make possible (if need) to skip real output key
-    std::vector<uint64_t> amounts;
+    std::vector<rpc_colored_amount> amounts;
 
+    amounts.reserve(context->selectedTransfers.size());
     for (const auto &td : context->selectedTransfers)
     {
-      amounts.push_back(td.amount);
+      amounts.emplace_back(rpc_colored_amount{td.amount, td.color});
     }
 
     return std::unique_ptr<WalletRequest>(new WalletGetRandomOutsByAmountsRequest(amounts, outsCount, context,

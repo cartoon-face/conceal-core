@@ -251,7 +251,7 @@ namespace
       if (donationAmount != 0)
       {
         // TODO: change it to main color probably
-        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount)}, INVALID_COLOR_ID);
+        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount), INVALID_COLOR_ID});
       }
     }
 

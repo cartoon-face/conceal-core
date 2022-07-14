@@ -311,7 +311,7 @@ void NodeRpcProxy::relayTransaction(const cn::Transaction& transaction, const Ca
   scheduleRequest(std::bind(&NodeRpcProxy::doRelayTransaction, this, transaction), callback);
 }
 
-void NodeRpcProxy::getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,
+void NodeRpcProxy::getRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount,
                                           std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& outs,
                                           const Callback& callback) {
   std::lock_guard<std::mutex> lock(m_mutex);
@@ -470,7 +470,7 @@ std::error_code NodeRpcProxy::doRelayTransaction(const cn::Transaction& transact
   return jsonCommand("/sendrawtransaction", req, rsp);
 }
 
-std::error_code NodeRpcProxy::doGetRandomOutsByAmounts(std::vector<uint64_t>& amounts, uint64_t outsCount,
+std::error_code NodeRpcProxy::doGetRandomOutsByAmounts(std::vector<rpc_colored_amount>& amounts, uint64_t outsCount,
                                                        std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& outs) {
   COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request req = AUTO_VAL_INIT(req);
   COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response rsp = AUTO_VAL_INIT(rsp);

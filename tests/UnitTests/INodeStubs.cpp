@@ -183,7 +183,7 @@ void INodeTrivialRefreshStub::doRelayTransaction(const Transaction& transaction,
   callback(std::error_code());
 }
 
-void INodeTrivialRefreshStub::getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount, std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback)
+void INodeTrivialRefreshStub::getRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount, std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback)
 {
   m_asyncCounter.addAsyncContext();
   std::thread task(&INodeTrivialRefreshStub::doGetRandomOutsByAmounts, this, amounts, outsCount, std::ref(result), callback);

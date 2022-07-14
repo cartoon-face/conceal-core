@@ -1698,7 +1698,7 @@ namespace cn
     return static_cast<uint32_t>(m_alternative_chains.size());
   }
 
-  bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<TransactionIndex, uint16_t>> &amount_outs, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount &result_outs, uint64_t amount, size_t i)
+  bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<TransactionIndex, uint16_t>> &amount_outs, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount &result_outs, size_t i)
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
     const Transaction &tx = transactionByIndex(amount_outs[i].first).tx;
@@ -1749,14 +1749,15 @@ namespace cn
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
 
-    for (uint64_t amount : req.amounts)
+    for (rpc_colored_amount amount : req.amounts)
     {
       COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount &result_outs = *res.outs.insert(res.outs.end(), COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount());
       result_outs.amount = amount;
       auto it = m_outputs.find(amount);
       if (it == m_outputs.end())
       {
-        logger(ERROR, BRIGHT_RED) << "COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS: not outs for amount " << amount << ", wallet should use some real outs when it lookup for some mix, so, at least one out for this amount should exist";
+        logger(ERROR, BRIGHT_RED) << "COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS: not outs for amount " << amount.amount << 
+            " color " << amount.color << ", wallet should use some real outs when it lookup for some mix, so, at least one out for this amount should exist";
         continue; //actually this is strange situation, wallet should use some real outs when it lookup for some mix, so, at least one out for this amount should exist
       }
 
@@ -1775,7 +1776,7 @@ namespace cn
         ShuffleGenerator<size_t, crypto::random_engine<size_t>> generator(up_index_limit);
         for (uint64_t j = 0; j < up_index_limit && result_outs.outs.size() < req.outs_count; ++j)
         {
-          add_out_to_get_random_outs(amount_outs, result_outs, amount, generator());
+          add_out_to_get_random_outs(amount_outs, result_outs, generator());
         }
       }
     }

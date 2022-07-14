@@ -30,7 +30,7 @@ public:
   virtual uint64_t getLastLocalBlockTimestamp() const override { return 0; }
 
   virtual void relayTransaction(const cn::Transaction& transaction, const Callback& callback) override { callback(std::error_code()); }
-  virtual void getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,
+  virtual void getRandomOutsByAmounts(std::vector<cn::rpc_colored_amount>&& amounts, uint64_t outsCount,
     std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback) override {
   }
   virtual void getNewBlocks(std::vector<crypto::Hash>&& knownBlockIds, std::vector<cn::block_complete_entry>& newBlocks, uint32_t& startHeight, const Callback& callback) override {

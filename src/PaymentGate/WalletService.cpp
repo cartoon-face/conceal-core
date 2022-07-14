@@ -414,7 +414,7 @@ namespace payment_service
 
       for (const auto &order : orders)
       {
-        result.emplace_back(cn::WalletOrder{order.address, order.amount});
+        result.emplace_back(cn::WalletOrder{order.address, order.amount, order.color});
       }
 
       return result;

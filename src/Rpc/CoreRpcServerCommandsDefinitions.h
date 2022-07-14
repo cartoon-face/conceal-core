@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "CryptoNoteConfig.h"
+
 #include "CryptoNoteProtocol/CryptoNoteProtocolDefinitions.h"
 #include "CryptoNoteCore/CryptoNoteBasic.h"
 #include "CryptoNoteCore/Difficulty.h"
@@ -204,8 +206,19 @@ struct COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES {
   };
 };
 //-----------------------------------------------
+struct rpc_colored_amount {
+  uint64_t amount;
+  color_t color;
+
+  void serialize(ISerializer &s)
+  {
+    KV_MEMBER(amount)
+    KV_MEMBER(color)
+  }
+};
+
 struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_request {
-  std::vector<uint64_t> amounts;
+  std::vector<rpc_colored_amount> amounts;
   uint64_t outs_count;
 
   void serialize(ISerializer &s) {
@@ -229,7 +242,7 @@ struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_out_entry_json : public COMMAN
 };
 
 struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_outs_for_amount {
-  uint64_t amount;
+  rpc_colored_amount amount;
   std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_out_entry> outs;
 
   void serialize(ISerializer &s) {
@@ -240,7 +253,7 @@ struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_outs_for_amount {
 
 
 struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_outs_for_amount_json {
-  uint64_t amount;
+  rpc_colored_amount amount;
   std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_out_entry_json> outs;
 
   void serialize(ISerializer &s) {

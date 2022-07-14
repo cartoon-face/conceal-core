@@ -221,7 +221,7 @@ std::error_code InProcessNode::doGetTransactionOutsGlobalIndices(const crypto::H
   return std::error_code();
 }
 
-void InProcessNode::getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,
+void InProcessNode::getRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount,
     std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback)
 {
   std::unique_lock<std::mutex> lock(mutex);
@@ -242,7 +242,7 @@ void InProcessNode::getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint
   );
 }
 
-void InProcessNode::getRandomOutsByAmountsAsync(std::vector<uint64_t>& amounts, uint64_t outsCount,
+void InProcessNode::getRandomOutsByAmountsAsync(std::vector<rpc_colored_amount>& amounts, uint64_t outsCount,
   std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback)
 {
   std::error_code ec = doGetRandomOutsByAmounts(std::move(amounts), outsCount, result);
@@ -250,7 +250,7 @@ void InProcessNode::getRandomOutsByAmountsAsync(std::vector<uint64_t>& amounts, 
 }
 
 //it's always protected with mutex
-std::error_code InProcessNode::doGetRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount, std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result) {
+std::error_code InProcessNode::doGetRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount, std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result) {
   {
     std::unique_lock<std::mutex> lock(mutex);
     if (state != INITIALIZED) {

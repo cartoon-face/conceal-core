@@ -50,7 +50,7 @@ public:
 
   virtual void getNewBlocks(std::vector<crypto::Hash>&& knownBlockIds, std::vector<cn::block_complete_entry>& newBlocks, uint32_t& startHeight, const Callback& callback) override;
   virtual void getTransactionOutsGlobalIndices(const crypto::Hash& transactionHash, std::vector<uint32_t>& outsGlobalIndices, const Callback& callback) override;
-  virtual void getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,
+  virtual void getRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount,
       std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback) override;
   virtual void relayTransaction(const cn::Transaction& transaction, const Callback& callback) override;
   virtual void queryBlocks(std::vector<crypto::Hash>&& knownBlockIds, uint64_t timestamp, std::vector<BlockShortEntry>& newBlocks,
@@ -82,9 +82,9 @@ private:
   void getTransactionOutsGlobalIndicesAsync(const crypto::Hash& transactionHash, std::vector<uint32_t>& outsGlobalIndices, const Callback& callback);
   std::error_code doGetTransactionOutsGlobalIndices(const crypto::Hash& transactionHash, std::vector<uint32_t>& outsGlobalIndices);
 
-  void getRandomOutsByAmountsAsync(std::vector<uint64_t>& amounts, uint64_t outsCount,
+  void getRandomOutsByAmountsAsync(std::vector<rpc_colored_amount>& amounts, uint64_t outsCount,
       std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback);
-  std::error_code doGetRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,
+  std::error_code doGetRandomOutsByAmounts(std::vector<rpc_colored_amount>&& amounts, uint64_t outsCount,
       std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result);
 
   void relayTransactionAsync(const cn::Transaction& transaction, const Callback& callback);

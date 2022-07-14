@@ -479,6 +479,7 @@ struct WalletRpcOrder
 {
   std::string address;
   uint64_t amount;
+  color_t color = cn::INVALID_COLOR_ID;
   std::string message;
 
   void serialize(cn::ISerializer &serializer);
