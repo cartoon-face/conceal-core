@@ -652,7 +652,7 @@ namespace cn
           const auto &out = transaction.tx.outputs[o];
           if (out.target.type() == typeid(KeyOutput))
           {
-            m_outputs[out.amount].push_back(std::make_pair<>(transactionIndex, o));
+            m_outputs[rpc_colored_amount{out.amount, out.color}].push_back(std::make_pair<>(transactionIndex, o));
           }
           else if (out.target.type() == typeid(MultisignatureOutput))
           {
@@ -1863,7 +1863,7 @@ namespace cn
       const std::vector<std::pair<TransactionIndex, uint16_t>> &vals = v.second;
       if (!vals.empty())
       {
-        ss << "amount: " << v.first << ENDL;
+        ss << "amount: " << v.first.amount << " color: " << v.first.color << ENDL;
         for (size_t i = 0; i != vals.size(); i++)
         {
           ss << "\t" << getObjectHash(transactionByIndex(vals[i].first).tx) << ": " << vals[i].second << ENDL;
@@ -2738,7 +2738,8 @@ namespace cn
     {
       if (transaction.tx.outputs[output].target.type() == typeid(KeyOutput))
       {
-        auto &amountOutputs = m_outputs[transaction.tx.outputs[output].amount];
+        const auto& txout = transaction.tx.outputs[output];
+        auto &amountOutputs = m_outputs[rpc_colored_amount{txout.amount, txout.color}];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
         amountOutputs.push_back(std::make_pair<>(transactionIndex, output));
       }
@@ -2764,7 +2765,7 @@ namespace cn
       const TransactionOutput &output = transaction.outputs[transaction.outputs.size() - 1 - outputIndex];
       if (output.target.type() == typeid(KeyOutput))
       {
-        auto amountOutputs = m_outputs.find(output.amount);
+        auto amountOutputs = m_outputs.find(rpc_colored_amount{output.amount, output.color});
         if (amountOutputs == m_outputs.end())
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - cannot find specific amount in outputs map.";

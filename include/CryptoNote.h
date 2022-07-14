@@ -13,12 +13,18 @@
 
 namespace cn {
 
+typedef uint64_t color_t;
+
+const color_t INVALID_COLOR_ID = 0;
+const color_t DEFAULT_COLOR_ID = 1;
+
 struct BaseInput {
   uint32_t blockIndex;
 };
 
 struct KeyInput {
   uint64_t amount;
+  color_t color = INVALID_COLOR_ID;
   std::vector<uint32_t> outputIndexes;
   crypto::KeyImage keyImage;
 };
@@ -94,5 +100,14 @@ struct KeyPair {
 };
 
 using BinaryArray = std::vector<uint8_t>;
+
+struct rpc_colored_amount {
+  uint64_t amount;
+  color_t color;
+  
+  bool operator==(const rpc_colored_amount &o) const { 
+    return amount == o.amount && color == o.color; 
+  }
+};
 
 }

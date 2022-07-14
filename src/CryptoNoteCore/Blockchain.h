@@ -34,6 +34,18 @@
 
 #undef ERROR
 using phmap::parallel_flat_hash_map;
+
+namespace std
+{
+    template<> struct hash<cn::rpc_colored_amount>
+    {
+        std::size_t operator()(cn::rpc_colored_amount const &p) const
+        {
+            return phmap::HashState().combine(0, p.amount, p.color);
+        }
+    };
+}
+
 namespace cn
 {
   struct NOTIFY_REQUEST_GET_OBJECTS_request;
@@ -266,7 +278,7 @@ namespace cn
 
     typedef parallel_flat_hash_map<crypto::KeyImage, uint32_t> key_images_container;
     typedef parallel_flat_hash_map<crypto::Hash, BlockEntry> blocks_ext_by_hash;
-    typedef parallel_flat_hash_map<uint64_t, std::vector<std::pair<TransactionIndex, uint16_t>>> outputs_container; //crypto::Hash - tx hash, size_t - index of out in transaction
+    typedef parallel_flat_hash_map<rpc_colored_amount, std::vector<std::pair<TransactionIndex, uint16_t>>> outputs_container; //crypto::Hash - tx hash, size_t - index of out in transaction
     typedef parallel_flat_hash_map<uint64_t, std::vector<MultisignatureOutputUsage>> MultisignatureOutputsContainer;
 
     const Currency &m_currency;
@@ -382,7 +394,7 @@ namespace cn
   bool Blockchain::scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height)
   {
     std::lock_guard<std::recursive_mutex> lk(m_blockchain_lock);
-    auto it = m_outputs.find(tx_in_to_key.amount);
+    auto it = m_outputs.find(rpc_colored_amount{tx_in_to_key.amount, tx_in_to_key.color});
     if (it == m_outputs.end() || !tx_in_to_key.outputIndexes.size())
       return false;
 

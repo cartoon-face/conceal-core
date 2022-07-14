@@ -368,5 +368,10 @@ void serialize(KeyPair& keyPair, ISerializer& serializer) {
   serializer(keyPair.publicKey, "public_key");
 }
 
+void serialize(rpc_colored_amount& am, ISerializer& serializer)
+{
+    serializer(am.amount, "amount");
+    serializer(am.color, "color");
+}
 
 } //namespace cn

@@ -206,16 +206,6 @@ struct COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES {
   };
 };
 //-----------------------------------------------
-struct rpc_colored_amount {
-  uint64_t amount;
-  color_t color;
-
-  void serialize(ISerializer &s)
-  {
-    KV_MEMBER(amount)
-    KV_MEMBER(color)
-  }
-};
 
 struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_request {
   std::vector<rpc_colored_amount> amounts;

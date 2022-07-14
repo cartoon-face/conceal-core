@@ -54,4 +54,6 @@ void serialize(TransactionInputs &inputs, ISerializer &serializer);
 
 void serialize(KeyPair& keyPair, ISerializer& serializer);
 
+void serialize(rpc_colored_amount& am, ISerializer& serializer);
+
 }
