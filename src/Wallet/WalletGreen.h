@@ -250,7 +250,7 @@ protected:
     std::unique_ptr<ITransaction> transaction;
     std::vector<WalletTransfer> destinations;
     std::unordered_map<color_t, uint64_t> neededMoney;
-    uint64_t changeAmount;
+    std::unordered_map<color_t, uint64_t> changeAmount;
   };
 
   void prepareTransaction(std::vector<WalletOuts> &&wallets,

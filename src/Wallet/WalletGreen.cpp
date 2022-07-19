@@ -236,7 +236,7 @@ namespace
     return donationAmount;
   }
 
-  uint64_t pushDonationTransferIfPossible(const DonationSettings &donation, uint64_t freeAmount, uint64_t dustThreshold, std::vector<WalletTransfer> &destinations)
+  uint64_t pushDonationTransferIfPossible(const DonationSettings &donation, color_t color, uint64_t freeAmount, uint64_t dustThreshold, std::vector<WalletTransfer> &destinations)
   {
     uint64_t donationAmount = 0;
     if (!donation.address.empty() && donation.threshold != 0)
@@ -250,8 +250,7 @@ namespace
       donationAmount = calculateDonationAmount(freeAmount, donation.threshold, dustThreshold);
       if (donationAmount != 0)
       {
-        // TODO: change it to main color probably
-        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount), INVALID_COLOR_ID});
+        destinations.emplace_back(WalletTransfer{WalletTransferType::DONATION, donation.address, static_cast<int64_t>(donationAmount), color});
       }
     }
 
@@ -511,15 +510,16 @@ namespace cn
 
     /* Select the transfers */
     uint64_t fee = 1000;
-    uint64_t neededMoney = amount + fee;
+    std::unordered_map<color_t, uint64_t> neededMoney;
+    neededMoney[DEFAULT_COLOR_ID] = amount + fee;
     std::vector<OutputToTransfer> selectedTransfers;
-    uint64_t foundMoney = selectTransfers(neededMoney,
+    selectedTransfersRet_t foundMoneyRet = selectTransfers(neededMoney,
                                           m_currency.defaultDustThreshold(),
                                           std::move(wallets),
                                           selectedTransfers);
 
     /* Do we have enough funds */
-    if (foundMoney < neededMoney)
+    if (!foundMoneyRet.hasEnough)
     {
       throw std::system_error(make_error_code(error::WRONG_AMOUNT));
     }
@@ -529,7 +529,7 @@ namespace cn
 
     /* Add the deposit outputs to the transaction */
     auto depositIndex = transaction->addOutput(
-        neededMoney - fee, INVALID_COLOR_ID,
+        neededMoney[DEFAULT_COLOR_ID] - fee, DEFAULT_COLOR_ID,
         {destAddr},
         1,
         term);
@@ -540,7 +540,7 @@ namespace cn
 
     /* Breakdown the change into specific amounts */
     decompose_amount_into_digits(
-        foundMoney - neededMoney,
+        foundMoneyRet.foundMoney[DEFAULT_COLOR_ID] - neededMoney[DEFAULT_COLOR_ID] ,
         m_currency.defaultDustThreshold(),
         [&](uint64_t chunk) { amounts.push_back(chunk); },
         [&](uint64_t dust) { amounts.push_back(dust); });
@@ -1993,13 +1993,14 @@ namespace cn
 
     std::vector<OutputToTransfer> selectedTransfers;
     auto selectTransfersRv = selectTransfers(preparedTransaction.neededMoney, m_currency.defaultDustThreshold(), std::move(wallets), selectedTransfers);
-
+    auto& foundMoney = selectTransfersRv.foundMoney;
+    auto& neededMoney = preparedTransaction.neededMoney;
+    
     if (!selectTransfersRv.hasEnough)
     {
       throw std::system_error(make_error_code(error::WRONG_AMOUNT), "Not enough money");
     }
 
-    //TODO: continue
     typedef cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount outs_for_amount;
     std::vector<outs_for_amount> mixinResult;
 
@@ -2011,19 +2012,34 @@ namespace cn
     std::vector<InputInfo> keysInfo;
     prepareInputs(selectedTransfers, mixinResult, mixIn, keysInfo);
 
-    uint64_t donationAmount = pushDonationTransferIfPossible(donation, foundMoney - preparedTransaction.neededMoney, m_currency.defaultDustThreshold(), preparedTransaction.destinations);
-    preparedTransaction.changeAmount = foundMoney - preparedTransaction.neededMoney - donationAmount;
+    for(const auto& it : foundMoney)
+    {
+        color_t color = it.first;
+        if (neededMoney.find(color) == neededMoney.end())
+          throw std::system_error(make_error_code(error::WRONG_PARAMETERS)); // Shouldn't happen
+        
+        uint64_t donationAmount = pushDonationTransferIfPossible(donation, color, foundMoney[color] - neededMoney[color], 
+                                                                 m_currency.defaultDustThreshold(), preparedTransaction.destinations);
+
+        preparedTransaction.changeAmount[color] = foundMoney[color] - neededMoney[color] - donationAmount;
+    }
 
     std::vector<ReceiverAmounts> decomposedOutputs = splitDestinations(preparedTransaction.destinations, m_currency.defaultDustThreshold(), m_currency);
-    if (preparedTransaction.changeAmount != 0)
+    for(const auto& it : preparedTransaction.changeAmount)
     {
+      color_t color = it.first;
+      uint64_t changeAmount = it.second;
+
+      if(changeAmount == 0)
+        continue;
+
       WalletTransfer changeTransfer;
       changeTransfer.type = WalletTransferType::CHANGE;
       changeTransfer.address = m_currency.accountAddressAsString(changeDestination);
-      changeTransfer.amount = static_cast<int64_t>(preparedTransaction.changeAmount);
+      changeTransfer.amount = static_cast<int64_t>(changeAmount);
       preparedTransaction.destinations.emplace_back(std::move(changeTransfer));
 
-      auto splittedChange = splitAmount(preparedTransaction.changeAmount, changeDestination, m_currency.defaultDustThreshold());
+      auto splittedChange = splitAmount(changeAmount, color, changeDestination, m_currency.defaultDustThreshold());
       decomposedOutputs.emplace_back(std::move(splittedChange));
     }
 
@@ -2870,10 +2886,11 @@ namespace cn
       std::vector<cn::COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount> &mixinResult)
   {
 
-    std::vector<uint64_t> amounts;
+    std::vector<rpc_colored_amount> amounts;
+    amounts.reserve(selectedTransfers.size());
     for (const auto &out : selectedTransfers)
     {
-      amounts.push_back(out.out.amount);
+      amounts.emplace_back(rpc_colored_amount{out.out.amount, out.out.color});
     }
 
     platform_system::Event requestFinished(m_dispatcher);
