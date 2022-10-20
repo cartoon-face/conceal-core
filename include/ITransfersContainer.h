@@ -35,6 +35,7 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
+    bool is_token;
   };
 
   struct TransactionOutputInformation

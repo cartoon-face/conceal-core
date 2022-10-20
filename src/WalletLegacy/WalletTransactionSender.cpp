@@ -208,7 +208,8 @@ namespace cn
       uint64_t mixIn,
       uint64_t unlockTimestamp,
       const std::vector<TransactionMessage> &messages,
-      uint64_t ttl)
+      uint64_t ttl,
+      bool is_token)
   {
     throwIf(transfers.empty(), error::ZERO_DESTINATION);
     validateTransfersAddresses(transfers);
@@ -231,10 +232,11 @@ namespace cn
     }
     throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
 
-    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, extra, transfers, unlockTimestamp, messages);
+    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, extra, transfers, unlockTimestamp, messages, is_token);
     context->transactionId = transactionId;
     context->mixIn = mixIn;
     context->ttl = ttl;
+    context->is_token = is_token;
 
     for (const TransactionMessage &message : messages)
     {
@@ -277,10 +279,11 @@ namespace cn
 
     throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
 
-    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, std::string(), {}, 0, {});
+    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, std::string(), {}, 0, {}, false);
     context->transactionId = transactionId;
     context->mixIn = mixIn;
     context->depositTerm = static_cast<uint32_t>(term);
+    context->is_token = false;
 
     if (context->mixIn != 0)
     {
@@ -303,9 +306,10 @@ namespace cn
     context->foundMoney = selectDepositTransfers(depositId, context->selectedTransfers);
     throwIf(context->foundMoney < fee, error::WRONG_AMOUNT);
 
-    transactionId = m_transactionsCache.addNewTransaction(context->foundMoney, fee, std::string(), {}, 0, {});
+    transactionId = m_transactionsCache.addNewTransaction(context->foundMoney, fee, std::string(), {}, 0, {}, false);
     context->transactionId = transactionId;
     context->mixIn = 0;
+    context->is_token = false;
 
     setSpendingTransactionToDeposit(transactionId, depositId);
 
@@ -324,9 +328,10 @@ namespace cn
     context->foundMoney = selectDepositsTransfers(depositIds, context->selectedTransfers);
     throwIf(context->foundMoney < fee, error::WRONG_AMOUNT);
 
-    transactionId = m_transactionsCache.addNewTransaction(context->foundMoney, fee, std::string(), {}, 0, {});
+    transactionId = m_transactionsCache.addNewTransaction(context->foundMoney, fee, std::string(), {}, 0, {}, false);
     context->transactionId = transactionId;
     context->mixIn = 0;
+    context->is_token = false;
 
     setSpendingTransactionToDeposits(transactionId, depositIds);
 
@@ -357,10 +362,11 @@ namespace cn
 
     const std::vector<TransactionMessage> messages;
 
-    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, extra, transfers, unlockTimestamp, messages);
+    transactionId = m_transactionsCache.addNewTransaction(neededMoney, fee, extra, transfers, unlockTimestamp, messages, false);
     context->transactionId = transactionId;
     context->mixIn = mixIn;
     crypto::SecretKey transactionSK;
+    context->is_token = false;
 
     if (context->mixIn)
     {

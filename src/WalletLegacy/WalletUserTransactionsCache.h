@@ -63,7 +63,8 @@ public:
                                   const std::string& extra,
                                   const std::vector<WalletLegacyTransfer>& transfers,
                                   uint64_t unlockTime,
-                                  const std::vector<TransactionMessage>& messages);
+                                  const std::vector<TransactionMessage>& messages,
+                                  bool is_token);
   void updateTransaction(TransactionId transactionId,
                          const cn::Transaction& tx,
                          uint64_t amount,

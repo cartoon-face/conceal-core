@@ -95,6 +95,8 @@ struct TransactionDetails {
   std::vector<std::vector<crypto::Signature>> signatures;
   std::vector<TransactionInputDetails> inputs;
   std::vector<TransactionOutputDetails> outputs;
+
+  bool is_token;
 };
 
 struct BlockDetails {

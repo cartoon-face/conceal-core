@@ -551,12 +551,13 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
                                             const std::vector<TransactionMessage>& messages,
-                                            uint64_t ttl) {
+                                            uint64_t ttl,
+                                            bool is_token) {
   std::vector<WalletLegacyTransfer> transfers;
   transfers.push_back(transfer);
   throwIfNotInitialised();
 
-  return sendTransaction(transactionSK, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+  return sendTransaction(transactionSK, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl, is_token);
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
@@ -566,7 +567,8 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
                                             const std::vector<TransactionMessage>& messages,
-                                            uint64_t ttl) 
+                                            uint64_t ttl,
+                                            bool is_token) 
                                             {
   
   /* Regular transaction fees should be at least 1000 X as of Consensus 2019. In this case we also check
@@ -584,6 +586,7 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
     cn::WalletLegacyTransfer transfer;
     transfer.address = getAddress();
     transfer.amount = 0;
+    transfer.is_token = false;
     transfers.push_back(transfer);
     optimize = true;
     fee = cn::parameters::MINIMUM_FEE_V2;
@@ -596,7 +599,7 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
 
   {
     std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl, is_token);
   }
 
   notifyClients(events);

@@ -218,7 +218,8 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
                                                              const std::string& extra,
                                                              const std::vector<WalletLegacyTransfer>& transfers,
                                                              uint64_t unlockTime,
-                                                             const std::vector<TransactionMessage>& messages) {
+                                                             const std::vector<TransactionMessage>& messages,
+                                                             bool is_token) {
   WalletLegacyTransaction transaction;
 
   if (!transfers.empty()) {
@@ -239,6 +240,7 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
   transaction.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
   transaction.state = WalletLegacyTransactionState::Sending;
   transaction.unlockTime = unlockTime;
+  transaction.is_token = is_token;
 
   for (const TransactionMessage& message : messages) {
     transaction.messages.push_back(message.message);
@@ -305,6 +307,7 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.state = WalletLegacyTransactionState::Active;
     transaction.unlockTime = txInfo.unlockTime;
     transaction.messages = txInfo.messages;
+    transaction.is_token = txInfo.is_token;
 
     id = insertTransaction(std::move(transaction));
 

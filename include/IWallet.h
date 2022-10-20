@@ -104,6 +104,7 @@ struct WalletTransaction
   size_t firstDepositId = std::numeric_limits<DepositId>::max();
   size_t depositCount = 0;
   bool isBase;
+  bool is_token;
 };
 
 enum class WalletTransferType : uint8_t
@@ -130,6 +131,7 @@ struct WalletTransfer
   WalletTransferType type;
   std::string address;
   int64_t amount;
+  bool is_token;
 };
 
 struct DonationSettings

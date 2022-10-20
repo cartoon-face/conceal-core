@@ -73,6 +73,8 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
 
   serializer(txi.messages, "messages");
 
+  serializer(txi.is_token, "is_token");
+
   //this field has been added later in the structure.
   //in order to not break backward binary compatibility
   // we just set it to zero
@@ -82,6 +84,7 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
 void serialize(WalletLegacyTransfer& tr, cn::ISerializer& serializer) {
   serializer(tr.address, "address");
   serializer(tr.amount, "amount");
+  serializer(tr.is_token, "is_token");
 }
 
 void serialize(Deposit& deposit, cn::ISerializer& serializer) {

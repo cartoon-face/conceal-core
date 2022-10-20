@@ -96,12 +96,14 @@ struct WalletTransferDto {
     address = tr.address;
     amount = tr.amount;
     type = static_cast<uint8_t>(tr.type);
+    is_token = tr.is_token;
   }
 
   std::string address;
   uint64_t amount;
   uint8_t type;
   uint32_t version;
+  bool is_token;
 };
 
 void serialize(WalletRecordDto& value, cn::ISerializer& serializer) {
@@ -151,6 +153,7 @@ void serialize(WalletTransactionDto& value, cn::ISerializer& serializer) {
 void serialize(WalletTransferDto& value, cn::ISerializer& serializer) {
   serializer(value.address, "address");
   serializer(value.amount, "amount");
+  serializer(value.is_token, "is_token");
 
   if (value.version > 2) {
     serializer(value.type, "type");
@@ -247,6 +250,7 @@ cn::WalletTransaction convert(const cn::WalletLegacyTransaction& tx) {
   mtx.unlockTime = tx.unlockTime;
   mtx.extra = tx.extra;
   mtx.isBase = tx.isCoinbase;
+  mtx.is_token = tx.is_token;
 
   return mtx;
 }
@@ -256,6 +260,7 @@ cn::WalletTransfer convert(const cn::WalletLegacyTransfer& tr) {
 
   mtr.address = tr.address;
   mtr.amount = tr.amount;
+  mtr.is_token = tr.is_token;
 
   return mtr;
 }
@@ -895,6 +900,7 @@ void WalletSerializer::loadTransfers(common::IInputStream& source, CryptoContext
     WalletTransfer tr;
     tr.address = dto.address;
     tr.amount = dto.amount;
+    tr.is_token = dto.is_token;
 
     if (version > 2) {
       tr.type = static_cast<WalletTransferType>(dto.type);

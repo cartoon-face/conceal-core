@@ -111,6 +111,7 @@ namespace cn
           {
             destination.address = arg;
             destination.amount = de.amount;
+            destination.is_token = false;
             dsts.push_back(destination);
           }
           else
@@ -123,6 +124,7 @@ namespace cn
           {
             destination.address = m_remote_address;                   
             destination.amount = 10000;
+            destination.is_token = false;
             dsts.push_back(destination);
           }
         }

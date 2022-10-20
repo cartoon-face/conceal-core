@@ -30,6 +30,7 @@ void serialize(TransactionInformation& ti, cn::ISerializer& s) {
   s(ti.extra, "");
   s(ti.paymentId, "");
   s(ti.messages, "");
+  s(ti.is_token, "");
 }
 
 const uint32_t TRANSFERS_CONTAINER_STORAGE_VERSION = 1;
