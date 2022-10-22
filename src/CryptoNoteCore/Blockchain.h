@@ -10,8 +10,6 @@
 
 #include <atomic>
 
-#include "google/sparse_hash_set"
-#include "google/sparse_hash_map"
 #include <parallel_hashmap/phmap.h>
 
 #include "Common/ObserverManager.h"
@@ -62,8 +60,8 @@ namespace cn
     virtual bool haveSpentKeyImages(const cn::Transaction &tx) override;
     virtual bool checkTransactionSize(size_t blobSize) override;
 
-    bool init() { return init(tools::getDefaultDataDirectory(), true); }
-    bool init(const std::string &config_folder, bool load_existing);
+    bool init() { return init(tools::getDefaultDataDirectory(), true, m_testnet); }
+    bool init(const std::string &config_folder, bool load_existing, bool testnet);
     bool deinit();
 
     bool getLowerBound(uint64_t timestamp, uint64_t startOffset, uint32_t &height);
@@ -200,7 +198,7 @@ namespace cn
 
     //debug functions
     void print_blockchain(uint64_t start_index, uint64_t end_index);
-    void print_blockchain_index();
+    void print_blockchain_index(bool print_all);
     void print_blockchain_outs(const std::string &file);
 
     struct TransactionIndex
@@ -219,6 +217,7 @@ namespace cn
     bool have_tx_keyimg_as_spent(const crypto::KeyImage &key_im);
 
   private:
+    bool m_testnet = false;
     struct MultisignatureOutputUsage
     {
       TransactionIndex transactionIndex;
@@ -316,9 +315,9 @@ namespace cn
     logging::LoggerRef logger;
 
 
-    bool switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::iterator> &alt_chain, bool discard_disconnected_chain);
+    bool switch_to_alternative_blockchain(const std::list<crypto::Hash> &alt_chain, bool discard_disconnected_chain);
     bool handle_alternative_block(const Block &b, const crypto::Hash &id, block_verification_context &bvc, bool sendNewAlternativeBlockMessage = true);
-    difficulty_type get_next_difficulty_for_alternative_chain(const std::list<blocks_ext_by_hash::iterator> &alt_chain, BlockEntry &bei);
+    difficulty_type get_next_difficulty_for_alternative_chain(const std::list<crypto::Hash> &alt_chain, const BlockEntry &bei);
     void pushToDepositIndex(const BlockEntry &block, uint64_t interest);
     bool prevalidate_miner_transaction(const Block &b, uint32_t height);
     bool validate_miner_transaction(const Block &b, uint32_t height, size_t cumulativeBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint64_t &reward, int64_t &emissionChange);

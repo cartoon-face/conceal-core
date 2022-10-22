@@ -588,7 +588,8 @@ namespace payment_service
       cn::IWallet &wallet,
       cn::IFusionManager &fusionManager,
       const WalletConfiguration &conf,
-      logging::ILogger &logger) : currency(currency),
+      logging::ILogger &logger,
+      bool testnet) : currency(currency),
                                   wallet(wallet),
                                   fusionManager(fusionManager),
                                   node(node),
@@ -597,7 +598,8 @@ namespace payment_service
                                   logger(logger, "WalletService"),
                                   dispatcher(sys),
                                   readyEvent(dispatcher),
-                                  refreshContext(dispatcher)
+                                  refreshContext(dispatcher),
+                                  m_testnet(testnet)
   {
     readyEvent.set();
   }
@@ -1139,7 +1141,6 @@ namespace payment_service
         spendingTransactionHash = common::podToHex(walletstx.hash);
       }
 
-      bool state = true;
       uint32_t knownBlockCount = node.getKnownBlockCount();
       if (knownBlockCount > unlockHeight)
       {
@@ -1449,6 +1450,12 @@ namespace payment_service
                                                              addr,
                                                              address_str);
 
+    if (!valid)
+    {
+      logger(logging::ERROR) << "Failed to parse address!";
+      return make_error_code(cn::error::BAD_ADDRESS);
+    }
+
     cn::BinaryArray ba;
     cn::toBinaryArray(addr, ba);
     std::string keys = common::asString(ba);
@@ -1645,7 +1652,6 @@ namespace payment_service
     {
       platform_system::EventLock lk(readyEvent);
 
-      auto estimateResult = fusionManager.estimate(1000000, {});
       knownBlockCount = node.getKnownBlockCount();
       peerCount = static_cast<uint32_t>(node.getPeerCount());
       blockCount = wallet.getBlockCount();
@@ -1700,19 +1706,22 @@ namespace payment_service
         /* Now validate the deposit term and the amount */
 
         /* Deposits should be multiples of 21,900 blocks */
-        if (term % cn::parameters::DEPOSIT_MIN_TERM_V3 != 0)
+        if ((!m_testnet && term % cn::parameters::DEPOSIT_MIN_TERM_V3 != 0) ||
+            (m_testnet && term % cn::parameters::TESTNET_DEPOSIT_MIN_TERM_V3 != 0))
         {
           return make_error_code(cn::error::DEPOSIT_WRONG_TERM);
         }
 
         /* The minimum term should be 21,900 */
-        if (term < cn::parameters::DEPOSIT_MIN_TERM_V3)
+        if ((!m_testnet && term < cn::parameters::DEPOSIT_MIN_TERM_V3) ||
+            (m_testnet && term < cn::parameters::TESTNET_DEPOSIT_MIN_TERM_V3))
         {
           return make_error_code(cn::error::DEPOSIT_TERM_TOO_BIG);
         }
 
         /* Current deposit rates are for a maximum term of one year, 262800 */
-        if (term > cn::parameters::DEPOSIT_MAX_TERM_V3)
+        if ((!m_testnet && term > cn::parameters::DEPOSIT_MAX_TERM_V3) ||
+            (m_testnet && term > cn::parameters::TESTNET_DEPOSIT_MAX_TERM_V3))
         {
           return make_error_code(cn::error::DEPOSIT_TERM_TOO_BIG);
         }
@@ -1779,12 +1788,14 @@ namespace payment_service
 
         /* Now validate the deposit term and the amount */
 
-        if (term < cn::parameters::DEPOSIT_MIN_TERM_V3)
+        if ((!m_testnet && term < cn::parameters::DEPOSIT_MIN_TERM_V3) ||
+            (m_testnet && term < cn::parameters::TESTNET_DEPOSIT_MIN_TERM_V3))
         {
           return make_error_code(cn::error::DEPOSIT_TERM_TOO_SMALL);
         }
 
-        if (term > cn::parameters::DEPOSIT_MAX_TERM_V3)
+        if ((!m_testnet && term > cn::parameters::DEPOSIT_MAX_TERM_V3) ||
+            (m_testnet && term > cn::parameters::TESTNET_DEPOSIT_MIN_TERM_V3))
         {
           return make_error_code(cn::error::DEPOSIT_TERM_TOO_BIG);
         }

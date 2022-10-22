@@ -160,8 +160,8 @@ bool core::init(const CoreConfig& config, const MinerConfig& minerConfig, bool l
     logger(ERROR, BRIGHT_RED) << "Failed to initialize memory pool";
     return false;
   }
-
-  r = m_blockchain.init(m_config_folder, load_existing);
+  
+  r = m_blockchain.init(m_config_folder, load_existing, config.testnet);
   if (!(r)) {
     logger(ERROR, BRIGHT_RED) << "Failed to initialize blockchain storage";
     return false;
@@ -478,8 +478,8 @@ void core::print_blockchain(uint32_t start_index, uint32_t end_index) {
   m_blockchain.print_blockchain(start_index, end_index);
 }
 
-void core::print_blockchain_index() {
-  m_blockchain.print_blockchain_index();
+void core::print_blockchain_index(bool print_all) {
+  m_blockchain.print_blockchain_index(print_all);
 }
 
 void core::print_blockchain_outs(const std::string& file) {
@@ -1118,7 +1118,7 @@ std::unique_ptr<IBlock> core::getBlock(const crypto::Hash& blockId) {
     return std::unique_ptr<BlockWithTransactions>(nullptr);
   }
 
-  return std::move(blockPtr);
+  return blockPtr;
 }
 
 bool core::is_key_image_spent(const crypto::KeyImage& key_im) {
