@@ -46,6 +46,8 @@ namespace cn
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
 
+    bool is_token;
+
     // transaction info
     crypto::Hash transactionHash;
     crypto::PublicKey transactionPublicKey;

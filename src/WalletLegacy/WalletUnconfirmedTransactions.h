@@ -50,6 +50,7 @@ struct UnconfirmedTransferDetails {
   time_t sentTime;
   TransactionId transactionId;
   std::vector<TransactionOutputId> usedOutputs;
+  bool is_token;
 };
 
 struct UnconfirmedSpentDepositDetails {
@@ -70,7 +71,7 @@ public:
   bool findTransactionId(const crypto::Hash& hash, TransactionId& id);
   void erase(const crypto::Hash& hash);
   void add(const cn::Transaction& tx, TransactionId transactionId, 
-    uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs);
+    uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, bool is_token);
   void updateTransactionId(const crypto::Hash& hash, TransactionId id);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);
@@ -99,6 +100,8 @@ private:
 
   bool findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id);
   bool findUnconfirmedDepositSpendingTransactionId(const crypto::Hash& hash, TransactionId& id);
+  
+  bool find_token_transaction_id(const crypto::Hash& hash, TransactionId& id);
 
   typedef std::unordered_map<crypto::Hash, UnconfirmedTransferDetails, boost::hash<crypto::Hash>> UnconfirmedTxsContainer;
   typedef std::unordered_set<TransactionOutputId> UsedOutputsContainer;

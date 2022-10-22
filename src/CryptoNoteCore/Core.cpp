@@ -916,6 +916,10 @@ bool core::getAlreadyGeneratedCoins(const crypto::Hash& hash, uint64_t& generate
   return m_blockchain.getAlreadyGeneratedCoins(hash, generatedCoins);
 }
 
+bool core::getAlreadyGeneratedTokens(const crypto::Hash& hash, uint64_t& generatedTokens) {
+  return m_blockchain.getAlreadyGeneratedTokens(hash, generatedTokens);
+}
+
 bool core::getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint32_t height,
                           uint64_t& reward, int64_t& emissionChange) {
   return m_currency.getBlockReward(medianSize, currentBlockSize, alreadyGeneratedCoins, fee, height, reward, emissionChange);

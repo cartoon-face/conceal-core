@@ -139,6 +139,7 @@ namespace cn {
       uint64_t fee;
       bool keptByBlock;
       time_t receiveTime;
+      bool is_token;
     };
 
     std::list<cn::tx_memory_pool::TransactionDetails> getMemoryPool() const;

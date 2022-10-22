@@ -249,6 +249,15 @@ namespace cn
       txd.keptByBlock = keptByBlock;
       txd.receiveTime = m_timeProvider.now();
 
+      for (const auto &in : tx.inputs)
+      {
+        if (in.type() == typeid(KeyInput))
+        {
+          const auto &ki = boost::get<KeyInput>(in);
+          txd.is_token = ki.is_token;
+        }
+      }
+
       txd.maxUsedBlock = maxUsedBlock;
       txd.lastFailedBlock.clear();
 
@@ -623,6 +632,7 @@ namespace cn
     s(td.lastFailedBlock.height, "lastFailedBlock.height");
     s(td.lastFailedBlock.id, "lastFailedBlock.id");
     s(td.keptByBlock, "keptByBlock");
+    s(td.is_token, "is_token");
     s(reinterpret_cast<uint64_t &>(td.receiveTime), "receiveTime");
   }
 

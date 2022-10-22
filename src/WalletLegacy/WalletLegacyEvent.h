@@ -208,7 +208,35 @@ private:
   uint64_t m_balance;
 };
 
+/* Token */
 
+class WalletActualTokenBalanceUpdatedEvent : public WalletLegacyEvent
+{
+public:
+  WalletActualTokenBalanceUpdatedEvent(uint64_t balance) : m_balance(balance) {};
+  virtual ~WalletActualTokenBalanceUpdatedEvent() {};
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override
+  {
+    observer.notify(&IWalletLegacyObserver::actualTokenBalanceUpdated, m_balance);
+  }
+private:
+  uint64_t m_balance;
+};
+
+class WalletPendingTokenBalanceUpdatedEvent : public WalletLegacyEvent
+{
+public:
+  WalletPendingTokenBalanceUpdatedEvent(uint64_t balance) : m_balance(balance) {};
+  virtual ~WalletPendingTokenBalanceUpdatedEvent() {};
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override
+  {
+    observer.notify(&IWalletLegacyObserver::pendingTokenBalanceUpdated, m_balance);
+  }
+private:
+  uint64_t m_balance;
+};
 
 
 

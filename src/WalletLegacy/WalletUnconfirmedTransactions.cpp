@@ -48,7 +48,22 @@ bool WalletUnconfirmedTransactions::deserializeV1(ISerializer& s) {
 }
 
 bool WalletUnconfirmedTransactions::findTransactionId(const Hash& hash, TransactionId& id) {
-  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id);
+  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id) || find_token_transaction_id(hash, id);
+}
+
+bool WalletUnconfirmedTransactions::find_token_transaction_id(const crypto::Hash& hash, TransactionId& id)
+{
+  auto it = m_unconfirmedTxs.find(hash);
+  if (it == m_unconfirmedTxs.end()) {
+    return false;
+  }
+  
+  if (it->second.is_token == true)
+  {
+    id = it->second.transactionId;
+  }
+
+  return true;
 }
 
 bool WalletUnconfirmedTransactions::findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id) {
@@ -99,7 +114,7 @@ bool WalletUnconfirmedTransactions::eraseDepositSpendingTransaction(const crypto
 }
 
 void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId transactionId, 
-  uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs) {
+  uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, bool is_token) {
 
   UnconfirmedTransferDetails& utd = m_unconfirmedTxs[getObjectHash(tx)];
 
@@ -107,6 +122,7 @@ void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId tra
   utd.sentTime = time(nullptr);
   utd.tx = tx;
   utd.transactionId = transactionId;
+  utd.is_token = is_token;
 
   uint64_t outsAmount = 0;
   // process used outputs

@@ -108,7 +108,11 @@ private:
                                        std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                        std::unique_ptr<WalletRequest>& nextRequest,
                                        std::error_code ec);
+
+
   void notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  void notifyTokenBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+
 
   void validateTransfersAddresses(const std::vector<WalletLegacyTransfer>& transfers);
   bool validateDestinationAddress(const std::string& address);

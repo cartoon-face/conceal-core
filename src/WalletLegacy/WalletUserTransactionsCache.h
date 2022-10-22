@@ -68,7 +68,8 @@ public:
   void updateTransaction(TransactionId transactionId,
                          const cn::Transaction& tx,
                          uint64_t amount,
-                         const std::vector<TransactionOutputInformation>& usedOutputs);
+                         const std::vector<TransactionOutputInformation>& usedOutputs,
+                         bool is_token);
   void updateTransactionSendingState(TransactionId transactionId, std::error_code ec);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);

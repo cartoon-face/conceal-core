@@ -111,6 +111,7 @@ namespace cn
     uint64_t blockDifficulty(size_t i);
     bool getBlockContainingTransaction(const crypto::Hash &txId, crypto::Hash &blockId, uint32_t &blockHeight);
     bool getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins);
+    bool getAlreadyGeneratedTokens(const crypto::Hash &hash, uint64_t &generatedTokens);
     bool getBlockSize(const crypto::Hash &hash, size_t &size);
     bool getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference);
     bool getGeneratedTransactionsNumber(uint32_t height, uint64_t &generatedTransactions);
@@ -252,6 +253,7 @@ namespace cn
       difficulty_type cumulative_difficulty;
       uint64_t already_generated_coins;
       std::vector<TransactionEntry> transactions;
+      uint64_t token_coins;
 
       void serialize(ISerializer &s)
       {
@@ -261,6 +263,7 @@ namespace cn
         s(cumulative_difficulty, "cumulative_difficulty");
         s(already_generated_coins, "already_generated_coins");
         s(transactions, "transactions");
+        s(token_coins, "token_coins");
       }
     };
 
@@ -339,6 +342,9 @@ namespace cn
     bool checkTransactionInputs(const Transaction &tx, const crypto::Hash &tx_prefix_hash, uint32_t *pmax_used_block_height = NULL);
     bool checkTransactionInputs(const Transaction &tx, uint32_t *pmax_used_block_height = NULL);
     bool check_tx_outputs(const Transaction &tx) const;
+
+    bool is_token_transaction(const Transaction& tx);
+    uint64_t is_token_transaction_amount(const Transaction& tx);
 
     const TransactionEntry &transactionByIndex(TransactionIndex index);
     bool pushBlock(const Block &blockData, const crypto::Hash &id, block_verification_context &bvc, uint32_t height);

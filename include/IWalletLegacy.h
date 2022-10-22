@@ -105,6 +105,10 @@ public:
   virtual void transactionUpdated(TransactionId transactionId) {}
   virtual void depositUpdated(const DepositId& depositId) {}
   virtual void depositsUpdated(const std::vector<DepositId>& depositIds) {}
+
+  virtual void actualTokenBalanceUpdated(uint64_t actualTokenBalance) {}
+  virtual void pendingTokenBalanceUpdated(uint64_t pendingTokenBalance) {}
+
 };
 
 class IWalletLegacy {

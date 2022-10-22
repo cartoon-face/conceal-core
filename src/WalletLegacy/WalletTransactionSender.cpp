@@ -468,9 +468,16 @@ namespace cn
       getObjectHash(tx, transaction.hash);
       transaction.secretKey = transactionSK;
 
-      m_transactionsCache.updateTransaction(context->transactionId, tx, totalAmount, context->selectedTransfers);
+      m_transactionsCache.updateTransaction(context->transactionId, tx, totalAmount, context->selectedTransfers, transaction.is_token);
 
-      notifyBalanceChanged(events);
+      if (transaction.is_token == true)
+      {
+        notifyTokenBalanceChanged(events);
+      }
+      else
+      {
+        notifyBalanceChanged(events);
+      }
 
       return std::unique_ptr<WalletRequest>(new WalletRelayTransactionRequest(tx, std::bind(&WalletTransactionSender::relayTransactionCallback, this, context,
                                                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
@@ -550,10 +557,17 @@ namespace cn
       transactionInfo.depositCount = 1;
 
       Transaction lowlevelTransaction = convertTransaction(*transaction, static_cast<size_t>(m_upperTransactionSizeLimit));
-      m_transactionsCache.updateTransaction(context->transactionId, lowlevelTransaction, totalAmount, context->selectedTransfers);
+      m_transactionsCache.updateTransaction(context->transactionId, lowlevelTransaction, totalAmount, context->selectedTransfers, transactionInfo.is_token);
       m_transactionsCache.addCreatedDeposit(depositId, deposit.amount + deposit.interest);
 
-      notifyBalanceChanged(events);
+      if (transactionInfo.is_token == true)
+      {
+        notifyTokenBalanceChanged(events);
+      }
+      else
+      {
+        notifyBalanceChanged(events);
+      }
 
       std::vector<DepositId> deposits{depositId};
 
@@ -867,6 +881,18 @@ namespace cn
     }
 
     return inputs;
+  }
+
+  void WalletTransactionSender::notifyTokenBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>> &events)
+  {
+    uint64_t unconfirmedOutsAmount = m_transactionsCache.unconfrimedOutsAmount();
+    uint64_t change = unconfirmedOutsAmount - m_transactionsCache.unconfirmedTransactionsAmount();
+
+    uint64_t actualBalance = m_transferDetails.balance(ITransfersContainer::IncludeKeyUnlocked) - unconfirmedOutsAmount;
+    uint64_t pendingBalance = m_transferDetails.balance(ITransfersContainer::IncludeKeyNotUnlocked) + change;
+
+    events.push_back(std::unique_ptr<WalletActualTokenBalanceUpdatedEvent>(new WalletActualTokenBalanceUpdatedEvent(actualBalance)));
+    events.push_back(std::unique_ptr<WalletPendingTokenBalanceUpdatedEvent>(new WalletPendingTokenBalanceUpdatedEvent(pendingBalance)));
   }
 
   void WalletTransactionSender::notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>> &events)

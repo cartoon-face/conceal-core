@@ -250,11 +250,11 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
 }
 
 void WalletUserTransactionsCache::updateTransaction(
-  TransactionId transactionId, const cn::Transaction& tx, uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs) {
+  TransactionId transactionId, const cn::Transaction& tx, uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, bool is_token) {
   // update extra field from created transaction
   auto& txInfo = m_transactions.at(transactionId);
   txInfo.extra.assign(tx.extra.begin(), tx.extra.end());
-  m_unconfirmedTransactions.add(tx, transactionId, amount, usedOutputs);
+  m_unconfirmedTransactions.add(tx, transactionId, amount, usedOutputs, is_token);
 }
 
 void WalletUserTransactionsCache::updateTransactionSendingState(TransactionId transactionId, std::error_code ec) {
