@@ -22,24 +22,28 @@
 #include "Rpc/CoreRpcServerCommandsDefinitions.h"
 #include "ITransfersContainer.h"
 #include "IWallet.h"
+#include "ITokenised.h"
 
 namespace cn {
 
 typedef size_t TransactionId;
 typedef size_t TransferId;
 typedef size_t DepositId;
-typedef size_t TokenId;
+typedef size_t TokenTxId;
 
 struct WalletLegacyTransfer {
   std::string address;
   int64_t amount;
   bool is_token;
+  uint64_t token_id;
 };
 
 const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID    = std::numeric_limits<TransactionId>::max();
 const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID          = std::numeric_limits<TransferId>::max();
 const DepositId WALLET_LEGACY_INVALID_DEPOSIT_ID            = std::numeric_limits<DepositId>::max();
 const uint32_t WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT = std::numeric_limits<uint32_t>::max();
+
+const TokenTxId WALLET_LEGACY_INVALID_TOKEN_ID                = std::numeric_limits<TokenTxId>::max();
 
 enum class WalletLegacyTransactionState : uint8_t {
   Active,    // --> {Deleted}
@@ -75,7 +79,7 @@ struct WalletLegacyTransaction {
   std::vector<std::string> messages;
 
   /* Token details */
-  bool             is_token;
+  token_tx_information token_details;
 };
 
 using PaymentId = crypto::Hash;
@@ -106,6 +110,8 @@ public:
   virtual void depositUpdated(const DepositId& depositId) {}
   virtual void depositsUpdated(const std::vector<DepositId>& depositIds) {}
 
+  virtual void tokenUpdated(const DepositId& depositId) {}
+  virtual void tokensUpdated(const std::vector<DepositId>& depositIds) {}
   virtual void actualTokenBalanceUpdated(uint64_t actualTokenBalance) {}
   virtual void pendingTokenBalanceUpdated(uint64_t pendingTokenBalance) {}
 
@@ -156,8 +162,8 @@ public:
   virtual std::string getReserveProof(const uint64_t &reserve, const std::string &message) = 0;
   virtual crypto::SecretKey getTxKey(crypto::Hash& txid) = 0;
   virtual bool get_tx_key(crypto::Hash& txid, crypto::SecretKey& txSecretKey) = 0;
-  virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK, const WalletLegacyTransfer& transfer, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0, const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(), uint64_t ttl = 0, bool is_token = false) = 0;
-  virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0, const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(), uint64_t ttl = 0, bool is_token = false) = 0;
+  virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK, const WalletLegacyTransfer& transfer, uint64_t fee, token_tx_information token_details, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0, const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(), uint64_t ttl = 0) = 0;
+  virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, token_tx_information token_details, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0, const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(), uint64_t ttl = 0) = 0;
   virtual size_t estimateFusion(const uint64_t& threshold) = 0;
   virtual std::list<TransactionOutputInformation> selectFusionTransfersToSend(uint64_t threshold, size_t minInputCount, size_t maxInputCount) = 0;
   virtual TransactionId sendFusionTransaction(const std::list<TransactionOutputInformation>& fusionInputs, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0) = 0;

@@ -134,11 +134,15 @@ struct TransactionBlockInfo {
   uint32_t height;
   uint64_t timestamp;
   uint32_t transactionIndex;
+  bool is_token;
+  uint64_t token_id;
 
   void serialize(ISerializer& s) {
     serializeBlockHeight(s, height, "height");
     s(timestamp, "timestamp");
     s(transactionIndex, "transactionIndex");
+    s(is_token, "is_token");
+    s(token_id, "token_id");
   }
 };
 

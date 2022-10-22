@@ -85,21 +85,21 @@ public:
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         const WalletLegacyTransfer& transfer,
                                         uint64_t fee,
+                                        token_tx_information token_details,
                                         const std::string& extra = "",
                                         uint64_t mixIn = parameters::MINIMUM_MIXIN,
                                         uint64_t unlockTimestamp = 0,
                                         const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(),
-                                        uint64_t ttl = 0,
-                                        bool is_token = false) override;
+                                        uint64_t ttl = 0) override;
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         std::vector<WalletLegacyTransfer>& transfers,
                                         uint64_t fee,
+                                        token_tx_information token_details,
                                         const std::string& extra = "",
                                         uint64_t mixIn = parameters::MINIMUM_MIXIN,
                                         uint64_t unlockTimestamp = 0,
                                         const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(),
-                                        uint64_t ttl = 0,
-                                        bool is_token = false) override;
+                                        uint64_t ttl = 0) override;
   virtual size_t estimateFusion(const uint64_t& threshold);
   virtual std::list<TransactionOutputInformation> selectFusionTransfersToSend(uint64_t threshold, size_t minInputCount, size_t maxInputCount);
   virtual TransactionId sendFusionTransaction(const std::list<TransactionOutputInformation>& fusionInputs, uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0);

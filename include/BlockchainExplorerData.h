@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "CryptoTypes.h"
+#include "ITokenised.h"
 
 #include <boost/variant.hpp>
 
@@ -96,7 +97,7 @@ struct TransactionDetails {
   std::vector<TransactionInputDetails> inputs;
   std::vector<TransactionOutputDetails> outputs;
 
-  bool is_token;
+  token_tx_information token_details;
 };
 
 struct BlockDetails {
@@ -119,6 +120,7 @@ struct BlockDetails {
   double penalty;
   uint64_t totalFeeAmount;
   std::vector<TransactionDetails> transactions;
+  token_tx_information token_details;
 };
 
 }

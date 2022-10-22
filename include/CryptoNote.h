@@ -22,6 +22,7 @@ struct KeyInput {
   std::vector<uint32_t> outputIndexes;
   crypto::KeyImage keyImage;
   bool is_token;
+  uint64_t token_id;
 };
 
 struct MultisignatureInput {
@@ -64,12 +65,20 @@ struct Transaction : public TransactionPrefix {
   std::vector<std::vector<crypto::Signature>> signatures;
 };
 
+struct TokenInBlockData
+{
+  bool has_tokens; // checks if block has token txs
+  uint64_t global_token_id; // known token id in the core chain
+  uint64_t token_circulation; // known token  circulation, should be used with token_id
+};
+
 struct BlockHeader {
   uint8_t majorVersion;
   uint8_t minorVersion;
   uint32_t nonce;
   uint64_t timestamp;
   crypto::Hash previousBlockHash;
+  TokenInBlockData token_details;
 };
 
 struct Block : public BlockHeader {

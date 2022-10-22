@@ -54,4 +54,6 @@ void serialize(TransactionInputs &inputs, ISerializer &serializer);
 
 void serialize(KeyPair& keyPair, ISerializer& serializer);
 
+void serialize(TokenInBlockData& token_details, ISerializer& serializer);
+
 }

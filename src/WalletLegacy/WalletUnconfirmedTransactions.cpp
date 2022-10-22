@@ -114,7 +114,7 @@ bool WalletUnconfirmedTransactions::eraseDepositSpendingTransaction(const crypto
 }
 
 void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId transactionId, 
-  uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, bool is_token) {
+  uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, token_tx_information token_details) {
 
   UnconfirmedTransferDetails& utd = m_unconfirmedTxs[getObjectHash(tx)];
 
@@ -122,7 +122,8 @@ void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId tra
   utd.sentTime = time(nullptr);
   utd.tx = tx;
   utd.transactionId = transactionId;
-  utd.is_token = is_token;
+  utd.is_token = token_details.is_token;
+  utd.token_id = token_details.token_id;
 
   uint64_t outsAmount = 0;
   // process used outputs

@@ -255,6 +255,7 @@ namespace cn
         {
           const auto &ki = boost::get<KeyInput>(in);
           txd.is_token = ki.is_token;
+          txd.token_id = ki.token_id;
         }
       }
 
@@ -633,6 +634,7 @@ namespace cn
     s(td.lastFailedBlock.id, "lastFailedBlock.id");
     s(td.keptByBlock, "keptByBlock");
     s(td.is_token, "is_token");
+    s(td.token_id, "token_id");
     s(reinterpret_cast<uint64_t &>(td.receiveTime), "receiveTime");
   }
 

@@ -1295,7 +1295,8 @@ bool conceal_wallet::optimize_outputs(const std::vector<std::string>& args) {
     uint64_t unlockTimestamp = 0;
     uint64_t ttl = 0;
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, transfers, fee, extraString, mixIn, unlockTimestamp, messages, ttl, false);
+    token_tx_information token_details;
+    cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, transfers, fee, token_details, extraString, mixIn, unlockTimestamp, messages, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       fail_msg_writer() << "Can't send money";
       return true;
@@ -1358,7 +1359,8 @@ bool conceal_wallet::optimize_all_outputs(const std::vector<std::string>& args) 
       uint64_t unlockTimestamp = 0;
       uint64_t ttl = 0;
       crypto::SecretKey transactionSK;
-      cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, transfers, fee, extraString, mixIn, unlockTimestamp, messages, ttl, false);
+      token_tx_information token_details;
+      cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, transfers, fee, token_details, extraString, mixIn, unlockTimestamp, messages, ttl);
       if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
         fail_msg_writer() << "Can't send money";
         return true;
@@ -1515,7 +1517,8 @@ bool conceal_wallet::transfer(const std::vector<std::string> &args) {
     }
 
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, cmd.dsts, cmd.fee, extraString, cmd.fake_outs_count, 0, messages, ttl, false);
+    token_tx_information token_details;
+    cn::TransactionId tx = m_wallet->sendTransaction(transactionSK, cmd.dsts, cmd.fee, token_details,extraString, cmd.fake_outs_count, 0, messages, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       fail_msg_writer() << "Can't send money";
       return true;

@@ -64,12 +64,12 @@ public:
                                   const std::vector<WalletLegacyTransfer>& transfers,
                                   uint64_t unlockTime,
                                   const std::vector<TransactionMessage>& messages,
-                                  bool is_token);
+                                  token_tx_information token_details);
   void updateTransaction(TransactionId transactionId,
                          const cn::Transaction& tx,
                          uint64_t amount,
                          const std::vector<TransactionOutputInformation>& usedOutputs,
-                         bool is_token);
+                         token_tx_information token_details);
   void updateTransactionSendingState(TransactionId transactionId, std::error_code ec);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);

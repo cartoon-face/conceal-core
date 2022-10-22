@@ -210,6 +210,7 @@ private:
 
 /* Token */
 
+// Balance
 class WalletActualTokenBalanceUpdatedEvent : public WalletLegacyEvent
 {
 public:
@@ -238,6 +239,32 @@ private:
   uint64_t m_balance;
 };
 
+// token id
+class WalletTokenUpdatedEvent : public WalletLegacyEvent {
+public:
+  WalletTokenUpdatedEvent(TokenTxId& token_id) : updated_token_id(token_id) {}
+
+  virtual ~WalletTokenUpdatedEvent() {}
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override {
+    observer.notify(&IWalletLegacyObserver::tokenUpdated, updated_token_id);
+  }
+private:
+  TokenTxId updated_token_id;
+};
+
+class WalletTokensUpdatedEvent : public WalletLegacyEvent {
+public:
+  WalletTokensUpdatedEvent(std::vector<TokenTxId>&& token_id) : updated_token_ids(token_id) {}
+
+  virtual ~WalletTokensUpdatedEvent() {}
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override {
+    observer.notify(&IWalletLegacyObserver::tokensUpdated, updated_token_ids);
+  }
+private:
+  std::vector<TokenTxId> updated_token_ids;
+};
 
 
 } /* namespace cn */

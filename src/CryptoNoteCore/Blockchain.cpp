@@ -2012,7 +2012,7 @@ namespace cn
       if (txin.type() == typeid(KeyInput))
       {
         const KeyInput &in_to_key = boost::get<KeyInput>(txin);
-        if (in_to_key.is_token)
+        if (in_to_key.is_token == true)
         {
           logger(INFO) << "Token transaction found";
           return true;
@@ -2034,7 +2034,7 @@ namespace cn
       if (txin.type() == typeid(KeyInput))
       {
         const KeyInput &in_to_key = boost::get<KeyInput>(txin);
-        if (in_to_key.is_token)
+        if (in_to_key.is_token == true)
         {
           logger(INFO) << "Token transaction found";
           token_amount = in_to_key.amount;

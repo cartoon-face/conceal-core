@@ -51,6 +51,7 @@ struct UnconfirmedTransferDetails {
   TransactionId transactionId;
   std::vector<TransactionOutputId> usedOutputs;
   bool is_token;
+  uint64_t token_id;
 };
 
 struct UnconfirmedSpentDepositDetails {
@@ -71,7 +72,7 @@ public:
   bool findTransactionId(const crypto::Hash& hash, TransactionId& id);
   void erase(const crypto::Hash& hash);
   void add(const cn::Transaction& tx, TransactionId transactionId, 
-    uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, bool is_token);
+    uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, token_tx_information token_details);
   void updateTransactionId(const crypto::Hash& hash, TransactionId id);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);

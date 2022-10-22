@@ -250,7 +250,8 @@ cn::WalletTransaction convert(const cn::WalletLegacyTransaction& tx) {
   mtx.unlockTime = tx.unlockTime;
   mtx.extra = tx.extra;
   mtx.isBase = tx.isCoinbase;
-  mtx.is_token = tx.is_token;
+  mtx.is_token = tx.token_details.is_token;
+  mtx.token_id = tx.token_details.token_id;
 
   return mtx;
 }
@@ -261,6 +262,7 @@ cn::WalletTransfer convert(const cn::WalletLegacyTransfer& tr) {
   mtr.address = tr.address;
   mtr.amount = tr.amount;
   mtr.is_token = tr.is_token;
+  mtr.token_id = tr.token_id;
 
   return mtr;
 }

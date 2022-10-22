@@ -37,7 +37,7 @@ struct SendTransactionContext
   std::vector<tx_message_entry> messages;
   uint64_t ttl;
   uint32_t depositTerm;
-  bool is_token;
+  token_tx_information token_details;
 };
 
 } //namespace cn

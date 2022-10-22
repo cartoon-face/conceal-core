@@ -15,6 +15,8 @@
 #include "IObservable.h"
 #include "IStreamSerializable.h"
 
+#include "ITokenised.h"
+
 namespace cn
 {
 
@@ -35,7 +37,7 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
-    bool is_token;
+    token_tx_information token_details;
   };
 
   struct TransactionOutputInformation
@@ -46,7 +48,7 @@ namespace cn
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
 
-    bool is_token;
+    token_tx_information token_details;
 
     // transaction info
     crypto::Hash transactionHash;

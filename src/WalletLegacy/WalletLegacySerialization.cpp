@@ -38,6 +38,12 @@ void serialize(UnconfirmedSpentDepositDetails& details, ISerializer& serializer)
   serializer(details.fee, "fee");
 }
 
+void serialize(token_tx_information& token_details, ISerializer& serializer)
+{
+  serializer(token_details.is_token, "is_token");
+  serializer(token_details.token_id, "token_id");
+}
+
 void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
   uint64_t trId = static_cast<uint64_t>(txi.firstTransferId);
   serializer(trId, "first_transfer_id");
@@ -73,7 +79,7 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
 
   serializer(txi.messages, "messages");
 
-  serializer(txi.is_token, "is_token");
+  serializer(txi.token_details, "token_details");
 
   //this field has been added later in the structure.
   //in order to not break backward binary compatibility
@@ -85,6 +91,7 @@ void serialize(WalletLegacyTransfer& tr, cn::ISerializer& serializer) {
   serializer(tr.address, "address");
   serializer(tr.amount, "amount");
   serializer(tr.is_token, "is_token");
+  serializer(tr.token_id, "token_id");
 }
 
 void serialize(Deposit& deposit, cn::ISerializer& serializer) {
