@@ -56,7 +56,8 @@ namespace
   }
 
   void constructTx(const AccountKeys keys, const std::vector<TransactionSourceEntry> &sources, const std::vector<TransactionDestinationEntry> &splittedDests,
-                   const std::string &extra, uint64_t unlockTimestamp, uint64_t sizeLimit, Transaction &tx, const std::vector<tx_message_entry> &messages, uint64_t ttl, crypto::SecretKey &transactionSK)
+                   const std::string &extra, uint64_t unlockTimestamp, uint64_t sizeLimit, Transaction &tx, const std::vector<tx_message_entry> &messages, uint64_t ttl, crypto::SecretKey &transactionSK,
+                   bool is_token, uint64_t token_id)
   {
     std::vector<uint8_t> extraVec;
     extraVec.reserve(extra.size());
@@ -64,7 +65,7 @@ namespace
 
     logging::LoggerGroup nullLog;
     crypto::SecretKey txSK;
-    bool r = constructTransaction(keys, sources, splittedDests, messages, ttl, extraVec, tx, unlockTimestamp, nullLog, txSK);
+    bool r = constructTransaction(keys, sources, splittedDests, messages, ttl, extraVec, tx, unlockTimestamp, nullLog, txSK, is_token, token_id);
     transactionSK = txSK;
 
     throwIf(!r, error::INTERNAL_WALLET_ERROR);
@@ -470,7 +471,7 @@ namespace cn
       splitDestinations(transaction.firstTransferId, transaction.transferCount, changeDts, context->dustPolicy, splittedDests);
 
       Transaction tx;
-      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->ttl, transactionSK);
+      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->ttl, transactionSK, context->token_details.is_token, context->token_details.token_id);
 
       getObjectHash(tx, transaction.hash);
       transaction.secretKey = transactionSK;
@@ -531,7 +532,7 @@ namespace cn
       splitDestinations(transaction.firstTransferId, transaction.transferCount, changeDts, context->dustPolicy, splittedDests);
 
       Transaction tx;
-      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->ttl, transactionSK);
+      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->ttl, transactionSK, context->token_details.is_token, context->token_details.token_id);
 
       getObjectHash(tx, transaction.hash);
       transaction.secretKey = transactionSK;

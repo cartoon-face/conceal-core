@@ -97,6 +97,7 @@ struct WalletTransferDto {
     amount = tr.amount;
     type = static_cast<uint8_t>(tr.type);
     is_token = tr.is_token;
+    token_id = tr.token_id;
   }
 
   std::string address;
@@ -104,6 +105,7 @@ struct WalletTransferDto {
   uint8_t type;
   uint32_t version;
   bool is_token;
+  uint64_t token_id;
 };
 
 void serialize(WalletRecordDto& value, cn::ISerializer& serializer) {
@@ -154,6 +156,7 @@ void serialize(WalletTransferDto& value, cn::ISerializer& serializer) {
   serializer(value.address, "address");
   serializer(value.amount, "amount");
   serializer(value.is_token, "is_token");
+  serializer(value.token_id, "token_id");
 
   if (value.version > 2) {
     serializer(value.type, "type");
@@ -903,6 +906,7 @@ void WalletSerializer::loadTransfers(common::IInputStream& source, CryptoContext
     tr.address = dto.address;
     tr.amount = dto.amount;
     tr.is_token = dto.is_token;
+    tr.token_id = dto.token_id;
 
     if (version > 2) {
       tr.type = static_cast<WalletTransferType>(dto.type);

@@ -183,11 +183,14 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     blockDetails.totalFeeAmount += transactionDetails.fee;
 
     blockDetails.token_details.is_token += transactionDetails.token_details.is_token;
-    //blockDetails.token_details.token_id += transactionDetails.token_details.token_id;
+    blockDetails.token_details.token_id += transactionDetails.token_details.token_id;
   }
 
   blockDetails.token_details.is_token = block.token_details.has_tokens;
-  blockDetails.token_details.token_id = block.token_details.global_token_id;
+  if (blockDetails.token_details.token_id > block.token_details.global_token_ids)
+  {
+    blockDetails.token_details.token_id = block.token_details.global_token_ids;
+  }
 
   return true;
 }

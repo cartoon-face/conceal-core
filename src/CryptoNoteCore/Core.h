@@ -155,6 +155,9 @@ namespace cn {
     uint64_t investmentAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
 
+    uint64_t tokens_at_height(uint64_t height, uint64_t token_id) const;
+    uint64_t full_token_amount(uint64_t token_id) const;
+
     bool is_key_image_spent(const crypto::KeyImage &key_im);
 
   private:

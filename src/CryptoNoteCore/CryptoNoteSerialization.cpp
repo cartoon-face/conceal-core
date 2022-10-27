@@ -371,7 +371,7 @@ void serialize(KeyPair& keyPair, ISerializer& serializer) {
 
 void serialize(TokenInBlockData& token_details, ISerializer& serializer) {
   serializer(token_details.has_tokens, "has_tokens");
-  serializer(token_details.global_token_id, "global_token_id");
+  serializer(token_details.global_token_ids, "global_token_ids");
   serializer(token_details.token_circulation, "token_circulation");
 }
 

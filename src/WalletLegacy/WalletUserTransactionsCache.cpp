@@ -307,7 +307,8 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.state = WalletLegacyTransactionState::Active;
     transaction.unlockTime = txInfo.unlockTime;
     transaction.messages = txInfo.messages;
-    transaction.token_details = txInfo.token_details;
+    transaction.token_details.is_token = txInfo.token_details.is_token;
+    transaction.token_details.token_id = txInfo.token_details.token_id;
 
     id = insertTransaction(std::move(transaction));
 

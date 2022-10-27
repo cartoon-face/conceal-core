@@ -30,6 +30,8 @@
 #include "CryptoNoteCore/BlockchainMessages.h"
 #include "CryptoNoteCore/IntrusiveLinkedList.h"
 
+#include "TokenIndex.h"
+
 #include <Logging/LoggerRef.h>
 
 #undef ERROR
@@ -126,6 +128,9 @@ namespace cn
     uint64_t difficultyAtHeight(uint64_t height);
     bool isInCheckpointZone(const uint32_t height);
 
+    uint64_t tokens_at_height(uint64_t height, uint64_t token_id) const;
+    uint64_t full_token_amount(uint64_t token_id) const;
+
     template <class visitor_t>
     bool scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height = NULL);
 
@@ -206,11 +211,15 @@ namespace cn
     {
       uint32_t block;
       uint16_t transaction;
+      bool is_token;
+      uint64_t token_id;
 
       void serialize(ISerializer &s)
       {
         s(block, "block");
         s(transaction, "tx");
+        s(is_token, "is_token");
+        s(token_id, "token_id");
       }
     };
 
@@ -296,8 +305,11 @@ namespace cn
     friend class BlockchainIndicesSerializer;
 
     Blocks m_blocks;
+
     cn::BlockIndex m_blockIndex;
     cn::DepositIndex m_depositIndex;
+    cn::TokenIndex m_tokenIndex;
+
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
     UpgradeDetector m_upgradeDetectorV2;
@@ -317,6 +329,7 @@ namespace cn
 
     logging::LoggerRef logger;
 
+    void push_to_token_index(Block& block);
 
     bool switch_to_alternative_blockchain(const std::list<crypto::Hash> &alt_chain, bool discard_disconnected_chain);
     bool handle_alternative_block(const Block &b, const crypto::Hash &id, block_verification_context &bvc, bool sendNewAlternativeBlockMessage = true);
