@@ -35,6 +35,7 @@ public:
                                                  std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                                  std::vector<WalletLegacyTransfer>& transfers,
                                                  uint64_t fee,
+                                                 token_tx_information token_details,
                                                  const std::string& extra = "",
                                                  uint64_t mixIn = 0,
                                                  uint64_t unlockTimestamp = 0,
@@ -73,6 +74,8 @@ private:
                                                                   std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                                                   const std::vector<DepositId>& depositIds);
 
+  std::unique_ptr<WalletRequest> doSendTokenTransaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events, crypto::SecretKey& transactionSK);
+
   void sendTransactionRandomOutsByAmount(bool isMultisigTransaction,
                                          std::shared_ptr<SendTransactionContext> context,
                                          crypto::SecretKey& transactionSK,
@@ -107,7 +110,21 @@ private:
                                        std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                        std::unique_ptr<WalletRequest>& nextRequest,
                                        std::error_code ec);
+
+  void relayTokenTransactionCallback(std::shared_ptr<SendTransactionContext> context,
+                                       TokenTxId token,
+                                       std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
+                                       std::unique_ptr<WalletRequest>& nextRequest,
+                                       std::error_code ec);
+  void relayTokensTransactionCallback(std::shared_ptr<SendTransactionContext> context,
+                                       std::vector<TokenTxId> tokens,
+                                       std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
+                                       std::unique_ptr<WalletRequest>& nextRequest,
+                                       std::error_code ec);
+
   void notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  void notifyTokenBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+
 
   void validateTransfersAddresses(const std::vector<WalletLegacyTransfer>& transfers);
   bool validateDestinationAddress(const std::string& address);

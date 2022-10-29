@@ -85,7 +85,8 @@ bool constructTransaction(
   Transaction& tx,
   uint64_t unlock_time,
   logging::ILogger& log,
-  crypto::SecretKey& transactionSK) {
+  crypto::SecretKey& transactionSK,
+  bool is_token, uint64_t token_id) {
   LoggerRef logger(log, "construct_tx");
 
   tx.inputs.clear();
@@ -94,6 +95,9 @@ bool constructTransaction(
 
   tx.version = TRANSACTION_VERSION_1;
   tx.unlockTime = unlock_time;
+  
+  tx.is_token = is_token;
+  tx.token_id = token_id;
 
   tx.extra = extra;
 

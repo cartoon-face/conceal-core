@@ -625,6 +625,25 @@ struct f_block_details_response {
     KV_MEMBER(totalFeeAmount)
   }
 };
+
+struct token_core
+{
+  std::string id;
+  std::string primary_address;
+  uint64_t max_supply;
+  uint64_t decimal_place;
+  uint64_t fee;
+
+  void serialize(ISerializer &s)
+  {
+    KV_MEMBER(id)
+    KV_MEMBER(primary_address)
+    KV_MEMBER(max_supply)
+    KV_MEMBER(decimal_place)
+    KV_MEMBER(fee)
+  }
+};
+
 struct currency_base_coin {
   std::string name;
   std::string git;
@@ -799,12 +818,14 @@ struct F_COMMAND_RPC_GET_BLOCKCHAIN_SETTINGS {
   struct response {
     currency_base_coin base_coin;
     currency_core core;
+    token_core tokenise;
     std::vector<std::string> extensions;
     std::string status;
 
     void serialize(ISerializer &s) {
       KV_MEMBER(base_coin)
       KV_MEMBER(core)
+      KV_MEMBER(tokenise)
       KV_MEMBER(extensions)
       KV_MEMBER(status)
     }

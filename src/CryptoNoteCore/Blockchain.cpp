@@ -103,6 +103,8 @@ namespace cn
   {
     s(value.block, "block");
     s(value.transaction, "tx");
+    s(value.is_token, "is_token");
+    s(value.token_id, "token_id");
   }
 
   class BlockCacheSerializer
@@ -2003,6 +2005,49 @@ namespace cn
     return checkTransactionInputs(tx, tx_prefix_hash, pmax_used_block_height);
   }
 
+  bool Blockchain::is_token_transaction(const Transaction& tx)
+  {
+    size_t inputIndex = 0;
+    for (const auto &txin : tx.inputs)
+    {
+      assert(inputIndex < tx.signatures.size());
+      if (txin.type() == typeid(KeyInput))
+      {
+        const KeyInput &in_to_key = boost::get<KeyInput>(txin);
+        if (in_to_key.is_token == true)
+        {
+          logger(INFO) << "Token transaction found: " << in_to_key.token_id;
+          return true;
+        }
+        ++inputIndex;
+      }
+    }
+
+    return false;
+  }
+
+  uint64_t Blockchain::is_token_transaction_amount(const Transaction& tx)
+  {
+    size_t inputIndex = 0;
+    uint64_t token_amount = 0;
+    for (const auto &txin : tx.inputs)
+    {
+      assert(inputIndex < tx.signatures.size());
+      if (txin.type() == typeid(KeyInput))
+      {
+        const KeyInput &in_to_key = boost::get<KeyInput>(txin);
+        if (in_to_key.is_token == true)
+        {
+          logger(INFO) << "Token transaction found: " << in_to_key.token_id;
+          token_amount = in_to_key.amount;
+        }
+        ++inputIndex;
+      }
+    }
+
+    return token_amount;
+  }
+
   bool Blockchain::checkTransactionInputs(const Transaction &tx, const crypto::Hash &tx_prefix_hash, uint32_t *pmax_used_block_height)
   {
     size_t inputIndex = 0;
@@ -2483,6 +2528,7 @@ namespace cn
     size_t cumulative_block_size = coinbase_blob_size;
     uint64_t fee_summary = 0;
     uint64_t interestSummary = 0;
+    uint64_t token_amounts = 0;
 
     for (size_t i = 0; i < transactions.size(); ++i)
     {
@@ -2524,11 +2570,17 @@ namespace cn
         return false;
       }
 
+      if (is_token_transaction(transactions[i]))
+      {
+        logger(INFO) << "Block " << blockHash << " has at least one token transaction: " << tx_id;
+      }
+
       ++transactionIndex.transaction;
       pushTransaction(block, tx_id, transactionIndex);
 
       cumulative_block_size += blob_size;
       fee_summary += fee;
+      token_amounts += is_token_transaction_amount(transactions[i]);
       interestSummary += m_currency.calculateTotalTransactionInterest(transactions[i], block.height);
     }
 
@@ -2552,11 +2604,12 @@ namespace cn
     //block.height = static_cast<uint32_t>(m_blocks.size()); //moved to above
     block.block_cumulative_size = cumulative_block_size;
     block.cumulative_difficulty = currentDifficulty;
-    block.already_generated_coins = already_generated_coins + emissionChange + interestSummary;
+    block.already_generated_coins = already_generated_coins + emissionChange + interestSummary - token_amounts;
     if (m_blocks.size() > 0)
     {
       block.cumulative_difficulty += m_blocks.back().cumulative_difficulty;
     }
+    block.token_coins = token_amounts;
 
     pushBlock(block);
     pushToDepositIndex(block, interestSummary);
@@ -2580,6 +2633,18 @@ namespace cn
     update_next_comulative_size_limit();
 
     return true;
+  }
+
+  uint64_t Blockchain::tokens_at_height(uint64_t height, uint64_t token_id) const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokenIndex.tokens_at_height(height, token_id);
+  }
+
+  uint64_t Blockchain::full_token_amount(uint64_t token_id) const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokenIndex.full_token_amount(token_id);
   }
 
   uint64_t Blockchain::fullDepositAmount() const
@@ -2630,6 +2695,37 @@ namespace cn
     }
     m_depositIndex.pushBlock(deposit, interest);
   }
+/**
+  void Blockchain::push_to_token_index(BlockEntry& block)
+  {
+    int64_t tokens = 0;
+    for (const auto &tx : block.transactions)
+    {
+      for (const auto &in : tx.tx.inputs)
+      {
+        if (in.type() == typeid(KeyInput))
+        {
+          auto &ki = boost::get<KeyInput>(in);
+          if (ki.is_token == true)
+          {
+            tokens -= ki.amount;
+          }
+        }
+      }
+      for (const auto &out : tx.tx.outputs)
+      {
+        if (out.target.type() == typeid(KeyInput))
+        {
+          auto &ki = boost::get<KeyInput>(out.target);
+          if (ki.is_token == true)
+          {
+            deposit += ki.amount;
+          }
+        }
+      }
+    }
+    m_tokenIndex.pushBlock(tokens);  // create token index
+  }*/
 
   bool Blockchain::pushBlock(BlockEntry &block)
   {
@@ -3035,6 +3131,29 @@ namespace cn
       blockId = getBlockIdByHeight(blockHeight);
       return true;
     }
+  }
+
+  bool Blockchain::getAlreadyGeneratedTokens(const crypto::Hash &hash, uint64_t &generatedTokens)
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+
+    // try to find block in main chain
+    uint32_t height = 0;
+    if (m_blockIndex.getBlockHeight(hash, height))
+    {
+      generatedTokens = m_blocks[height].token_coins;
+      return true;
+    }
+
+    // try to find block in alternative chain
+    auto blockByHashIterator = m_alternative_chains.find(hash);
+    if (blockByHashIterator != m_alternative_chains.end())
+    {
+      generatedTokens = blockByHashIterator->second.token_coins;
+      return true;
+    }
+
+    return true;
   }
 
   bool Blockchain::getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins)

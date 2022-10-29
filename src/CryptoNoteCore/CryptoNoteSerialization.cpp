@@ -317,6 +317,8 @@ void serializeBlockHeader(BlockHeader& header, ISerializer& serializer) {
   serializer(header.timestamp, "timestamp");
   serializer(header.previousBlockHash, "prev_id");
   serializer.binary(&header.nonce, sizeof(header.nonce), "nonce");
+
+  serializer(header.token_details, "token_details");
 }
 
 void serialize(BlockHeader& header, ISerializer& serializer) {
@@ -365,6 +367,12 @@ void serialize(TransactionExtraMergeMiningTag& tag, ISerializer& serializer) {
 void serialize(KeyPair& keyPair, ISerializer& serializer) {
   serializer(keyPair.secretKey, "secret_key");
   serializer(keyPair.publicKey, "public_key");
+}
+
+void serialize(TokenInBlockData& token_details, ISerializer& serializer) {
+  serializer(token_details.has_tokens, "has_tokens");
+  serializer(token_details.global_token_ids, "global_token_ids");
+  serializer(token_details.token_circulation, "token_circulation");
 }
 
 

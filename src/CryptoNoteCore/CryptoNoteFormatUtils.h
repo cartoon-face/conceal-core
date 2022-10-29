@@ -56,15 +56,17 @@ bool constructTransaction(
   const std::vector<TransactionSourceEntry>& sources,
   const std::vector<TransactionDestinationEntry>& destinations,
   const std::vector<tx_message_entry>& messages,
-  uint64_t ttl, std::vector<uint8_t> extra, Transaction& transaction, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK);
+  uint64_t ttl, std::vector<uint8_t> extra, Transaction& transaction, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK,
+  bool is_token, uint64_t token_id);
 
 inline bool constructTransaction(
   const AccountKeys& sender_account_keys,
   const std::vector<TransactionSourceEntry>& sources,
   const std::vector<TransactionDestinationEntry>& destinations,
-  std::vector<uint8_t> extra, Transaction& tx, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK) {
+  std::vector<uint8_t> extra, Transaction& tx, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK,
+  bool is_token, uint64_t token_id) {
 
-  return constructTransaction(sender_account_keys, sources, destinations, std::vector<tx_message_entry>(), 0, extra, tx, unlock_time, log, transactionSK);
+  return constructTransaction(sender_account_keys, sources, destinations, std::vector<tx_message_entry>(), 0, extra, tx, unlock_time, log, transactionSK, is_token, token_id);
 }
 
 bool is_out_to_acc(const AccountKeys& acc, const KeyOutput& out_key, const crypto::PublicKey& tx_pub_key, size_t keyIndex);

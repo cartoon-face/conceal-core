@@ -181,7 +181,17 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     }
     blockDetails.transactions.push_back(std::move(transactionDetails));
     blockDetails.totalFeeAmount += transactionDetails.fee;
+
+    blockDetails.token_details.is_token += transactionDetails.token_details.is_token;
+    blockDetails.token_details.token_id += transactionDetails.token_details.token_id;
   }
+
+  blockDetails.token_details.is_token = block.token_details.has_tokens;
+  if (blockDetails.token_details.token_id > block.token_details.global_token_ids)
+  {
+    blockDetails.token_details.token_id = block.token_details.global_token_ids;
+  }
+
   return true;
 }
 
@@ -213,6 +223,7 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
   transactionDetails.size = getObjectBinarySize(transaction);
   transactionDetails.unlockTime = transaction.unlockTime;
   transactionDetails.totalOutputsAmount = get_outs_money_amount(transaction);
+
 
   uint64_t inputsAmount;
   if (!get_inputs_money_amount(transaction, inputsAmount)) {
@@ -278,6 +289,10 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       txInToKeyDetails.output.number = outputReferences.back().second;
       txInToKeyDetails.output.transactionHash = outputReferences.back().first;
       txInDetails.input = txInToKeyDetails;
+
+      transactionDetails.token_details.is_token = txInToKey.is_token;
+      transactionDetails.token_details.token_id = txInToKey.token_id;
+
     } else if (txIn.type() == typeid(MultisignatureInput)) {
       TransactionInputMultisignatureDetails txInMultisigDetails;
       const MultisignatureInput& txInMultisig = boost::get<MultisignatureInput>(txIn);

@@ -6,6 +6,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "WalletRpcServer.h"
+#include "ITransfersContainer.h"
 
 #include <fstream>
 
@@ -208,7 +209,8 @@ bool wallet_rpc_server::on_transfer(const wallet_rpc::COMMAND_RPC_TRANSFER::requ
     WalletHelper::IWalletRemoveObserverGuard removeGuard(m_wallet, sent);
 
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, actualFee, extraString, req.mixin, req.unlock_time, messages, ttl);
+    token_tx_information token_details;
+    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, actualFee, token_details, extraString, req.mixin, req.unlock_time, messages, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       throw std::runtime_error("Couldn't send transaction");
     }
@@ -307,7 +309,8 @@ bool wallet_rpc_server::on_optimize(const wallet_rpc::COMMAND_RPC_OPTIMIZE::requ
     WalletHelper::IWalletRemoveObserverGuard removeGuard(m_wallet, sent);
 
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, fee, extraString, mixIn, unlockTimestamp, messages, ttl);
+    token_tx_information token_details;
+    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, fee, token_details, extraString, mixIn, unlockTimestamp, messages, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       throw std::runtime_error("Couldn't send transaction");
     }

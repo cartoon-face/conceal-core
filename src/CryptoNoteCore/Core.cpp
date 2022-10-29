@@ -373,15 +373,15 @@ bool core::get_block_template(Block& b, const AccountPublicAddress& adr, difficu
     b = boost::value_initialized<Block>();
     b.majorVersion = m_blockchain.get_block_major_version_for_height(height);
 
-	if (b.majorVersion < BLOCK_MAJOR_VERSION_7) {
+    if (b.majorVersion < BLOCK_MAJOR_VERSION_7) {
       if (b.majorVersion == BLOCK_MAJOR_VERSION_1) {
         b.minorVersion = m_currency.upgradeHeight(BLOCK_MAJOR_VERSION_2) == UpgradeDetectorBase::UNDEF_HEIGHT ? BLOCK_MINOR_VERSION_1 : BLOCK_MINOR_VERSION_0;
       } else {
         b.minorVersion = m_currency.upgradeHeight(BLOCK_MAJOR_VERSION_3) == UpgradeDetectorBase::UNDEF_HEIGHT ? BLOCK_MINOR_VERSION_1 : BLOCK_MINOR_VERSION_0;
       }
     } else {
-		b.minorVersion = BLOCK_MINOR_VERSION_0;
-	}
+      b.minorVersion = BLOCK_MINOR_VERSION_0;
+    }
 
     b.previousBlockHash = get_tail_id();
     b.timestamp = time(NULL);
@@ -402,6 +402,10 @@ bool core::get_block_template(Block& b, const AccountPublicAddress& adr, difficu
     median_size = m_blockchain.getCurrentCumulativeBlocksizeLimit() / 2;
     already_generated_coins = m_blockchain.getCoinsInCirculation();
   }
+
+  //just grab the first token for now
+  b.token_details.token_circulation = m_blockchain.full_token_amount(1);
+  //
 
   size_t txs_size;
   uint64_t fee;
@@ -916,6 +920,10 @@ bool core::getAlreadyGeneratedCoins(const crypto::Hash& hash, uint64_t& generate
   return m_blockchain.getAlreadyGeneratedCoins(hash, generatedCoins);
 }
 
+bool core::getAlreadyGeneratedTokens(const crypto::Hash& hash, uint64_t& generatedTokens) {
+  return m_blockchain.getAlreadyGeneratedTokens(hash, generatedTokens);
+}
+
 bool core::getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint32_t height,
                           uint64_t& reward, int64_t& emissionChange) {
   return m_currency.getBlockReward(medianSize, currentBlockSize, alreadyGeneratedCoins, fee, height, reward, emissionChange);
@@ -1052,6 +1060,14 @@ uint64_t core::getNextBlockDifficulty() {
 
 uint64_t core::getTotalGeneratedAmount() {
   return m_blockchain.getCoinsInCirculation();
+}
+
+uint64_t core::tokens_at_height(uint64_t height, uint64_t token_id) const {
+  return m_blockchain.tokens_at_height(height, token_id);
+}
+
+uint64_t core::full_token_amount(uint64_t token_id) const {
+  return m_blockchain.full_token_amount(token_id);
 }
 
 uint64_t core::fullDepositAmount() const {

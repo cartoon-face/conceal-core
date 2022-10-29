@@ -63,11 +63,13 @@ public:
                                   const std::string& extra,
                                   const std::vector<WalletLegacyTransfer>& transfers,
                                   uint64_t unlockTime,
-                                  const std::vector<TransactionMessage>& messages);
+                                  const std::vector<TransactionMessage>& messages,
+                                  token_tx_information token_details);
   void updateTransaction(TransactionId transactionId,
                          const cn::Transaction& tx,
                          uint64_t amount,
-                         const std::vector<TransactionOutputInformation>& usedOutputs);
+                         const std::vector<TransactionOutputInformation>& usedOutputs,
+                         token_tx_information token_details);
   void updateTransactionSendingState(TransactionId transactionId, std::error_code ec);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);

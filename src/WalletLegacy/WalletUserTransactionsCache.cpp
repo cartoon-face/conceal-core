@@ -218,7 +218,8 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
                                                              const std::string& extra,
                                                              const std::vector<WalletLegacyTransfer>& transfers,
                                                              uint64_t unlockTime,
-                                                             const std::vector<TransactionMessage>& messages) {
+                                                             const std::vector<TransactionMessage>& messages,
+                                                             token_tx_information token_details) {
   WalletLegacyTransaction transaction;
 
   if (!transfers.empty()) {
@@ -239,6 +240,7 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
   transaction.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
   transaction.state = WalletLegacyTransactionState::Sending;
   transaction.unlockTime = unlockTime;
+  transaction.token_details = token_details;
 
   for (const TransactionMessage& message : messages) {
     transaction.messages.push_back(message.message);
@@ -248,11 +250,11 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
 }
 
 void WalletUserTransactionsCache::updateTransaction(
-  TransactionId transactionId, const cn::Transaction& tx, uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs) {
+  TransactionId transactionId, const cn::Transaction& tx, uint64_t amount, const std::vector<TransactionOutputInformation>& usedOutputs, token_tx_information token_details) {
   // update extra field from created transaction
   auto& txInfo = m_transactions.at(transactionId);
   txInfo.extra.assign(tx.extra.begin(), tx.extra.end());
-  m_unconfirmedTransactions.add(tx, transactionId, amount, usedOutputs);
+  m_unconfirmedTransactions.add(tx, transactionId, amount, usedOutputs, token_details);
 }
 
 void WalletUserTransactionsCache::updateTransactionSendingState(TransactionId transactionId, std::error_code ec) {
@@ -305,6 +307,8 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.state = WalletLegacyTransactionState::Active;
     transaction.unlockTime = txInfo.unlockTime;
     transaction.messages = txInfo.messages;
+    transaction.token_details.is_token = txInfo.token_details.is_token;
+    transaction.token_details.token_id = txInfo.token_details.token_id;
 
     id = insertTransaction(std::move(transaction));
 

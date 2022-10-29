@@ -357,6 +357,12 @@ bool RpcServer::fill_f_block_details_response(const crypto::Hash &hash, f_block_
     return false;
   }
 
+  uint64_t already_generated_tokens;
+  if(!m_core.getAlreadyGeneratedTokens(hash, already_generated_tokens))
+  {
+    return false;
+  }
+
   uint64_t prevBlockGeneratedCoins = 0;
   if (block.height > 0)
   {

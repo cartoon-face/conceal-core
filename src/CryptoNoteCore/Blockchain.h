@@ -30,6 +30,8 @@
 #include "CryptoNoteCore/BlockchainMessages.h"
 #include "CryptoNoteCore/IntrusiveLinkedList.h"
 
+#include "TokenIndex.h"
+
 #include <Logging/LoggerRef.h>
 
 #undef ERROR
@@ -111,6 +113,7 @@ namespace cn
     uint64_t blockDifficulty(size_t i);
     bool getBlockContainingTransaction(const crypto::Hash &txId, crypto::Hash &blockId, uint32_t &blockHeight);
     bool getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins);
+    bool getAlreadyGeneratedTokens(const crypto::Hash &hash, uint64_t &generatedTokens);
     bool getBlockSize(const crypto::Hash &hash, size_t &size);
     bool getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference);
     bool getGeneratedTransactionsNumber(uint32_t height, uint64_t &generatedTransactions);
@@ -124,6 +127,9 @@ namespace cn
     uint64_t coinsEmittedAtHeight(uint64_t height);
     uint64_t difficultyAtHeight(uint64_t height);
     bool isInCheckpointZone(const uint32_t height);
+
+    uint64_t tokens_at_height(uint64_t height, uint64_t token_id) const;
+    uint64_t full_token_amount(uint64_t token_id) const;
 
     template <class visitor_t>
     bool scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height = NULL);
@@ -205,11 +211,15 @@ namespace cn
     {
       uint32_t block;
       uint16_t transaction;
+      bool is_token;
+      uint64_t token_id;
 
       void serialize(ISerializer &s)
       {
         s(block, "block");
         s(transaction, "tx");
+        s(is_token, "is_token");
+        s(token_id, "token_id");
       }
     };
 
@@ -252,6 +262,7 @@ namespace cn
       difficulty_type cumulative_difficulty;
       uint64_t already_generated_coins;
       std::vector<TransactionEntry> transactions;
+      uint64_t token_coins;
 
       void serialize(ISerializer &s)
       {
@@ -261,6 +272,7 @@ namespace cn
         s(cumulative_difficulty, "cumulative_difficulty");
         s(already_generated_coins, "already_generated_coins");
         s(transactions, "transactions");
+        s(token_coins, "token_coins");
       }
     };
 
@@ -293,8 +305,11 @@ namespace cn
     friend class BlockchainIndicesSerializer;
 
     Blocks m_blocks;
+
     cn::BlockIndex m_blockIndex;
     cn::DepositIndex m_depositIndex;
+    cn::TokenIndex m_tokenIndex;
+
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
     UpgradeDetector m_upgradeDetectorV2;
@@ -314,6 +329,7 @@ namespace cn
 
     logging::LoggerRef logger;
 
+    void push_to_token_index(Block& block);
 
     bool switch_to_alternative_blockchain(const std::list<crypto::Hash> &alt_chain, bool discard_disconnected_chain);
     bool handle_alternative_block(const Block &b, const crypto::Hash &id, block_verification_context &bvc, bool sendNewAlternativeBlockMessage = true);
@@ -339,6 +355,9 @@ namespace cn
     bool checkTransactionInputs(const Transaction &tx, const crypto::Hash &tx_prefix_hash, uint32_t *pmax_used_block_height = NULL);
     bool checkTransactionInputs(const Transaction &tx, uint32_t *pmax_used_block_height = NULL);
     bool check_tx_outputs(const Transaction &tx) const;
+
+    bool is_token_transaction(const Transaction& tx);
+    uint64_t is_token_transaction_amount(const Transaction& tx);
 
     const TransactionEntry &transactionByIndex(TransactionIndex index);
     bool pushBlock(const Block &blockData, const crypto::Hash &id, block_verification_context &bvc, uint32_t height);

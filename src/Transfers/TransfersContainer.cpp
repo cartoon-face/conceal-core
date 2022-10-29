@@ -30,6 +30,8 @@ void serialize(TransactionInformation& ti, cn::ISerializer& s) {
   s(ti.extra, "");
   s(ti.paymentId, "");
   s(ti.messages, "");
+  s(ti.token_details.is_token, "");
+  s(ti.token_details.token_id, "");
 }
 
 const uint32_t TRANSFERS_CONTAINER_STORAGE_VERSION = 1;
@@ -235,6 +237,8 @@ void TransfersContainer::addTransaction(const TransactionBlockInfo& block, const
   txInfo.totalAmountOut = tx.getOutputTotalAmount();
   txInfo.extra = tx.getExtra();
   txInfo.messages = std::move(messages);
+  txInfo.token_details.is_token = block.is_token;
+  txInfo.token_details.token_id = block.token_id;
 
   if (!tx.getPaymentId(txInfo.paymentId)) {
     txInfo.paymentId = NULL_HASH;
@@ -271,6 +275,8 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
     info.unlockTime = tx.getUnlockTime();
     info.transactionHash = txHash;
     info.visible = true;
+    info.token_details.is_token = block.is_token;
+    info.token_details.token_id = block.token_id;
 
     if (transferIsUnconfirmed) {
       auto result = m_unconfirmedTransfers.emplace(std::move(info));

@@ -547,6 +547,7 @@ std::vector<TransactionOutputInformation> WalletLegacy::getUnspentOutputs() {
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             const WalletLegacyTransfer& transfer,
                                             uint64_t fee,
+                                            token_tx_information token_details,
                                             const std::string& extra,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
@@ -556,12 +557,13 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
   transfers.push_back(transfer);
   throwIfNotInitialised();
 
-  return sendTransaction(transactionSK, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+  return sendTransaction(transactionSK, transfers, fee, token_details, extra, mixIn, unlockTimestamp, messages, ttl);
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             std::vector<WalletLegacyTransfer>& transfers,
                                             uint64_t fee,
+                                            token_tx_information token_details,
                                             const std::string& extra,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
@@ -584,6 +586,8 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
     cn::WalletLegacyTransfer transfer;
     transfer.address = getAddress();
     transfer.amount = 0;
+    transfer.is_token = false;
+    transfer.token_id = 0;
     transfers.push_back(transfer);
     optimize = true;
     fee = cn::parameters::MINIMUM_FEE_V2;
@@ -596,7 +600,7 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
 
   {
     std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, token_details, extra, mixIn, unlockTimestamp, messages, ttl);
   }
 
   notifyClients(events);
