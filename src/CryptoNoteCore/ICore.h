@@ -38,6 +38,7 @@ struct core_stat_info;
 struct i_cryptonote_protocol;
 struct Transaction;
 struct MultisignatureInput;
+struct TokenInput;
 struct KeyInput;
 struct TransactionPrefixInfo;
 struct tx_verification_context;
@@ -100,6 +101,7 @@ public:
   virtual bool getBlockDifficulty(uint32_t height, difficulty_type& difficulty) = 0;
   virtual bool getBlockTimestamp(uint32_t height, uint64_t &timestamp) = 0;
   virtual bool getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId, uint32_t& blockHeight) = 0;
+  virtual bool get_token_output_ref(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& output_reference) = 0;
   virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& outputReference) = 0;
   virtual bool getTransaction(const crypto::Hash &id, Transaction &tx, bool checkTxPool = false) = 0;
   virtual bool getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) = 0;

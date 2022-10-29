@@ -61,6 +61,7 @@ namespace cn {
     virtual transaction_types::InputType getInputType(size_t index) const override;
     virtual void getInput(size_t index, KeyInput& input) const override;
     virtual void getInput(size_t index, MultisignatureInput& input) const override;
+    virtual void getInput(size_t index, TokenInput& input) const override;
     virtual std::vector<TransactionInput> getInputs() const override;
 
     // outputs
@@ -91,6 +92,7 @@ namespace cn {
     // Inputs/Outputs 
     virtual size_t addInput(const KeyInput& input) override;
     virtual size_t addInput(const MultisignatureInput& input) override;
+    virtual size_t addInput(const TokenInput& input) override;
     virtual size_t addInput(const AccountKeys& senderKeys, const transaction_types::InputKeyInfo& info, KeyPair& ephKeys) override;
 
     virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) override;
@@ -269,6 +271,14 @@ namespace cn {
     checkIfSigning();
     transaction.inputs.push_back(input);
     transaction.version = TRANSACTION_VERSION_2;
+    invalidateHash();
+    return transaction.inputs.size() - 1;
+  }
+
+  size_t TransactionImpl::addInput(const TokenInput& input) {
+    checkIfSigning();
+    transaction.inputs.push_back(input);
+    transaction.version = TRANSACTION_VERSION_3;
     invalidateHash();
     return transaction.inputs.size() - 1;
   }
@@ -472,6 +482,10 @@ namespace cn {
 
   void TransactionImpl::getInput(size_t index, MultisignatureInput& input) const {
     input = boost::get<MultisignatureInput>(getInputChecked(transaction, index, transaction_types::InputType::Multisignature));
+  }
+
+  void TransactionImpl::getInput(size_t index, TokenInput& input) const {
+    input = boost::get<TokenInput>(getInputChecked(transaction, index, transaction_types::InputType::Multisignature));
   }
 
   size_t TransactionImpl::getOutputCount() const {

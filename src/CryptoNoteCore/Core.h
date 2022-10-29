@@ -70,6 +70,7 @@ namespace cn {
      virtual bool getBlockDifficulty(uint32_t height, difficulty_type& difficulty) override;
      virtual bool getBlockTimestamp(uint32_t height, uint64_t &timestamp) override;
      virtual bool getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId, uint32_t& blockHeight) override;
+     virtual bool get_token_output_ref(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& output_reference) override;
      virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& output_reference) override;
      virtual bool getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) override;
      virtual bool getOrphanBlocksByHeight(uint32_t height, std::vector<Block>& blocks) override;

@@ -460,6 +460,10 @@ namespace cn
         return multisignatureInput.amount + calculateInterest(multisignatureInput.amount, multisignatureInput.term, height);
       }
     }
+    else if (in.type() == typeid(TokenInput))
+    {
+      return boost::get<TokenInput>(in).amount;
+    }
     else if (in.type() == typeid(BaseInput))
     {
       return 0;

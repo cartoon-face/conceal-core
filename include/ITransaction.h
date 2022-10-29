@@ -18,8 +18,8 @@ namespace cn {
 
 namespace transaction_types {
   
-  enum class InputType : uint8_t { Invalid, Key, Multisignature, Generating };
-  enum class OutputType : uint8_t { Invalid, Key, Multisignature };
+  enum class InputType : uint8_t { Invalid, Key, Multisignature, Token, Generating };
+  enum class OutputType : uint8_t { Invalid, Key, Multisignature, Token };
 
   struct GlobalOutput {
     crypto::PublicKey targetKey;
@@ -66,6 +66,7 @@ public:
   virtual transaction_types::InputType getInputType(size_t index) const = 0;
   virtual void getInput(size_t index, KeyInput& input) const = 0;
   virtual void getInput(size_t index, MultisignatureInput& input) const = 0;
+  virtual void getInput(size_t index, TokenInput& input) const = 0;
   virtual std::vector<TransactionInput> getInputs() const = 0;
   // outputs
   virtual size_t getOutputCount() const = 0;
@@ -107,6 +108,7 @@ public:
   // Inputs/Outputs 
   virtual size_t addInput(const KeyInput& input) = 0;
   virtual size_t addInput(const MultisignatureInput& input) = 0;
+  virtual size_t addInput(const TokenInput& input) = 0;
   virtual size_t addInput(const AccountKeys& senderKeys, const transaction_types::InputKeyInfo& info, KeyPair& ephKeys) = 0;
 
   virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) = 0;

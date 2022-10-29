@@ -112,7 +112,10 @@ namespace cn
     bool getBlockContainingTransaction(const crypto::Hash &txId, crypto::Hash &blockId, uint32_t &blockHeight);
     bool getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins);
     bool getBlockSize(const crypto::Hash &hash, size_t &size);
+
+    bool get_token_output_ref(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference);
     bool getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference);
+
     bool getGeneratedTransactionsNumber(uint32_t height, uint64_t &generatedTransactions);
     bool getOrphanBlockIdsByHeight(uint32_t height, std::vector<crypto::Hash> &blockHashes);
     bool getBlockIdsByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<crypto::Hash> &hashes, uint32_t &blocksNumberWithinTimestamps);
@@ -232,6 +235,20 @@ namespace cn
       }
     };
 
+    struct TokenOutputUsage
+    {
+      TransactionIndex transactionIndex;
+      uint16_t outputIndex;
+      bool isUsed;
+
+      void serialize(ISerializer &s)
+      {
+        s(transactionIndex, "token_txindex");
+        s(outputIndex, "token_outindex");
+        s(isUsed, "token_used");
+      }
+    };
+
     struct TransactionEntry
     {
       Transaction tx;
@@ -252,6 +269,8 @@ namespace cn
       difficulty_type cumulative_difficulty;
       uint64_t already_generated_coins;
       std::vector<TransactionEntry> transactions;
+      uint64_t token_transactions;
+      uint64_t token_coins;
 
       void serialize(ISerializer &s)
       {
@@ -261,6 +280,8 @@ namespace cn
         s(cumulative_difficulty, "cumulative_difficulty");
         s(already_generated_coins, "already_generated_coins");
         s(transactions, "transactions");
+        s(token_transactions, "token_transactions");
+        s(token_coins, "token_coins");
       }
     };
 
@@ -268,6 +289,7 @@ namespace cn
     typedef parallel_flat_hash_map<crypto::Hash, BlockEntry> blocks_ext_by_hash;
     typedef parallel_flat_hash_map<uint64_t, std::vector<std::pair<TransactionIndex, uint16_t>>> outputs_container; //crypto::Hash - tx hash, size_t - index of out in transaction
     typedef parallel_flat_hash_map<uint64_t, std::vector<MultisignatureOutputUsage>> MultisignatureOutputsContainer;
+    typedef parallel_flat_hash_map<uint64_t, std::vector<TokenOutputUsage>> TokenOutputsContainer;
 
     const Currency &m_currency;
     tx_memory_pool &m_tx_pool;
@@ -276,6 +298,7 @@ namespace cn
     tools::ObserverManager<IBlockchainStorageObserver> m_observerManager;
 
     key_images_container m_spent_keys;
+    key_images_container m_token_spent_keys;
     size_t m_current_block_cumul_sz_limit;
     blocks_ext_by_hash m_alternative_chains; // crypto::Hash -> block_extended_info
     outputs_container m_outputs;
@@ -296,7 +319,10 @@ namespace cn
     cn::BlockIndex m_blockIndex;
     cn::DepositIndex m_depositIndex;
     TransactionMap m_transactionMap;
+
     MultisignatureOutputsContainer m_multisignatureOutputs;
+    TokenOutputsContainer m_token_outputs;
+
     UpgradeDetector m_upgradeDetectorV2;
     UpgradeDetector m_upgradeDetectorV3;
     UpgradeDetector m_upgradeDetectorV4;
@@ -336,9 +362,13 @@ namespace cn
     bool getBlockCumulativeSize(const Block &block, size_t &cumulativeSize);
     bool update_next_comulative_size_limit();
     bool check_tx_input(const KeyInput &txin, const crypto::Hash &tx_prefix_hash, const std::vector<crypto::Signature> &sig, uint32_t *pmax_related_block_height = NULL);
+    bool check_tx_input(const TokenInput &txin, const crypto::Hash &tx_prefix_hash, const std::vector<crypto::Signature> &sig, uint32_t *pmax_related_block_height = NULL);
     bool checkTransactionInputs(const Transaction &tx, const crypto::Hash &tx_prefix_hash, uint32_t *pmax_used_block_height = NULL);
     bool checkTransactionInputs(const Transaction &tx, uint32_t *pmax_used_block_height = NULL);
     bool check_tx_outputs(const Transaction &tx) const;
+
+    bool is_token_transaction(const Transaction& tx);
+    uint64_t is_token_transaction_amount(const Transaction& tx);
 
     const TransactionEntry &transactionByIndex(TransactionIndex index);
     bool pushBlock(const Block &blockData, const crypto::Hash &id, block_verification_context &bvc, uint32_t height);

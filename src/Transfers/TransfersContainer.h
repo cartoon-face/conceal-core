@@ -134,11 +134,13 @@ struct TransactionBlockInfo {
   uint32_t height;
   uint64_t timestamp;
   uint32_t transactionIndex;
+  uint64_t token_index;
 
   void serialize(ISerializer& s) {
     serializeBlockHeight(s, height, "height");
     s(timestamp, "timestamp");
     s(transactionIndex, "transactionIndex");
+    s(token_index, "token_index");
   }
 };
 
@@ -201,7 +203,11 @@ public:
   // ITransfersContainer
   virtual size_t transfersCount() const override;
   virtual size_t transactionsCount() const override;
+  virtual size_t transfersTokenCount() const override;
+
   virtual uint64_t balance(uint32_t flags) const override;
+  virtual uint64_t token_balance(uint32_t flags) const override;
+
   virtual void getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags) const override;
   virtual bool getTransactionInformation(const crypto::Hash& transactionHash, TransactionInformation& info,
     uint64_t* amountIn = nullptr, uint64_t* amountOut = nullptr) const override;
@@ -365,10 +371,17 @@ private:
 
 private:
   TransactionMultiIndex m_transactions;
+
   UnconfirmedTransfersMultiIndex m_unconfirmedTransfers;
   AvailableTransfersMultiIndex m_availableTransfers;
   SpentTransfersMultiIndex m_spentTransfers;
   TransfersUnlockMultiIndex m_transfersUnlockJobs;
+
+  UnconfirmedTransfersMultiIndex m_unconfirmedTokenTransfers;
+  AvailableTransfersMultiIndex m_availableTokenTransfers;
+  SpentTransfersMultiIndex m_spentTokenTransfers;
+  TransfersUnlockMultiIndex m_transfersTokenUnlockJobs;
+
   //std::unordered_map<KeyImage, KeyOutputInfo, boost::hash<KeyImage>> m_keyImages;
 
   uint32_t m_currentHeight; // current height is needed to check if a transfer is unlocked

@@ -152,7 +152,8 @@ namespace cn
 	const uint64_t GENESIS_TIMESTAMP = 1527078920;
 
 	const uint8_t TRANSACTION_VERSION_1 = 1;
-	const uint8_t TRANSACTION_VERSION_2 = 2;
+	const uint8_t TRANSACTION_VERSION_2 = 2; // multisig deposits
+	const uint8_t TRANSACTION_VERSION_3 = 3; // tokens
 	const uint8_t BLOCK_MAJOR_VERSION_1 = 1; // (Consensus I)
 	const uint8_t BLOCK_MAJOR_VERSION_2 = 2; // (Consensus II)
 	const uint8_t BLOCK_MAJOR_VERSION_3 = 3; // (Consensus III)

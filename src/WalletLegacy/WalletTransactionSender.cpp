@@ -841,6 +841,26 @@ namespace cn
     return convertSources(std::move(sources));
   }
 
+  std::vector<TokenInput> WalletTransactionSender::prep_token_inputs(const std::vector<TransactionOutputInformation> &selectedTransfers)
+  {
+    std::vector<TokenInput> inputs;
+    inputs.reserve(selectedTransfers.size());
+
+    for (const auto &output : selectedTransfers)
+    {
+      assert(output.type == transaction_types::OutputType::Token);
+
+      TokenInput input;
+      input.amount = output.amount;
+      input.outputIndex = output.globalOutputIndex;
+      input.token_tx_index = output.global_token_output_index + 1;
+
+      inputs.emplace_back(std::move(input));
+    }
+
+    return inputs;
+  }
+
   std::vector<MultisignatureInput> WalletTransactionSender::prepareMultisignatureInputs(const std::vector<TransactionOutputInformation> &selectedTransfers)
   {
     std::vector<MultisignatureInput> inputs;

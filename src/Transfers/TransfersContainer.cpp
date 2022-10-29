@@ -30,6 +30,7 @@ void serialize(TransactionInformation& ti, cn::ISerializer& s) {
   s(ti.extra, "");
   s(ti.paymentId, "");
   s(ti.messages, "");
+  s(ti.token_id, "");
 }
 
 const uint32_t TRANSFERS_CONTAINER_STORAGE_VERSION = 1;
@@ -235,6 +236,7 @@ void TransfersContainer::addTransaction(const TransactionBlockInfo& block, const
   txInfo.totalAmountOut = tx.getOutputTotalAmount();
   txInfo.extra = tx.getExtra();
   txInfo.messages = std::move(messages);
+  txInfo.token_id = block.token_index;
 
   if (!tx.getPaymentId(txInfo.paymentId)) {
     txInfo.paymentId = NULL_HASH;
@@ -271,11 +273,21 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
     info.unlockTime = tx.getUnlockTime();
     info.transactionHash = txHash;
     info.visible = true;
+    info.global_token_output_index = block.token_index;
 
     if (transferIsUnconfirmed) {
-      auto result = m_unconfirmedTransfers.emplace(std::move(info));
-      (void)result; // Disable unused warning
-      assert(result.second);
+      if (info.type == transaction_types::OutputType::Token)
+      {
+        auto token_result = m_unconfirmedTokenTransfers.emplace(std::move(info));
+        (void)token_result; // Disable unused warning
+        assert(token_result.second);
+      }
+      else
+      {
+        auto result = m_unconfirmedTransfers.emplace(std::move(info));
+        (void)result; // Disable unused warning
+        assert(result.second);
+      } 
     } else {
       if (info.type == transaction_types::OutputType::Multisignature) {
         SpentOutputDescriptor descriptor(transfer);
@@ -284,9 +296,25 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
           throw std::runtime_error("Transfer already exists");
         }
       }
-
-      addUnlockJob(info);
-
+      if (info.type == transaction_types::OutputType::Token)
+      {
+        SpentOutputDescriptor descriptor(transfer);
+        if (m_availableTokenTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
+            m_spentTokenTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
+          throw std::runtime_error("Tokenised transfer already exists");
+        }
+      }
+    }
+  
+    addUnlockJob(info);
+    if (info.type == transaction_types::OutputType::Token)
+    {
+      auto token_result = m_availableTokenTransfers.emplace(std::move(info));
+      (void)token_result; // Disable unused warning
+      assert(token_result.second);
+    }
+    else
+    {
       auto result = m_availableTransfers.emplace(std::move(info));
       (void)result; // Disable unused warning
       assert(result.second);
@@ -368,6 +396,51 @@ bool TransfersContainer::addTransactionInputs(const TransactionBlockInfo& block,
 
         inputsAdded = true;
       }
+    }
+    else if (inputType == transaction_types::InputType::Token)
+    {
+      TokenInput input;
+      tx.getInput(i, input);
+
+      SpentOutputDescriptor descriptor(&input.keyImage);
+      auto spentRange = m_spentTokenTransfers.get<SpentOutputDescriptorIndex>().equal_range(descriptor);
+      if (std::distance(spentRange.first, spentRange.second) > 0) {
+        throw std::runtime_error("Spending already spent transfer");
+      }
+
+      auto availableRange = m_availableTokenTransfers.get<SpentOutputDescriptorIndex>().equal_range(descriptor);
+      auto unconfirmedRange = m_unconfirmedTokenTransfers.get<SpentOutputDescriptorIndex>().equal_range(descriptor);
+      size_t availableCount = std::distance(availableRange.first, availableRange.second);
+      size_t unconfirmedCount = std::distance(unconfirmedRange.first, unconfirmedRange.second);
+
+      if (availableCount == 0) {
+        if (unconfirmedCount > 0) {
+          throw std::runtime_error("Spending unconfirmed transfer");
+        } else {
+          // This input doesn't spend any transfer from this container
+          continue;
+        }
+      }
+
+      auto& outputDescriptorIndex = m_availableTokenTransfers.get<SpentOutputDescriptorIndex>();
+      auto availableOutputsRange = outputDescriptorIndex.equal_range(SpentOutputDescriptor(&input.keyImage));
+
+      auto iteratorList = createTransferIteratorList(availableOutputsRange);
+      iteratorList.sort();
+      auto spendingTransferIt = iteratorList.findFirstByAmount(input.amount);
+
+      if (spendingTransferIt == availableOutputsRange.second) {
+        throw std::runtime_error("Input has invalid amount, corresponding output isn't found");
+      }
+
+      assert(spendingTransferIt->keyImage == input.keyImage);
+      deleteUnlockJob(*spendingTransferIt);
+      copyToSpent(block, tx, i, *spendingTransferIt);
+      // erase from available outputs
+      outputDescriptorIndex.erase(spendingTransferIt);
+      updateTransfersVisibility(input.keyImage);
+
+      inputsAdded = true;
     } else {
       assert(inputType == transaction_types::InputType::Generating);
     }
@@ -411,6 +484,7 @@ bool TransfersContainer::markTransactionConfirmed(const TransactionBlockInfo& bl
   auto txInfo = *transactionIt;
   txInfo.blockHeight = block.height;
   txInfo.timestamp = block.timestamp;
+  txInfo.token_id = block.token_index;
   m_transactions.replace(transactionIt, txInfo);
 
   auto availableRange = m_unconfirmedTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
@@ -448,6 +522,41 @@ bool TransfersContainer::markTransactionConfirmed(const TransactionBlockInfo& bl
     }
   }
 
+  auto availableTokenRange = m_unconfirmedTokenTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
+  for (auto transferTkIt = availableTokenRange.first; transferTkIt != availableTokenRange.second; ) {
+    auto transfer = *transferTkIt;
+    assert(transfer.blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+    assert(transfer.globalOutputIndex == UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX);
+    if (transfer.outputInTransaction >= globalIndices.size()) {
+      throw std::invalid_argument("Not enough elements in globalIndices");
+    }
+
+    transfer.blockHeight = block.height;
+    transfer.transactionIndex = block.transactionIndex;
+    transfer.globalOutputIndex = globalIndices[transfer.outputInTransaction];
+
+    if (transfer.type == transaction_types::OutputType::Token) {
+      SpentOutputDescriptor descriptor(transfer);
+      if (m_availableTokenTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
+          m_spentTokenTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
+        // This exception breaks TransfersContainer consistency
+        throw std::runtime_error("Transfer already exists");
+      }
+    }
+
+    addUnlockJob(transfer);
+
+    auto result = m_availableTransfers.emplace(std::move(transfer));
+    (void)result; // Disable unused warning
+    assert(result.second);
+
+    transferTkIt = m_unconfirmedTokenTransfers.get<ContainingTransactionIndex>().erase(transferTkIt);
+
+    if (transfer.type == transaction_types::OutputType::Key) {
+      updateTransfersVisibility(transfer.keyImage);
+    }
+  }
+
   auto& spendingTransactionIndex = m_spentTransfers.get<SpendingTransactionIndex>();
   auto spentRange = spendingTransactionIndex.equal_range(transactionHash);
   for (auto transferIt = spentRange.first; transferIt != spentRange.second; ++transferIt) {
@@ -456,6 +565,16 @@ bool TransfersContainer::markTransactionConfirmed(const TransactionBlockInfo& bl
 
     transfer.spendingBlock = block;
     spendingTransactionIndex.replace(transferIt, transfer);
+  }
+
+  auto& spendingTokenTransactionIndex = m_spentTokenTransfers.get<SpendingTransactionIndex>();
+  auto spentTokenRange = spendingTokenTransactionIndex.equal_range(transactionHash);
+  for (auto transferTkIt = spentTokenRange.first; transferTkIt != spentTokenRange.second; ++transferTkIt) {
+    auto transfer = *transferTkIt;
+    assert(transfer.spendingBlock.height == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+
+    transfer.spendingBlock = block;
+    spendingTokenTransactionIndex.replace(transferTkIt, transfer);
   }
 
   return true;
@@ -505,6 +624,50 @@ void TransfersContainer::deleteTransactionTransfers(const crypto::Hash& transact
       updateTransfersVisibility(keyImage);
     } else {
       it = transactionTransfersIndex.erase(it);
+    }
+  }
+
+  // delete token txs
+  auto& spendingTokenTransactionIndex = m_spentTokenTransfers.get<SpendingTransactionIndex>();
+  auto spentTokenTransfersRange = spendingTokenTransactionIndex.equal_range(transactionHash);
+  for (auto it = spentTokenTransfersRange.first; it != spentTokenTransfersRange.second;) {
+    assert(it->blockHeight != WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+    assert(it->globalOutputIndex != UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX);
+
+    const TransactionOutputInformationEx& unspendingTransfer = static_cast<const TransactionOutputInformationEx&>(*it);
+
+    addUnlockJob(unspendingTransfer);
+    auto result = m_availableTokenTransfers.emplace(unspendingTransfer);
+    assert(result.second);
+    it = spendingTokenTransactionIndex.erase(it);
+
+    if (result.first->type == transaction_types::OutputType::Token) {
+      updateTransfersVisibility(result.first->keyImage);
+    }
+  }
+
+  auto unconfirmedTokenTransfersRange = m_unconfirmedTokenTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
+  for (auto it = unconfirmedTokenTransfersRange.first; it != unconfirmedTokenTransfersRange.second;) {
+    if (it->type == transaction_types::OutputType::Token) {
+      KeyImage keyImage = it->keyImage;
+      it = m_unconfirmedTokenTransfers.get<ContainingTransactionIndex>().erase(it);
+      updateTransfersVisibility(keyImage);
+    } else {
+      it = m_unconfirmedTokenTransfers.get<ContainingTransactionIndex>().erase(it);
+    }
+  }
+
+  auto& transactionTokenTransfersIndex = m_availableTokenTransfers.get<ContainingTransactionIndex>();
+  auto transactionTokenTransfersRange = transactionTokenTransfersIndex.equal_range(transactionHash);
+  for (auto it = transactionTokenTransfersRange.first; it != transactionTokenTransfersRange.second;) {
+    deleteUnlockJob(*it);
+
+    if (it->type == transaction_types::OutputType::Token) {
+      KeyImage keyImage = it->keyImage;
+      it = transactionTokenTransfersIndex.erase(it);
+      updateTransfersVisibility(keyImage);
+    } else {
+      it = transactionTokenTransfersIndex.erase(it);
     }
   }
 }
@@ -587,24 +750,41 @@ void TransfersContainer::updateTransfersVisibility(const KeyImage& keyImage) {
   auto& unconfirmedIndex = m_unconfirmedTransfers.get<SpentOutputDescriptorIndex>();
   auto& availableIndex = m_availableTransfers.get<SpentOutputDescriptorIndex>();
   auto& spentIndex = m_spentTransfers.get<SpentOutputDescriptorIndex>();
+  // tokens
+  auto& unconfirmedTokenIndex = m_unconfirmedTokenTransfers.get<SpentOutputDescriptorIndex>();
+  auto& availableTokenIndex = m_availableTokenTransfers.get<SpentOutputDescriptorIndex>();
+  auto& spentTokenIndex = m_spentTokenTransfers.get<SpentOutputDescriptorIndex>();
 
   SpentOutputDescriptor descriptor(&keyImage);
   auto unconfirmedRange = unconfirmedIndex.equal_range(descriptor);
   auto availableRange = availableIndex.equal_range(descriptor);
   auto spentRange = spentIndex.equal_range(descriptor);
+  // tokens
+  auto unconfirmedTokenRange = unconfirmedTokenIndex.equal_range(descriptor);
+  auto availableTokenRange = availableTokenIndex.equal_range(descriptor);
+  auto spentTokenRange = spentTokenIndex.equal_range(descriptor);
 
   size_t unconfirmedCount = std::distance(unconfirmedRange.first, unconfirmedRange.second);
   size_t availableCount = std::distance(availableRange.first, availableRange.second);
   size_t spentCount = std::distance(spentRange.first, spentRange.second);
+  // tokens
+  size_t unconfirmedTokenCount = std::distance(unconfirmedTokenRange.first, unconfirmedTokenRange.second);
+  size_t availableTokenCount = std::distance(availableTokenRange.first, availableTokenRange.second);
+  size_t spentTokenCount = std::distance(spentTokenRange.first, spentTokenRange.second);
   assert(spentCount == 0 || spentCount == 1);
 
-  if (spentCount > 0) {
+  if (spentCount > 0 || spentTokenCount > 0 ) {
     updateVisibility(unconfirmedIndex, unconfirmedRange, false);
     updateVisibility(availableIndex, availableRange, false);
     updateVisibility(spentIndex, spentRange, true);
-  } else if (availableCount > 0) {
+    updateVisibility(unconfirmedTokenIndex, unconfirmedTokenRange, false);
+    updateVisibility(availableTokenIndex, availableTokenRange, false);
+    updateVisibility(spentTokenIndex, spentTokenRange, true);
+  } else if (availableCount > 0 || availableTokenCount) {
     updateVisibility(unconfirmedIndex, unconfirmedRange, false);
     updateVisibility(availableIndex, availableRange, false);
+    updateVisibility(unconfirmedTokenIndex, unconfirmedTokenRange, false);
+    updateVisibility(availableTokenIndex, availableTokenRange, false);
 
     auto iteratorList = createTransferIteratorList(availableRange);
     auto earliestTransferIt = iteratorList.minElement();
@@ -615,6 +795,7 @@ void TransfersContainer::updateTransfersVisibility(const KeyImage& keyImage) {
     availableIndex.replace(earliestTransferIt, earliestTransfer);
   } else {
     updateVisibility(unconfirmedIndex, unconfirmedRange, unconfirmedCount == 1);
+    updateVisibility(unconfirmedTokenIndex, unconfirmedTokenRange, unconfirmedTokenCount == 1);
   }
 }
 
@@ -647,6 +828,11 @@ size_t TransfersContainer::transactionsCount() const {
   return m_transactions.size();
 }
 
+size_t TransfersContainer::transfersTokenCount() const {
+  std::lock_guard<std::mutex> lk(m_mutex);
+  return m_unconfirmedTokenTransfers.size() + m_availableTokenTransfers.size() + m_spentTokenTransfers.size();
+}
+
 uint64_t TransfersContainer::balance(uint32_t flags) const {
   std::lock_guard<std::mutex> lk(m_mutex);
   uint64_t amount = 0;
@@ -668,9 +854,36 @@ uint64_t TransfersContainer::balance(uint32_t flags) const {
   return amount;
 }
 
+uint64_t TransfersContainer::token_balance(uint32_t flags) const {
+  std::lock_guard<std::mutex> lk(m_mutex);
+  uint64_t amount = 0;
+
+  for (const auto& t : m_availableTokenTransfers) {
+    if (t.visible && isIncluded(t, flags)) {
+      amount += t.amount;
+    }
+  }
+
+  if ((flags & IncludeStateLocked) != 0) {
+    for (const auto& t : m_unconfirmedTokenTransfers) {
+      if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+        amount += t.amount;
+      }
+    }
+  }
+
+  return amount;
+}
+
 void TransfersContainer::getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags) const {
   std::lock_guard<std::mutex> lk(m_mutex);
   for (const auto& t : m_availableTransfers) {
+    if (t.visible && isIncluded(t, flags)) {
+      transfers.push_back(t);
+    }
+  }
+
+  for (const auto& t : m_availableTokenTransfers) {
     if (t.visible && isIncluded(t, flags)) {
       transfers.push_back(t);
     }

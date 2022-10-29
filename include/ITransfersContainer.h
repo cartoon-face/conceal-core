@@ -35,6 +35,7 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
+    uint64_t token_id;
   };
 
   struct TransactionOutputInformation
@@ -44,6 +45,7 @@ namespace cn
     uint64_t amount;
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
+    uint64_t global_token_output_index;
 
     // transaction info
     crypto::Hash transactionHash;
@@ -106,8 +108,10 @@ namespace cn
     };
 
     virtual size_t transfersCount() const = 0;
+    virtual size_t transfersTokenCount() const = 0;
     virtual size_t transactionsCount() const = 0;
     virtual uint64_t balance(uint32_t flags = IncludeDefault) const = 0;
+    virtual uint64_t token_balance(uint32_t flags = IncludeDefault) const = 0;
     virtual void getOutputs(std::vector<TransactionOutputInformation> &transfers, uint32_t flags = IncludeDefault) const = 0;
     virtual bool getTransactionInformation(const crypto::Hash &transactionHash, TransactionInformation &info,
                                            uint64_t *amountIn = nullptr, uint64_t *amountOut = nullptr) const = 0;

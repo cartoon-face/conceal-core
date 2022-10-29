@@ -87,6 +87,7 @@ private:
   std::vector<transaction_types::InputKeyInfo> prepareKeyInputs(const std::vector<TransactionOutputInformation>& selectedTransfers,
                                                                std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& outs,
                                                                uint64_t mixIn);
+  std::vector<TokenInput> prep_token_inputs(const std::vector<TransactionOutputInformation>& selectedTransfers);
   std::vector<MultisignatureInput> prepareMultisignatureInputs(const std::vector<TransactionOutputInformation>& selectedTransfers);
   void splitDestinations(TransferId firstTransferId, size_t transfersCount, const TransactionDestinationEntry& changeDts,
     const TxDustPolicy& dustPolicy, std::vector<TransactionDestinationEntry>& splittedDests);
