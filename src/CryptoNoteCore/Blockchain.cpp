@@ -213,6 +213,18 @@ namespace cn
         m_bs.m_spent_keys.phmap_dump(ar_out);
       }
 
+      logger(INFO) << operation << "tokenised spent keys";
+      if (s.type() == ISerializer::INPUT)
+      {
+        phmap::BinaryInputArchive ar_in(appendPath(m_bs.m_config_folder, "tokenspentkeys.dat").c_str());
+        m_bs.m_token_spent_keys.phmap_load(ar_in);
+      }
+      else
+      {
+        phmap::BinaryOutputArchive ar_out(appendPath(m_bs.m_config_folder, "tokenspentkeys.dat").c_str());
+        m_bs.m_token_spent_keys.phmap_dump(ar_out);
+      }
+
       logger(INFO) << operation << "outputs";
       s(m_bs.m_outputs, "outputs");
 
@@ -450,7 +462,7 @@ namespace cn
   bool Blockchain::have_tx_keyimg_as_spent(const crypto::KeyImage &key_im)
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
-    return m_spent_keys.find(key_im) != m_spent_keys.end();
+    return m_spent_keys.find(key_im) != m_spent_keys.end() || m_token_spent_keys.find(key_im) != m_token_spent_keys.end();
   }
 
   uint32_t Blockchain::getCurrentBlockchainHeight()
@@ -644,6 +656,10 @@ namespace cn
             auto out = ::boost::get<MultisignatureInput>(i);
             m_multisignatureOutputs[out.amount][out.outputIndex].isUsed = true;
           }
+          else if (i.type() == typeid(TokenInput))
+          {
+            m_token_spent_keys.insert(std::make_pair(::boost::get<TokenInput>(i).keyImage, b));
+          }
         }
 
         // process outputs
@@ -707,6 +723,9 @@ namespace cn
     m_spent_keys.clear();
     m_alternative_chains.clear();
     m_outputs.clear();
+
+    // clear token data
+    m_token_spent_keys.clear();
 
     m_paymentIdIndex.clear();
     m_timestampIndex.clear();
@@ -1992,9 +2011,53 @@ namespace cn
           return true;
         }
       }
+      else if (in.type() == typeid(TokenInput))
+      {
+        if (have_tx_keyimg_as_spent(boost::get<TokenInput>(in).keyImage))
+        {
+          return true;
+        }
+      }
     }
 
     return false;
+  }
+
+  bool Blockchain::is_token_transaction(const Transaction& tx)
+  {
+    size_t inputIndex = 0;
+    for (const auto &txin : tx.inputs)
+    {
+      assert(inputIndex < tx.signatures.size());
+      if (txin.type() == typeid(TokenInput))
+      {
+        const TokenInput &in_to_key = boost::get<TokenInput>(txin);
+        logger(INFO) << "Token transaction found: " << in_to_key.token_tx_index;
+        return true;
+      }
+      ++inputIndex;
+    }
+
+    return false;
+  }
+
+  uint64_t Blockchain::is_token_transaction_amount(const Transaction& tx)
+  {
+    size_t inputIndex = 0;
+    uint64_t token_amount = 0;
+    for (const auto &txin : tx.inputs)
+    {
+      assert(inputIndex < tx.signatures.size());
+      if (txin.type() == typeid(TokenInput))
+      {
+        const TokenInput &in_to_key = boost::get<TokenInput>(txin);
+        logger(INFO) << "Token transaction found: " << in_to_key.token_tx_index;
+        token_amount = in_to_key.amount;
+        ++inputIndex;
+      }
+    }
+
+    return token_amount;
   }
 
   bool Blockchain::checkTransactionInputs(const Transaction &tx, uint32_t *pmax_used_block_height)
@@ -2015,12 +2078,14 @@ namespace cn
     for (const auto &txin : tx.inputs)
     {
       assert(inputIndex < tx.signatures.size());
-      if (txin.type() == typeid(KeyInput))
+      if (txin.type() == typeid(KeyInput) || txin.type() == typeid(TokenInput))
       {
         const KeyInput &in_to_key = boost::get<KeyInput>(txin);
-        if (!(!in_to_key.outputIndexes.empty()))
+        const TokenInput &in_to_key_token = boost::get<TokenInput>(txin);
+
+        if (!(!in_to_key.outputIndexes.empty() || !in_to_key_token.outputIndex == 0))
         {
-          logger(ERROR, BRIGHT_RED) << "empty in_to_key.outputIndexes in transaction with id " << getObjectHash(tx);
+          logger(ERROR, BRIGHT_RED) << "empty outputIndexes in transaction with id " << getObjectHash(tx);
           return false;
         }
 
@@ -2030,11 +2095,22 @@ namespace cn
           return false;
         }
 
+        if (have_tx_keyimg_as_spent(in_to_key_token.keyImage))
+        {
+          logger(DEBUGGING) << "Key image already spent in blockchain: " << common::podToHex(in_to_key_token.keyImage);
+          return false;
+        }
+
         if (!isInCheckpointZone(getCurrentBlockchainHeight()))
         {
           if (!check_tx_input(in_to_key, tx_prefix_hash, tx.signatures[inputIndex], pmax_used_block_height))
           {
             logger(INFO, BRIGHT_WHITE) << "Failed to check input in transaction " << transactionHash;
+            return false;
+          }
+          if (!check_tx_input(in_to_key_token, tx_prefix_hash, tx.signatures[inputIndex], pmax_used_block_height))
+          {
+            logger(INFO, BRIGHT_WHITE) << "Failed to check token input in transaction " << transactionHash;
             return false;
           }
         }
@@ -2137,6 +2213,73 @@ namespace cn
     if (getCurrentBlockchainHeight() > cn::parameters::UPGRADE_HEIGHT_V4 && getCurrentBlockchainHeight() < cn::parameters::UPGRADE_HEIGHT_V5 && txin.outputIndexes.size() < 3)
     {
       logger(ERROR, BRIGHT_RED) << "ring size is too small: " << txin.outputIndexes.size() << " Expected: 4";
+      return false;
+    }
+
+    if (!(sig.size() == output_keys.size()))
+    {
+      logger(ERROR, BRIGHT_RED) << "internal error: tx signatures count=" << sig.size() << " mismatch with outputs keys count for inputs=" << output_keys.size();
+      return false;
+    }
+    if (isInCheckpointZone(getCurrentBlockchainHeight()))
+    {
+      return true;
+    }
+
+    static const crypto::KeyImage I = {{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    static const crypto::KeyImage L = {{0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}};
+    if (!(scalarmultKey(txin.keyImage, L) == I))
+    {
+      return false;
+    }
+
+    return crypto::check_ring_signature(tx_prefix_hash, txin.keyImage, output_keys, sig.data());
+  }
+
+  bool Blockchain::check_tx_input(const TokenInput &txin, const crypto::Hash &tx_prefix_hash, const std::vector<crypto::Signature> &sig, uint32_t *pmax_related_block_height)
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+
+    struct outputs_visitor
+    {
+      std::vector<const crypto::PublicKey *> &m_results_collector;
+      Blockchain &m_bch;
+      LoggerRef logger;
+      outputs_visitor(std::vector<const crypto::PublicKey *> &results_collector, Blockchain &bch, ILogger &logger) : m_results_collector(results_collector), m_bch(bch), logger(logger, "outputs_visitor")
+      {
+      }
+
+      bool handle_output(const Transaction &tx, const TransactionOutput &out, size_t transactionOutputIndex)
+      {
+        if (out.target.type() != typeid(TokenOutput))
+        {
+          logger(INFO, BRIGHT_WHITE) << "Output have wrong type id, which=" << out.target.which();
+          return false;
+        }
+
+        m_results_collector.push_back(&boost::get<TokenOutput>(out.target).key);
+        return true;
+      }
+    };
+
+    //check ring signature
+    std::vector<const crypto::PublicKey *> output_keys;
+    outputs_visitor vi(output_keys, *this, logger.getLogger());
+    //if (!scanOutputKeysForIndexes(txin, vi, pmax_related_block_height))
+    //{
+    //  logger(INFO, BRIGHT_WHITE) << "Failed to get output keys for tx with amount = " << m_currency.formatAmount(txin.amount) << " and count indexes " << txin.outputIndexes.size();
+    //  return false;
+    //}
+
+    if (txin.outputIndex != output_keys.size())
+    {
+      logger(INFO, BRIGHT_WHITE) << "Output keys for tx with amount = " << txin.amount << " and count indexes " << txin.outputIndex << " returned wrong keys count " << output_keys.size();
+      return false;
+    }
+
+    if (getCurrentBlockchainHeight() > cn::parameters::UPGRADE_HEIGHT_V4 && getCurrentBlockchainHeight() < cn::parameters::UPGRADE_HEIGHT_V5 && txin.outputIndex < 3)
+    {
+      logger(ERROR, BRIGHT_RED) << "ring size is too small: " << txin.outputIndex << " Expected: 4";
       return false;
     }
 
@@ -2483,6 +2626,7 @@ namespace cn
     size_t cumulative_block_size = coinbase_blob_size;
     uint64_t fee_summary = 0;
     uint64_t interestSummary = 0;
+    uint64_t token_amounts = 0;
 
     for (size_t i = 0; i < transactions.size(); ++i)
     {
@@ -2512,6 +2656,13 @@ namespace cn
       {
         isTransactionValid = false;
         logger(INFO, BRIGHT_WHITE) << "Transaction " << tx_id << " has at least one invalid output";
+      }
+
+      if (is_token_transaction(transactions[i]))
+      {
+        ++block.token_transactions;
+        token_amounts += is_token_transaction_amount(transactions[i]);
+        logger(INFO) << "Block " << blockHash << " has at least one token transaction: " << tx_id;
       }
 
       if (!isTransactionValid)
@@ -2549,10 +2700,13 @@ namespace cn
       return false;
     }
 
+    uint64_t alread_gen_tokens = m_blocks.empty() ? 0 : m_blocks.back().token_coins;
+
     //block.height = static_cast<uint32_t>(m_blocks.size()); //moved to above
     block.block_cumulative_size = cumulative_block_size;
     block.cumulative_difficulty = currentDifficulty;
-    block.already_generated_coins = already_generated_coins + emissionChange + interestSummary;
+    block.already_generated_coins = already_generated_coins + emissionChange + interestSummary - token_amounts;
+    block.token_coins = alread_gen_tokens + token_amounts;
     if (m_blocks.size() > 0)
     {
       block.cumulative_difficulty += m_blocks.back().cumulative_difficulty;
@@ -2720,6 +2874,22 @@ namespace cn
           return false;
         }
       }
+      else if (transaction.tx.inputs[i].type() == typeid(TokenInput))
+      {
+        auto result = m_token_spent_keys.insert(std::make_pair(::boost::get<KeyInput>(transaction.tx.inputs[i]).keyImage, block.height));
+        if (!result.second)
+        {
+          logger(ERROR, BRIGHT_RED) << "Double spending transaction was pushed to blockchain.";
+
+          for (size_t j = 0; j < i; ++j)
+          {
+            m_token_spent_keys.erase(::boost::get<TokenInput>(transaction.tx.inputs[i - 1 - j]).keyImage);
+          }
+
+          m_transactionMap.erase(transactionHash);
+          return false;
+        }
+      }
     }
 
     for (const auto &inv : transaction.tx.inputs)
@@ -2864,6 +3034,14 @@ namespace cn
         }
 
         amountOutputs[in.outputIndex].isUsed = false;
+      }
+      else if (input.type() == typeid(TokenInput))
+      {
+        size_t count = m_token_spent_keys.erase(::boost::get<TokenInput>(input).keyImage);
+        if (count != 1)
+        {
+          logger (ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output not marked as used.";
+        }
       }
     }
 
@@ -3083,6 +3261,27 @@ namespace cn
 
     logger(DEBUGGING) << "Can't find block with hash " << hash << " to get block size.";
     return false;
+  }
+
+  bool Blockchain::get_token_output_ref(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference)
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    TokenOutputsContainer::const_iterator amountIter = m_token_outputs.find(txInToken.amount);
+    if (amountIter == m_token_outputs.end())
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid amount.";
+      return false;
+    }
+    if (amountIter->second.size() <= txInToken.outputIndex)
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid outputIndex.";
+      return false;
+    }
+    const TokenOutputUsage &outputIndex = amountIter->second[txInToken.outputIndex];
+    const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
+    outputReference.first = getObjectHash(outputTransaction);
+    outputReference.second = outputIndex.outputIndex;
+    return true;
   }
 
   bool Blockchain::getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference)

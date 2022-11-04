@@ -958,6 +958,11 @@ bool core::getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId,
   return m_blockchain.getBlockContainingTransaction(txId, blockId, blockHeight);
 }
 
+bool core::get_token_output_ref(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference)
+{
+  return m_blockchain.get_token_output_ref(txInToken, outputReference);
+}
+
 bool core::getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& outputReference) {
   return m_blockchain.getMultisigOutputReference(txInMultisig, outputReference);
 }

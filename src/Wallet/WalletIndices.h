@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "ITransfersContainer.h"
+#include "ITokenised.h"
 #include "IWallet.h"
 #include "IWalletLegacy.h" //TODO: make common types for all of our APIs (such as PublicKey, KeyPair, etc)
 
@@ -124,7 +125,21 @@ struct EncryptedWalletRecord {
             boost::multi_index::ordered_non_unique<boost::multi_index::tag<BlockHeightIndex>,
                                                    boost::multi_index::member<cn::WalletTransaction, uint32_t, &cn::WalletTransaction::blockHeight>>>>
         WalletTransactions;
-        
+
+
+    typedef boost::multi_index_container<
+        cn::token_transaction_data,
+        boost::multi_index::indexed_by<
+            boost::multi_index::random_access<boost::multi_index::tag<RandomAccessIndex>>,
+            boost::multi_index::hashed_unique<boost::multi_index::tag<TransactionIndex>,
+                                              boost::multi_index::member<cn::token_transaction_data, crypto::Hash, &cn::token_transaction_data::hash>>,
+            boost::multi_index::ordered_non_unique<boost::multi_index::tag<BlockHeightIndex>,
+                                                   boost::multi_index::member<cn::token_transaction_data, uint32_t, &cn::token_transaction_data::blockHeight>>>>
+        WalletTokenTransactions;
+    typedef std::pair<size_t, cn::token_send> TokenTransactionTransferPair;
+    typedef std::vector<TokenTransactionTransferPair> WalletTokenTransfers;
+
+
     typedef common::FileMappedVector<EncryptedWalletRecord> ContainerStorage;
     typedef std::pair<size_t, cn::WalletTransfer> TransactionTransferPair;
     typedef std::vector<TransactionTransferPair> WalletTransfers;

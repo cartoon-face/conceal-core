@@ -109,7 +109,7 @@ void convertLegacyDeposits(const std::vector<LegacyDepositInfo>& legacyDeposits,
 
 }
 
-WalletUserTransactionsCache::WalletUserTransactionsCache(uint64_t mempoolTxLiveTime) : m_unconfirmedTransactions(mempoolTxLiveTime) {
+WalletUserTransactionsCache::WalletUserTransactionsCache(uint64_t mempoolTxLiveTime) : m_unconfirmedTransactions(mempoolTxLiveTime), m_unconfirmed_token_transactions(mempoolTxLiveTime) {
 }
 
 bool WalletUserTransactionsCache::serialize(cn::ISerializer& s) {
@@ -117,6 +117,9 @@ bool WalletUserTransactionsCache::serialize(cn::ISerializer& s) {
   s(m_transfers, "transfers");
   s(m_unconfirmedTransactions, "unconfirmed");
   s(m_deposits, "deposits");
+
+  s(m_token_transfers, "token_transfers");
+  s(m_token_transactions, "token_transactions");
 
   if (s.type() == cn::ISerializer::INPUT) {
     updateUnconfirmedTransactions();
@@ -138,6 +141,9 @@ void WalletUserTransactionsCache::deserializeLegacyV1(cn::ISerializer& s) {
 
   convertLegacyDeposits(legacyDeposits, m_deposits);
   restoreTransactionOutputToDepositIndex();
+  
+  s(m_token_transfers, "token_transfers");
+  s(m_token_transactions, "token_transactions");
 }
 
 bool paymentIdIsSet(const PaymentId& paymentId) {
@@ -147,6 +153,11 @@ bool paymentIdIsSet(const PaymentId& paymentId) {
 bool canInsertTransactionToIndex(const WalletLegacyTransaction& info) {
   return info.state == WalletLegacyTransactionState::Active && info.blockHeight != WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT &&
       info.totalAmount > 0 && !info.extra.empty();
+}
+
+bool canInsertTokenTransactionToIndex(const token_transaction_data& info) {
+  return info.state == token_state::Active && info.blockHeight != WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT &&
+      info.totalAmount > 0;
 }
 
 void WalletUserTransactionsCache::pushToPaymentsIndex(const PaymentId& paymentId, Offset distance) {
@@ -211,6 +222,14 @@ size_t WalletUserTransactionsCache::getTransferCount() const {
 
 size_t WalletUserTransactionsCache::getDepositCount() const {
   return m_deposits.size();
+}
+
+size_t WalletUserTransactionsCache::getTokenTransactionCount() const {
+  return m_token_transactions.size();
+}
+
+size_t WalletUserTransactionsCache::getTokenTransferCount() const {
+  return m_token_transfers.size();
 }
 
 TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
@@ -464,6 +483,25 @@ TransactionId WalletUserTransactionsCache::findTransactionByTransferId(TransferI
   return id;
 }
 
+TokenTxId WalletUserTransactionsCache::findTransactionByTokenTxId(TokenTxId transferId) const
+{
+  TokenTxId id;
+  for (id = 0; id < m_token_transactions.size(); ++id) {
+    const token_transaction_data& tx = m_token_transactions[id];
+
+    if (tx.firstTransferId == WALLET_LEGACY_INVALID_TRANSFER_ID || tx.transferCount == 0)
+      continue;
+
+    if (transferId >= tx.firstTransferId && transferId < (tx.firstTransferId + tx.transferCount))
+      break;
+  }
+
+  if (id == m_token_transactions.size())
+    return WALLET_LEGACY_INVALID_TRANSACTION_ID;
+
+  return id;
+}
+
 bool WalletUserTransactionsCache::getTransaction(TransactionId transactionId, WalletLegacyTransaction& transaction) const
 {
   if (transactionId >= m_transactions.size())
@@ -480,6 +518,26 @@ bool WalletUserTransactionsCache::getTransfer(TransferId transferId, WalletLegac
     return false;
 
   transfer = m_transfers[transferId];
+
+  return true;
+}
+
+bool WalletUserTransactionsCache::getTokenTransaction(TransactionId transactionId, token_transaction_data& transaction) const
+{
+  if (transactionId >= m_token_transactions.size())
+    return false;
+
+  transaction = m_token_transactions[transactionId];
+
+  return true;
+}
+
+bool WalletUserTransactionsCache::getTokenTransfer(TransferId transferId, token_send& transfer) const
+{
+  if (transferId >= m_token_transfers.size())
+    return false;
+
+  transfer = m_token_transfers[transferId];
 
   return true;
 }
@@ -504,6 +562,11 @@ TransactionId WalletUserTransactionsCache::insertTransaction(WalletLegacyTransac
   return m_transactions.size() - 1;
 }
 
+TokenTxId WalletUserTransactionsCache::insertTokenTransaction(token_transaction_data&& Transaction) {
+  m_token_transactions.emplace_back(std::move(Transaction));
+  return m_token_transactions.size() - 1;
+}
+
 TransactionId WalletUserTransactionsCache::findTransactionByHash(const Hash& hash) {
   auto it = std::find_if(m_transactions.begin(), m_transactions.end(), [&hash](const WalletLegacyTransaction& tx) { return tx.hash == hash; });
 
@@ -511,6 +574,15 @@ TransactionId WalletUserTransactionsCache::findTransactionByHash(const Hash& has
     return cn::WALLET_LEGACY_INVALID_TRANSACTION_ID;
 
   return std::distance(m_transactions.begin(), it);
+}
+
+TokenTxId WalletUserTransactionsCache::findTokenTransactionByHash(const Hash& hash) {
+  auto it = std::find_if(m_token_transactions.begin(), m_token_transactions.end(), [&hash](const token_transaction_data& tx) { return tx.hash == hash; });
+
+  if (it == m_token_transactions.end())
+    return cn::WALLET_LEGACY_INVALID_TRANSACTION_ID;
+
+  return std::distance(m_token_transactions.begin(), it);
 }
 
 bool WalletUserTransactionsCache::isUsed(const TransactionOutputInformation& out) const {
@@ -526,6 +598,15 @@ TransferId WalletUserTransactionsCache::insertTransfers(const std::vector<Wallet
   return m_transfers.size() - transfers.size();
 }
 
+token_transaction_data& WalletUserTransactionsCache::getTokenTransaction(TransactionId transactionId) {
+  return m_token_transactions.at(transactionId);
+}
+
+TransferId WalletUserTransactionsCache::insertTokenTransfers(const std::vector<token_send>& transfers) {
+  std::copy(transfers.begin(), transfers.end(), std::back_inserter(m_token_transfers));
+  return m_token_transfers.size() - m_token_transfers.size();
+}
+
 void WalletUserTransactionsCache::updateUnconfirmedTransactions() {
   for (TransactionId id = 0; id < m_transactions.size(); ++id) {
     if (m_transactions[id].blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT) {
@@ -536,6 +617,10 @@ void WalletUserTransactionsCache::updateUnconfirmedTransactions() {
 
 WalletLegacyTransfer& WalletUserTransactionsCache::getTransfer(TransferId transferId) {
   return m_transfers.at(transferId);
+}
+
+token_send& WalletUserTransactionsCache::getTokenTransfer(TransferId transferId) {
+  return m_token_transfers.at(transferId);
 }
   
 void WalletUserTransactionsCache::reset() {
@@ -558,6 +643,17 @@ std::vector<TransactionId> WalletUserTransactionsCache::deleteOutdatedTransactio
   return deletedTransactions;
 }
 
+std::vector<TokenTxId> WalletUserTransactionsCache::deleteOutdatedTokenTransactions() {
+  auto deletedTransactions = m_unconfirmed_token_transactions.deleteOutdatedTransactions();
+
+  for (auto id: deletedTransactions) {
+    assert(id < m_token_transactions.size());
+    m_token_transactions[id].state = token_state::Deleted;
+  }
+
+  return deletedTransactions;
+}
+
 void WalletUserTransactionsCache::restoreTransactionOutputToDepositIndex() {
   m_transactionOutputToDepositIndex.clear();
 
@@ -565,6 +661,17 @@ void WalletUserTransactionsCache::restoreTransactionOutputToDepositIndex() {
   for (const auto& d: m_deposits) {
     WalletLegacyTransaction transaction = m_transactions[d.deposit.creatingTransactionId];
     m_transactionOutputToDepositIndex[std::tie(transaction.hash, d.outputInTransaction)] = id;
+    ++id;
+  }
+}
+
+void WalletUserTransactionsCache::restore_tx_output_to_token_index() {
+  m_tx_output_to_token_index.clear();
+
+  TokenTxId id = 0;
+  for (const auto& t: m_token_transactions) {
+    token_transaction_data transaction = m_token_transactions[t.firstTransferId];
+    m_tx_output_to_token_index[std::tie(transaction.hash, t.firstTransferId)] = id;
     ++id;
   }
 }

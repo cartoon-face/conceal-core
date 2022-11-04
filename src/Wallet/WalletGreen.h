@@ -386,6 +386,9 @@ protected:
   mutable std::unordered_map<size_t, bool> m_fusionTxsCache; // txIndex -> isFusion
   UncommitedTransactions m_uncommitedTransactions;
 
+  WalletTokenTransactions m_token_transactions;
+  WalletTokenTransfers m_token_transfers;
+
   bool m_blockchainSynchronizerStarted;
   BlockchainSynchronizer m_blockchainSynchronizer;
   TransfersSyncronizer m_synchronizer;

@@ -267,6 +267,10 @@ bool get_inputs_money_amount(const Transaction& tx, uint64_t& money) {
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
     }
+    else if (in.type() == typeid(TokenInput))
+    {
+      amount = boost::get<TokenInput>(in).amount;
+    }
 
     money += amount;
   }
@@ -291,7 +295,12 @@ bool check_inputs_types_supported(const TransactionPrefix& tx) {
       if (tx.version < TRANSACTION_VERSION_2) {
         return false;
       }
-    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput)) {
+    } else if (inputType == typeid(TokenInput)) {
+      if (tx.version < TRANSACTION_VERSION_3)
+      {
+        return false;
+      }
+    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput) && in.type() != typeid(TokenInput)) {
       return false;
     }
   }
@@ -336,7 +345,23 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
           return false;
         }
       }
-    } else {
+    }
+    else if (out.target.type() == typeid(TokenOutput))
+    {
+      if (tx.version < TRANSACTION_VERSION_3) {
+        *error = "Transaction contains token output but its version is less than 3";
+        return false;
+      }
+
+      if (!check_key(boost::get<TokenOutput>(out.target).key)) {
+        if (error) {
+          *error = "Output with invalid key";
+        }
+        return false;
+      }
+    }
+    else
+    {
       if (error) {
         *error = "Output with invalid type";
       }
@@ -390,6 +415,10 @@ bool check_inputs_overflow(const TransactionPrefix &tx) {
 
         amount += maxInterestLo;
       }
+    }
+    else if (in.type() == typeid(TokenInput))
+    {
+      amount = boost::get<TokenInput>(in).amount;
     }
 
     if (money > amount + money)

@@ -283,7 +283,9 @@ WalletSerializer::WalletSerializer(
   WalletTransactions& transactions,
   WalletTransfers& transfers,
   uint32_t transactionSoftLockTime,
-  UncommitedTransactions& uncommitedTransactions
+  UncommitedTransactions& uncommitedTransactions,
+  WalletTokenTransactions &token_transactions,
+  WalletTokenTransfers &token_transfers
 ) :
   m_transfersObserver(transfersObserver),
   m_viewPublicKey(viewPublicKey),
@@ -296,7 +298,9 @@ WalletSerializer::WalletSerializer(
   m_transactions(transactions),
   m_transfers(transfers),
   m_transactionSoftLockTime(transactionSoftLockTime),
-  uncommitedTransactions(uncommitedTransactions)
+  uncommitedTransactions(uncommitedTransactions),
+  m_token_transactions(token_transactions),
+  m_token_transfers(token_transfers)
 { }
 
 void WalletSerializer::save(const std::string& password, common::IOutputStream& destination, bool saveDetails, bool saveCache) {
@@ -925,6 +929,30 @@ void WalletSerializer::addWalletV1Details(const std::vector<WalletLegacyTransact
       for (; firstTr < lastTr; firstTr++) {
         WalletTransfer tr = convert(trs[firstTr]);
         m_transfers.push_back(std::make_pair(txId, tr));
+      }
+    }
+
+    txId++;
+  }
+}
+
+void WalletSerializer::addWalletTokenV1Details(const std::vector<token_transaction_data>& txs, const std::vector<token_send>& trs) {
+  size_t txId = 0;
+  m_token_transfers.reserve(trs.size());
+
+  for (const auto& tx: txs) {
+    m_token_transactions.get<RandomAccessIndex>().push_back(std::move(tx));
+
+    if (tx.firstTransferId != WALLET_LEGACY_INVALID_TRANSFER_ID && tx.transferCount != 0) {
+      size_t firstTr = tx.firstTransferId;
+      size_t lastTr = firstTr + tx.transferCount;
+
+      if (lastTr > trs.size()) {
+        throw std::system_error(make_error_code(error::INTERNAL_WALLET_ERROR));
+      }
+
+      for (; firstTr < lastTr; firstTr++) {
+        m_token_transfers.push_back(std::make_pair(txId, trs[firstTr]));
       }
     }
 

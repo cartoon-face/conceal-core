@@ -1099,7 +1099,9 @@ namespace cn
         m_transactions,
         m_transfers,
         m_transactionSoftLockTime,
-        m_uncommitedTransactions);
+        m_uncommitedTransactions,
+        m_token_transactions,
+        m_token_transfers);
 
     StdInputStream stream(walletFileStream);
     s.load(m_key, stream);

@@ -54,6 +54,7 @@ struct TransactionInputToKeyDetails {
   std::vector<uint32_t> outputIndexes;
   crypto::KeyImage keyImage;
   uint64_t mixin;
+  uint64_t token_tx_index;
   TransactionOutputReferenceDetails output;
 };
 

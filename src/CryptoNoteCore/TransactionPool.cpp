@@ -64,6 +64,12 @@ namespace cn
           (void)r; //just to make compiler to shut up
           assert(r.second);
         }
+        else if (in.type() == typeid(TokenInput))
+        {
+          auto r = m_keyImages.insert(boost::get<TokenInput>(in).keyImage);
+          (void)r; //just to make compiler to shut up
+          assert(r.second);
+        }
       }
 
       m_txHashes.push_back(txid);
@@ -91,6 +97,13 @@ namespace cn
         {
           const auto &msig = boost::get<MultisignatureInput>(in);
           if (m_usedOutputs.count(std::make_pair(msig.amount, msig.outputIndex)))
+          {
+            return false;
+          }
+        }
+        else if (in.type() == typeid(TokenInput))
+        {
+          if (m_keyImages.count(boost::get<TokenInput>(in).keyImage))
           {
             return false;
           }
@@ -776,6 +789,16 @@ namespace cn
           m_spentOutputs.erase(output);
         }
       }
+      else if (in.type() == typeid(TokenInput))
+      {
+        if (!keptByBlock)
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          auto output = GlobalOutput(tk.amount, tk.outputIndex);
+          assert(m_spentOutputs.count(output));
+          m_spentOutputs.erase(output);
+        }
+      }
     }
 
     return true;
@@ -816,6 +839,16 @@ namespace cn
           assert(r.second);
         }
       }
+      else if (in.type() == typeid(TokenInput))
+      {
+        if (!keptByBlock)
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          auto r = m_spentOutputs.insert(GlobalOutput(tk.amount, tk.outputIndex));
+          (void)r;
+          assert(r.second);
+        }
+      }
     }
 
     return true;
@@ -838,6 +871,14 @@ namespace cn
       {
         const auto &msig = boost::get<MultisignatureInput>(in);
         if (m_spentOutputs.count(GlobalOutput(msig.amount, msig.outputIndex)))
+        {
+          return true;
+        }
+      }
+      else if (in.type() == typeid(TokenInput))
+      {
+        const auto &tk = boost::get<TokenInput>(in);
+        if (m_spentOutputs.count(GlobalOutput(tk.amount, tk.outputIndex)))
         {
           return true;
         }

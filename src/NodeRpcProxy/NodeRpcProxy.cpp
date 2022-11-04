@@ -461,7 +461,7 @@ void NodeRpcProxy::isSynchronized(bool& syncStatus, const Callback& callback) {
     return;
   }
 
-  syncStatus = getPeerCount() > 0 && getLastLocalBlockHeight() >= getLastKnownBlockHeight();
+  // TODO NOT IMPLEMENTED
   callback(std::error_code());
 }
 

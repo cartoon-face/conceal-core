@@ -46,6 +46,7 @@ size_t getSignaturesCount(const TransactionInput& input) {
     size_t operator()(const BaseInput &) const { return 0; }
     size_t operator()(const KeyInput &txin) const { return txin.outputIndexes.size(); }
     size_t operator()(const MultisignatureInput& txin) const { return txin.signatureCount; }
+    size_t operator()(const TokenInput& txin) const { return txin.outputIndex; }
   };
 
   return boost::apply_visitor(txin_signature_size_visitor(), input);
@@ -56,8 +57,12 @@ struct BinaryVariantTagGetter : boost::static_visitor<uint8_t>
   uint8_t operator()(const cn::BaseInput &) const { return 0xff; }
   uint8_t operator()(const cn::KeyInput &) const { return 0x2; }
   uint8_t operator()(const cn::MultisignatureInput &) const { return 0x3; }
+  uint8_t operator()(const cn::TokenInput &) const { return 0x4; }
+
   uint8_t operator()(const cn::KeyOutput &) const { return 0x2; }
   uint8_t operator()(const cn::MultisignatureOutput &) const { return 0x3; }
+  uint8_t operator()(const cn::TokenOutput &) const { return 0x4; }
+
   uint8_t operator()(const cn::Transaction &) const { return 0xcc; }
   uint8_t operator()(const cn::Block &) const { return 0xbb; }
 };
@@ -92,6 +97,12 @@ void getVariantValue(cn::ISerializer& serializer, uint8_t tag, cn::TransactionIn
     in = v;
     break;
   }
+  case 0x4: {
+    cn::TokenInput v;
+    serializer(v, "value");
+    in = v;
+    break;
+  }
   default:
     throw serialization_error("Unknown variant tag");
   }
@@ -107,6 +118,12 @@ void getVariantValue(cn::ISerializer& serializer, uint8_t tag, cn::TransactionOu
   }
   case 0x3: {
     cn::MultisignatureOutput v;
+    serializer(v, "data");
+    out = v;
+    break;
+  }
+  case 0x4: {
+    cn::TokenOutput v;
     serializer(v, "data");
     out = v;
     break;
@@ -183,7 +200,7 @@ namespace cn {
 void serialize(TransactionPrefix& txP, ISerializer& serializer) {
   serializer(txP.version, "version");
 
-  if (TRANSACTION_VERSION_2 < txP.version) {
+  if (TRANSACTION_VERSION_3 < txP.version) {
     throw serialization_error("Wrong transaction version");
   }
 
@@ -270,6 +287,12 @@ void serialize(MultisignatureInput& multisignature, ISerializer& serializer) {
   serializer(multisignature.term, "term");
 }
 
+void serialize(TokenInput& token, ISerializer& serializer) {
+  serializer(token.amount, "amount");
+  serializer(token.outputIndex, "outputIndex");
+  serializer(token.keyImage, "k_image");
+  serializer(token.token_tx_index, "token_tx_index");
+}
 
 void serialize(TransactionInputs & inputs, ISerializer & serializer) {
   serializer(inputs, "vin");
@@ -305,6 +328,11 @@ void serialize(MultisignatureOutput& multisignature, ISerializer& serializer) {
   serializer(multisignature.keys, "keys");
   serializer(multisignature.requiredSignatureCount, "required_signatures");
   serializer(multisignature.term, "term");
+}
+
+void serialize(TokenOutput& token, ISerializer& serializer) {
+  serializer(token.key, "key");
+  serializer(token.key, "token_id");
 }
 
 void serializeBlockHeader(BlockHeader& header, ISerializer& serializer) {

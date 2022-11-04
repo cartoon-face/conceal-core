@@ -330,7 +330,6 @@ int main(int argc, char* argv[])
     }
  
     rpcServer.start(rpcConfig.bindIp, rpcConfig.bindPort);
-    rpcServer.enableCors(rpcConfig.enableCors);
     logger(INFO) << "Core rpc server started ok";
 
     tools::SignalHandler::install([&dch, &p2psrv]

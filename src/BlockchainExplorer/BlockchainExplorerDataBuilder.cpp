@@ -27,12 +27,16 @@ protocol(protocol) {
 bool BlockchainExplorerDataBuilder::getMixin(const Transaction& transaction, uint64_t& mixin) {
   mixin = 0;
   for (const TransactionInput& txin : transaction.inputs) {
-    if (txin.type() != typeid(KeyInput)) {
+    if (txin.type() != typeid(KeyInput) || txin.type() != typeid(TokenInput)) {
       continue;
     }
-    uint64_t currentMixin = boost::get<KeyInput>(txin).outputIndexes.size();
-    if (currentMixin > mixin) {
-      mixin = currentMixin;
+    uint64_t currentMixinki = boost::get<KeyInput>(txin).outputIndexes.size();
+    if (currentMixinki > mixin) {
+      mixin = currentMixinki;
+    }
+    uint64_t currentMixintk = boost::get<TokenInput>(txin).outputIndex;
+    if (currentMixintk > mixin) {
+      mixin = currentMixintk;
     }
   }
   return true;
@@ -290,6 +294,26 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       txInMultisigDetails.output.number = outputReference.second;
       txInMultisigDetails.output.transactionHash = outputReference.first;
       txInDetails.input = txInMultisigDetails;
+    } else if (txIn.type() == typeid(TokenInput)) {
+      TransactionInputToKeyDetails tx_input_to_token_details; // create token equiv
+      const TokenInput& tx_input_token = boost::get<TokenInput>(txIn);
+
+      std::vector<uint32_t> v;
+      v.push_back(tx_input_token.outputIndex); // push_back uint32 to vector
+      tx_input_to_token_details.outputIndexes = v; // index
+      txInDetails.amount = tx_input_token.amount; // copy amount to txInDetails
+      tx_input_to_token_details.token_tx_index = tx_input_token.token_tx_index; // token tx index
+      tx_input_to_token_details.keyImage = tx_input_token.keyImage; // key image
+
+      std::pair<crypto::Hash, size_t> outputReference;
+      if (!core.get_token_output_ref(tx_input_token, outputReference)) {
+        return false;
+      }
+      tx_input_to_token_details.output.number = outputReference.second; // tx number
+      tx_input_to_token_details.output.transactionHash = outputReference.first; // tx hash
+
+      txInDetails.input = tx_input_to_token_details; // merge to token input
+
     } else {
       return false;
     }

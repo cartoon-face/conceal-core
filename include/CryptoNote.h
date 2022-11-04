@@ -40,9 +40,25 @@ struct MultisignatureOutput {
   uint32_t term;
 };
 
-typedef boost::variant<BaseInput, KeyInput, MultisignatureInput> TransactionInput;
+// token input & output
+struct TokenInput
+{
+  crypto::KeyImage keyImage;
+  uint64_t amount;
+  uint32_t token_tx_index;
+  uint32_t outputIndex;
+};
 
-typedef boost::variant<KeyOutput, MultisignatureOutput> TransactionOutputTarget;
+struct TokenOutput
+{
+  crypto::PublicKey key;
+  uint64_t token_id;
+};
+//
+
+typedef boost::variant<BaseInput, KeyInput, MultisignatureInput, TokenInput> TransactionInput;
+
+typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> TransactionOutputTarget;
 
 struct TransactionOutput {
   uint64_t amount;
