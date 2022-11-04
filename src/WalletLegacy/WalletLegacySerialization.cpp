@@ -79,9 +79,44 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
   txi.sentTime = 0;
 }
 
+void serialize(token_transaction_data& txi, cn::ISerializer& serializer) {
+  uint64_t trId = static_cast<uint64_t>(txi.firstTransferId);
+  serializer(trId, "first_transfer_id");
+  txi.firstTransferId = static_cast<size_t>(trId);
+
+  uint64_t trCount = static_cast<uint64_t>(txi.transferCount);
+  serializer(trCount, "transfer_count");
+  txi.transferCount = static_cast<size_t>(trCount);
+
+  serializer(txi.totalAmount, "total_amount");
+  serializer(txi.fee, "fee");
+
+  serializer(txi.hash, "hash");
+
+  cn::serializeBlockHeight(serializer, txi.blockHeight, "block_height");
+
+  serializer(txi.timestamp, "timestamp");
+  serializer(txi.unlockTime, "unlock_time");
+
+  uint8_t state = static_cast<uint8_t>(txi.state);
+  serializer(state, "state");
+  txi.state = static_cast<token_state>(state);
+
+  //this field has been added later in the structure.
+  //in order to not break backward binary compatibility
+  // we just set it to zero
+  txi.sentTime = 0;
+}
+
 void serialize(WalletLegacyTransfer& tr, cn::ISerializer& serializer) {
   serializer(tr.address, "address");
   serializer(tr.amount, "amount");
+}
+
+void serialize(token_send& tr, cn::ISerializer& serializer) {
+  serializer(tr.address, "address");
+  serializer(tr.amount, "amount");
+  serializer(tr.token_id, "token_id");
 }
 
 void serialize(Deposit& deposit, cn::ISerializer& serializer) {

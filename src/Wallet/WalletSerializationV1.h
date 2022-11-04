@@ -8,6 +8,7 @@
 #pragma once
 
 #include "IWallet.h"
+#include "ITokenised.h"
 #include "WalletIndices.h"
 #include "Common/IInputStream.h"
 #include "Common/IOutputStream.h"
@@ -42,7 +43,9 @@ public:
       WalletTransactions &transactions,
       WalletTransfers &transfers,
       uint32_t transactionSoftLockTime,
-      UncommitedTransactions &uncommitedTransactions);
+      UncommitedTransactions &uncommitedTransactions,
+      WalletTokenTransactions &token_transactions,
+      WalletTokenTransfers &token_transfers);
 
   void save(const std::string &password, common::IOutputStream &destination, bool saveDetails, bool saveCache);
   void load(const crypto::chacha8_key &key, common::IInputStream &source);
@@ -91,6 +94,7 @@ private:
   void loadWalletV1Keys(cn::BinaryInputStreamSerializer &serializer);
   void loadWalletV1Details(cn::BinaryInputStreamSerializer &serializer);
   void addWalletV1Details(const std::vector<WalletLegacyTransaction> &txs, const std::vector<WalletLegacyTransfer> &trs);
+  void addWalletTokenV1Details(const std::vector<token_transaction_data> &txs, const std::vector<token_send> &trs);
   void initTransactionPool();
   void resetCachedBalance();
   void updateTransactionsBaseStatus();
@@ -108,6 +112,9 @@ private:
   WalletTransfers &m_transfers;
   uint32_t m_transactionSoftLockTime;
   UncommitedTransactions &uncommitedTransactions;
+
+  WalletTokenTransactions &m_token_transactions;
+  WalletTokenTransfers &m_token_transfers;
 };
 
 } //namespace cn
