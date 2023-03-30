@@ -27,6 +27,8 @@ namespace cn
       std::vector<std::string> messages;
       uint64_t ttl = 0;
       std::string m_remote_address;
+      uint64_t token_id = 0;
+      uint64_t token_amount;
 
       transfer_cmd(const cn::Currency& currency, std::string remote_fee_address);
 

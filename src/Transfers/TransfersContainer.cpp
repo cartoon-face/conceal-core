@@ -127,6 +127,9 @@ SpentOutputDescriptor::SpentOutputDescriptor(const TransactionOutputInformationI
   } else if (m_type == transaction_types::OutputType::Multisignature) {
     m_amount = transactionInfo.amount;
     m_globalOutputIndex = transactionInfo.globalOutputIndex;
+  } else if (m_type == transaction_types::OutputType::Token) {
+    m_token_amount = transactionInfo.token_amount;
+    m_token_id = transactionInfo.token_id;
   } else {
     assert(false);
   }
@@ -235,6 +238,7 @@ void TransfersContainer::addTransaction(const TransactionBlockInfo& block, const
   txInfo.totalAmountOut = tx.getOutputTotalAmount();
   txInfo.extra = tx.getExtra();
   txInfo.messages = std::move(messages);
+  txInfo.token_id = tx.getTokenId();
 
   if (!tx.getPaymentId(txInfo.paymentId)) {
     txInfo.paymentId = NULL_HASH;
@@ -271,6 +275,7 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
     info.unlockTime = tx.getUnlockTime();
     info.transactionHash = txHash;
     info.visible = true;
+    info.token_id = tx.getTokenId();
 
     if (transferIsUnconfirmed) {
       auto result = m_unconfirmedTransfers.emplace(std::move(info));
@@ -359,6 +364,20 @@ bool TransfersContainer::addTransactionInputs(const TransactionBlockInfo& block,
       tx.getInput(i, input);
 
       auto& outputDescriptorIndex = m_availableTransfers.get<SpentOutputDescriptorIndex>();
+      auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex));
+      if (availableOutputIt != outputDescriptorIndex.end()) {
+        deleteUnlockJob(*availableOutputIt);
+        copyToSpent(block, tx, i, *availableOutputIt);
+        // erase from available outputs
+        outputDescriptorIndex.erase(availableOutputIt);
+
+        inputsAdded = true;
+      }
+    } else if (inputType == transaction_types::InputType::Token) {
+      TokenInput input;
+      tx.getInput(i, input);
+
+      auto& outputDescriptorIndex = m_availableTokenTransfers.get<SpentOutputDescriptorIndex>();
       auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex));
       if (availableOutputIt != outputDescriptorIndex.end()) {
         deleteUnlockJob(*availableOutputIt);
@@ -647,20 +666,40 @@ size_t TransfersContainer::transactionsCount() const {
   return m_transactions.size();
 }
 
-uint64_t TransfersContainer::balance(uint32_t flags) const {
+uint64_t TransfersContainer::balance(uint32_t flags, uint64_t token_id) const {
   std::lock_guard<std::mutex> lk(m_mutex);
   uint64_t amount = 0;
 
-  for (const auto& t : m_availableTransfers) {
-    if (t.visible && isIncluded(t, flags)) {
-      amount += t.amount;
+
+  if (token_id > 0)
+  {
+    for (const auto& t : m_availableTokenTransfers) {
+      if (t.visible && isToken(t, flags)) {
+        amount += t.amount;
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTokenTransfers) {
+        if (t.visible && isToken(t, IncludeStateLocked, flags)) {
+          amount += t.amount;
+        }
+      }
     }
   }
-
-  if ((flags & IncludeStateLocked) != 0) {
-    for (const auto& t : m_unconfirmedTransfers) {
-      if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+  else
+  {
+    for (const auto& t : m_availableTransfers) {
+      if (t.visible && isIncluded(t, flags)) {
         amount += t.amount;
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTransfers) {
+        if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+          amount += t.amount;
+        }
       }
     }
   }
@@ -668,18 +707,38 @@ uint64_t TransfersContainer::balance(uint32_t flags) const {
   return amount;
 }
 
-void TransfersContainer::getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags) const {
+void TransfersContainer::getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags, uint64_t token_id) const {
   std::lock_guard<std::mutex> lk(m_mutex);
-  for (const auto& t : m_availableTransfers) {
-    if (t.visible && isIncluded(t, flags)) {
-      transfers.push_back(t);
+
+  if (token_id > 0)
+  {
+    for (const auto& t : m_availableTokenTransfers) {
+      if (t.visible && isToken(t, flags)) {
+        transfers.push_back(t);
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTokenTransfers) {
+        if (t.visible && isToken(t, IncludeStateLocked, flags)) {
+          transfers.push_back(t);
+        }
+      }
     }
   }
-
-  if ((flags & IncludeStateLocked) != 0) {
-    for (const auto& t : m_unconfirmedTransfers) {
-      if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+  else
+  {
+    for (const auto& t : m_availableTransfers) {
+      if (t.visible && isIncluded(t, flags)) {
         transfers.push_back(t);
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTransfers) {
+        if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+          transfers.push_back(t);
+        }
       }
     }
   }
@@ -938,6 +997,32 @@ bool TransfersContainer::isSpendTimeUnlocked(const TransactionOutputInformationE
 
   return isOuputUnlocked;
 }
+
+bool TransfersContainer::isToken(const TransactionOutputInformationEx& info, uint32_t flags) const {
+  uint32_t state;
+  if (info.blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT || !isSpendTimeUnlocked(info)) {
+    state = IncludeStateLocked;
+  } else if (m_currentHeight < info.blockHeight + m_transactionSpendableAge) {
+    state = IncludeStateSoftLocked;
+  } else {
+    state = IncludeStateUnlocked;
+  }
+
+  return isToken(info, state, flags);
+}
+
+bool TransfersContainer::isToken(const TransactionOutputInformationEx& info, uint32_t state, uint32_t flags)
+{
+  return
+    // filter by type
+    (
+    ((flags & IncludeTypeToken) != 0 && info.type == transaction_types::OutputType::Token)
+    )
+    &&
+    // filter by state
+    ((flags & state) != 0);
+}
+
 
 bool TransfersContainer::isIncluded(const TransactionOutputInformationEx& info, uint32_t flags) const {
   uint32_t state;

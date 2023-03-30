@@ -161,6 +161,8 @@ bool wallet_rpc_server::on_getbalance(const wallet_rpc::COMMAND_RPC_GET_BALANCE:
 bool wallet_rpc_server::on_transfer(const wallet_rpc::COMMAND_RPC_TRANSFER::request& req, wallet_rpc::COMMAND_RPC_TRANSFER::response& res) {
   std::vector<cn::WalletLegacyTransfer> transfers;
   std::vector<cn::TransactionMessage> messages;
+  std::vector<cn::TokenTransaction> token_entries;
+
   for (auto it = req.destinations.begin(); it != req.destinations.end(); it++) {
     cn::WalletLegacyTransfer transfer;
     transfer.address = it->address;
@@ -169,6 +171,9 @@ bool wallet_rpc_server::on_transfer(const wallet_rpc::COMMAND_RPC_TRANSFER::requ
 
     if (!it->message.empty()) {
       messages.emplace_back(cn::TransactionMessage{ it->message, it->address });
+    }
+    if (!it->token_id == 0) {
+      token_entries.emplace_back(cn::TokenTransaction{ it->token_id, it->token_amount });
     }
   }
 
@@ -193,6 +198,9 @@ bool wallet_rpc_server::on_transfer(const wallet_rpc::COMMAND_RPC_TRANSFER::requ
   for (auto& rpc_message : req.messages) {
      messages.emplace_back(cn::TransactionMessage{ rpc_message.message, rpc_message.address });
   }
+  for (auto& rpc_token : req.token_entries) {
+     token_entries.emplace_back(cn::TokenTransaction{ rpc_token.token_id, rpc_token.token_amount });
+  }
 
   uint64_t ttl = 0;
   if (req.ttl != 0) {
@@ -208,7 +216,7 @@ bool wallet_rpc_server::on_transfer(const wallet_rpc::COMMAND_RPC_TRANSFER::requ
     WalletHelper::IWalletRemoveObserverGuard removeGuard(m_wallet, sent);
 
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, actualFee, extraString, req.mixin, req.unlock_time, messages, ttl);
+    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, actualFee, extraString, req.mixin, req.unlock_time, messages, token_entries, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       throw std::runtime_error("Couldn't send transaction");
     }
@@ -296,6 +304,7 @@ bool wallet_rpc_server::on_get_reserve_proof(const wallet_rpc::COMMAND_RPC_GET_B
 bool wallet_rpc_server::on_optimize(const wallet_rpc::COMMAND_RPC_OPTIMIZE::request& req, wallet_rpc::COMMAND_RPC_OPTIMIZE::response& res) {
   std::vector<cn::WalletLegacyTransfer> transfers;
   std::vector<cn::TransactionMessage> messages;
+  std::vector<cn::TokenTransaction> token_entries;
   std::string extraString;
   uint64_t fee = cn::parameters::MINIMUM_FEE_V2;
   uint64_t mixIn = 0;
@@ -307,7 +316,7 @@ bool wallet_rpc_server::on_optimize(const wallet_rpc::COMMAND_RPC_OPTIMIZE::requ
     WalletHelper::IWalletRemoveObserverGuard removeGuard(m_wallet, sent);
 
     crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, fee, extraString, mixIn, unlockTimestamp, messages, ttl);
+    cn::TransactionId tx = m_wallet.sendTransaction(transactionSK, transfers, fee, extraString, mixIn, unlockTimestamp, messages, token_entries, ttl);
     if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
       throw std::runtime_error("Couldn't send transaction");
     }

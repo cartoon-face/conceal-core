@@ -80,6 +80,7 @@ bool constructTransaction(
   const std::vector<TransactionSourceEntry>& sources,
   const std::vector<TransactionDestinationEntry>& destinations,
   const std::vector<tx_message_entry>& messages,
+  const std::vector<token_tx_entry>& token_entry,
   uint64_t ttl,
   std::vector<uint8_t> extra,
   Transaction& tx,
@@ -91,8 +92,9 @@ bool constructTransaction(
   tx.inputs.clear();
   tx.outputs.clear();
   tx.signatures.clear();
-
+  
   tx.version = TRANSACTION_VERSION_1;
+
   tx.unlockTime = unlock_time;
 
   tx.extra = extra;
@@ -126,19 +128,32 @@ bool constructTransaction(
       return false;
     }
 
+    if (token_entry[0].token_id > 0)
+    {
+      //put token image into tx input
+      TokenInput input_to_key;
+      input_to_key.amount = src_entr.amount;
+      //input_to_key.keyImage = img;
+      input_to_key.token_id = token_entry[0].token_id;
+      // TODO add outputIndex for TokenInput
 
-    //put key image into tx input
-    KeyInput input_to_key;
-    input_to_key.amount = src_entr.amount;
-    input_to_key.keyImage = img;
-
-    //fill outputs array and use relative offsets
-    for (const TransactionSourceEntry::OutputEntry& out_entry : src_entr.outputs) {
-      input_to_key.outputIndexes.push_back(out_entry.first);
+      tx.inputs.push_back(input_to_key);
     }
+    else
+    {
+      //put key image into tx input
+      KeyInput input_to_key;
+      input_to_key.amount = src_entr.amount;
+      input_to_key.keyImage = img;
 
-    input_to_key.outputIndexes = absolute_output_offsets_to_relative(input_to_key.outputIndexes);
-    tx.inputs.push_back(input_to_key);
+      //fill outputs array and use relative offsets
+      for (const TransactionSourceEntry::OutputEntry& out_entry : src_entr.outputs) {
+        input_to_key.outputIndexes.push_back(out_entry.first);
+      }
+
+      input_to_key.outputIndexes = absolute_output_offsets_to_relative(input_to_key.outputIndexes);
+      tx.inputs.push_back(input_to_key);
+    }
   }
 
   KeyPair txkey;
@@ -266,6 +281,8 @@ bool get_inputs_money_amount(const Transaction& tx, uint64_t& money) {
       amount = boost::get<KeyInput>(in).amount;
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
+    } else if (in.type() == typeid(TokenInput)) {
+      amount = boost::get<TokenInput>(in).amount;
     }
 
     money += amount;
@@ -291,7 +308,11 @@ bool check_inputs_types_supported(const TransactionPrefix& tx) {
       if (tx.version < TRANSACTION_VERSION_2) {
         return false;
       }
-    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput)) {
+    } else if (inputType == typeid(TokenInput)) {
+      if (tx.version < TRANSACTION_VERSION_3) {
+        return false;
+      }
+    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput) && in.type() != typeid(TokenInput)) {
       return false;
     }
   }
@@ -336,6 +357,27 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
           return false;
         }
       }
+    } else if (out.target.type() == typeid(TokenOutput)) {
+      if (tx.version < TRANSACTION_VERSION_3) {
+        *error = "Transaction contains multisignature output but its version is less than 2";
+        return false;
+      }
+
+      const TokenOutput& tokenOutput = ::boost::get<TokenOutput>(out.target);
+      if (tokenOutput.requiredSignatureCount > tokenOutput.keys.size()) {
+        if (error) {
+          *error = "Multisignature output with invalid required signature count";
+        }
+        return false;
+      }
+      for (const PublicKey& key : tokenOutput.keys) {
+        if (!check_key(key)) {
+          if (error) {
+            *error = "Multisignature output with invalid public key";
+          }
+          return false;
+        }
+      }
     } else {
       if (error) {
         *error = "Output with invalid type";
@@ -356,6 +398,12 @@ bool checkMultisignatureInputsDiff(const TransactionPrefix& tx) {
         return false;
       }
     }
+    if (inv.type() == typeid(TokenInput)) {
+      const TokenInput& in = ::boost::get<TokenInput>(inv);
+      if (!inputsUsage.insert(std::make_pair(in.amount, in.outputIndex)).second) {
+        return false;
+      }
+    }
   }
   return true;
 }
@@ -372,6 +420,8 @@ bool check_inputs_overflow(const TransactionPrefix &tx) {
 
     if (in.type() == typeid(KeyInput)) {
       amount = boost::get<KeyInput>(in).amount;
+    } else if (in.type() == typeid(TokenInput)) {
+      amount = boost::get<TokenInput>(in).amount;
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
       if (boost::get<MultisignatureInput>(in).term != 0) {

@@ -47,11 +47,25 @@ using cn::ISerializer;
     uint64_t amount;
     std::string address;
     std::string message;
+    uint64_t token_id;
+    uint64_t token_amount;
 
     void serialize(ISerializer& s) {
       KV_MEMBER(amount)
       KV_MEMBER(address)
       KV_MEMBER(message)
+      KV_MEMBER(token_id)
+      KV_MEMBER(token_amount)
+    }
+  };
+
+  struct TransferToken {
+    uint64_t token_id;
+    uint64_t token_amount;
+
+    void serialize(ISerializer& s) {
+      KV_MEMBER(token_id)
+      KV_MEMBER(token_amount)
     }
   };
 
@@ -75,6 +89,7 @@ using cn::ISerializer;
       uint64_t unlock_time = 0;
       std::string payment_id;
       std::list<TransferMessage> messages;
+      std::list<TransferToken> token_entries;
       uint64_t ttl = 0;
 
       void serialize(ISerializer& s) {
@@ -84,6 +99,7 @@ using cn::ISerializer;
         KV_MEMBER(unlock_time)
         KV_MEMBER(payment_id)
         KV_MEMBER(messages)
+        KV_MEMBER(token_entries)
         KV_MEMBER(ttl)
       }
     };

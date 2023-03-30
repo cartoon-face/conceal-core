@@ -222,6 +222,9 @@ namespace cn
       logger(INFO) << operation << "deposit index";
       s(m_bs.m_depositIndex, "deposit_index");
 
+      logger(INFO) << operation << "token index";
+      s(m_bs.m_tokenIndex, "token_index");
+
       auto dur = std::chrono::steady_clock::now() - start;
 
       logger(INFO) << "Serialization time: " << std::chrono::duration_cast<std::chrono::milliseconds>(dur).count() << "ms";
@@ -654,6 +657,11 @@ namespace cn
             const auto &out = boost::get<MultisignatureInput>(i);
             m_multisignatureOutputs[out.amount][out.outputIndex].isUsed = true;
           }
+          else if (i.type() == typeid(TokenInput))
+          {
+            const auto &out = boost::get<TokenInput>(i);
+            m_tokenOutputs[out.amount][out.outputIndex].isUsed = true;
+          }
         }
 
         // process outputs
@@ -668,6 +676,11 @@ namespace cn
           {
             MultisignatureOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
             m_multisignatureOutputs[out.amount].push_back(usage);
+          }
+          else if (out.target.type() == typeid(TokenOutput))
+          {
+            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
+            m_tokenOutputs[out.amount].push_back(usage);
           }
         }
 
@@ -2112,6 +2125,18 @@ namespace cn
 
         ++inputIndex;
       }
+      else if (txin.type() == typeid(TokenInput))
+      {
+        if (!isInCheckpointZone(getCurrentBlockchainHeight()))
+        {
+          //if (!validateInput(::boost::get<TokenInput>(txin), transactionHash, tx_prefix_hash, tx.signatures[inputIndex]))
+          //{
+          //  return false;
+          //}
+        }
+
+        ++inputIndex;
+      }
       else
       {
         logger(INFO, BRIGHT_WHITE) << "Transaction << " << transactionHash << " contains input of unsupported type.";
@@ -2619,6 +2644,25 @@ namespace cn
     return true;
   }
 
+
+  uint64_t Blockchain::fullTokenAmount() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokenIndex.fullTokenAmount();
+  }
+
+  uint64_t Blockchain::tokenAmountAtHeight(size_t height) const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokenIndex.tokenAmountAtHeight(static_cast<TokenIndex::TokenHeight>(height));
+  }
+
+  uint64_t Blockchain::tokenIdAtHeight(size_t height) const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokenIndex.tokenIdAtHeight(static_cast<TokenIndex::TokenHeight>(height));
+  }
+
   uint64_t Blockchain::fullDepositAmount() const
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
@@ -2635,6 +2679,37 @@ namespace cn
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
     return m_depositIndex.depositInterestAtHeight(static_cast<DepositIndex::DepositHeight>(height));
+  }
+
+  void Blockchain::pushToTokenIndex(const BlockEntry &block, uint64_t token_id)
+  {
+    int64_t token = 0;
+    for (const auto &tx : block.transactions)
+    {
+      for (const auto &in : tx.tx.inputs)
+      {
+        if (in.type() == typeid(TokenInput))
+        {
+          auto &token = boost::get<TokenInput>(in);
+          if (token.token_id > 0)
+          {
+            //token -= token.amount;
+          }
+        }
+      }
+      for (const auto &out : tx.tx.outputs)
+      {
+        if (out.target.type() == typeid(TokenOutput))
+        {
+          auto &token = boost::get<TokenOutput>(out.target);
+          if (token.token_id > 0)
+          {
+            //token += out.amount;
+          }
+        }
+      }
+    }
+    m_tokenIndex.pushBlock(token, token_id);
   }
 
   void Blockchain::pushToDepositIndex(const BlockEntry &block, uint64_t interest)
@@ -2706,6 +2781,7 @@ namespace cn
     m_timestampIndex.remove(m_blocks.back().bl.timestamp, blockHash);
     m_generatedTransactionsIndex.remove(m_blocks.back().bl);
 
+    m_tokenIndex.popBlock();
     m_depositIndex.popBlock();
     m_blocks.pop_back();
     m_blockIndex.pop();
@@ -2783,6 +2859,13 @@ namespace cn
         auto &amountOutputs = m_multisignatureOutputs[transaction.tx.outputs[output].amount];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
         MultisignatureOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
+        amountOutputs.push_back(outputUsage);
+      }
+      else if (transaction.tx.outputs[output].target.type() == typeid(TokenOutput))
+      {
+        auto &amountOutputs = m_tokenOutputs[transaction.tx.outputs[output].amount];
+        transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
+        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
         amountOutputs.push_back(outputUsage);
       }
     }
@@ -2898,6 +2981,17 @@ namespace cn
         if (!amountOutputs[in.outputIndex].isUsed)
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - multisignature output not marked as used.";
+        }
+
+        amountOutputs[in.outputIndex].isUsed = false;
+      }
+      else if (input.type() == typeid(TokenInput))
+      {
+        const TokenInput &in = ::boost::get<TokenInput>(input);
+        auto &amountOutputs = m_tokenOutputs[in.amount];
+        if (!amountOutputs[in.outputIndex].isUsed)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output not marked as used.";
         }
 
         amountOutputs[in.outputIndex].isUsed = false;
@@ -3120,6 +3214,27 @@ namespace cn
 
     logger(DEBUGGING) << "Can't find block with hash " << hash << " to get block size.";
     return false;
+  }
+
+  bool Blockchain::getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference)
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    TokenOutputsContainer::const_iterator amountIter = m_tokenOutputs.find(txInToken.amount);
+    if (amountIter == m_tokenOutputs.end())
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid amount.";
+      return false;
+    }
+    if (amountIter->second.size() <= txInToken.outputIndex)
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid outputIndex.";
+      return false;
+    }
+    const TokenOutputUsage &outputIndex = amountIter->second[txInToken.outputIndex];
+    const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
+    outputReference.first = getObjectHash(outputTransaction);
+    outputReference.second = outputIndex.outputIndex;
+    return true;
   }
 
   bool Blockchain::getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference)

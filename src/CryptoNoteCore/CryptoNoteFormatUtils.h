@@ -48,6 +48,13 @@ struct tx_message_entry
   AccountPublicAddress addr;
 };
 
+struct token_tx_entry
+{
+  uint64_t token_id;
+  uint64_t token_amount;
+  AccountPublicAddress addr;
+};
+
 bool generateDeterministicTransactionKeys(const crypto::Hash &inputsHash, const crypto::SecretKey &viewSecretKey, KeyPair &generatedKeys);
 bool generateDeterministicTransactionKeys(const Transaction &tx, const crypto::SecretKey &viewSecretKey, KeyPair &generatedKeys);
 
@@ -56,6 +63,7 @@ bool constructTransaction(
   const std::vector<TransactionSourceEntry>& sources,
   const std::vector<TransactionDestinationEntry>& destinations,
   const std::vector<tx_message_entry>& messages,
+  const std::vector<token_tx_entry>& token_entry,
   uint64_t ttl, std::vector<uint8_t> extra, Transaction& transaction, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK);
 
 inline bool constructTransaction(
@@ -64,7 +72,7 @@ inline bool constructTransaction(
   const std::vector<TransactionDestinationEntry>& destinations,
   std::vector<uint8_t> extra, Transaction& tx, uint64_t unlock_time, logging::ILogger& log, crypto::SecretKey& transactionSK) {
 
-  return constructTransaction(sender_account_keys, sources, destinations, std::vector<tx_message_entry>(), 0, extra, tx, unlock_time, log, transactionSK);
+  return constructTransaction(sender_account_keys, sources, destinations, std::vector<tx_message_entry>(), std::vector<token_tx_entry>(), 0, extra, tx, unlock_time, log, transactionSK);
 }
 
 bool is_out_to_acc(const AccountKeys& acc, const KeyOutput& out_key, const crypto::PublicKey& tx_pub_key, size_t keyIndex);

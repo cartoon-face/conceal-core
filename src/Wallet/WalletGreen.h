@@ -295,7 +295,7 @@ protected:
   size_t validateSaveAndSendTransaction(const ITransactionReader &transaction, const std::vector<WalletTransfer> &destinations, bool isFusion, bool send);
 
   size_t insertBlockchainTransaction(const TransactionInformation &info, int64_t txBalance);
-  size_t insertOutgoingTransactionAndPushEvent(const crypto::Hash &transactionHash, uint64_t fee, const BinaryArray &extra, uint64_t unlockTimestamp);
+  size_t insertOutgoingTransactionAndPushEvent(const crypto::Hash &transactionHash, uint64_t fee, const BinaryArray &extra, uint64_t unlockTimestamp, uint64_t token_id = 0);
   void updateTransactionStateAndPushEvent(size_t transactionId, WalletTransactionState state);
   bool updateWalletTransactionInfo(size_t transactionId, const cn::TransactionInformation &info, int64_t totalAmount);
   bool updateWalletDepositInfo(size_t depositId, const cn::Deposit &info);

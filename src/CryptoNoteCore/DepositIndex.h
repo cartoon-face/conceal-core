@@ -46,4 +46,5 @@ private:
   IndexType index;
   DepositHeight blockCount;
 };
+
 }

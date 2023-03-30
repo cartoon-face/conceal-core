@@ -36,6 +36,7 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
+    uint64_t token_id = 0;
   };
 
   struct TransactionOutputInformation
@@ -45,6 +46,9 @@ namespace cn
     uint64_t amount;
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
+
+    uint64_t token_id;
+    uint64_t token_amount;
 
     // transaction info
     crypto::Hash transactionHash;
@@ -84,12 +88,16 @@ namespace cn
       IncludeTypeKey = 0x100,
       IncludeTypeMultisignature = 0x200,
       IncludeTypeDeposit = 0x400,
+      IncludeTypeToken = 0x500,
       // combinations
       IncludeStateAll = 0xff,
       IncludeTypeAll = 0xff00,
 
       IncludeKeyUnlocked = IncludeTypeKey | IncludeStateUnlocked,
       IncludeKeyNotUnlocked = IncludeTypeKey | IncludeStateLocked | IncludeStateSoftLocked,
+
+      IncludeTokenUnlocked = IncludeTypeToken | IncludeStateUnlocked,
+      IncludeTokenNotUnlocked = IncludeTypeToken | IncludeStateLocked | IncludeStateSoftLocked,
 
       IncludeAllLocked = IncludeTypeAll | IncludeStateLocked | IncludeStateSoftLocked,
       IncludeAllUnlocked = IncludeTypeAll | IncludeStateUnlocked,
@@ -110,8 +118,8 @@ namespace cn
 
     virtual size_t transfersCount() const = 0;
     virtual size_t transactionsCount() const = 0;
-    virtual uint64_t balance(uint32_t flags = IncludeDefault) const = 0;
-    virtual void getOutputs(std::vector<TransactionOutputInformation> &transfers, uint32_t flags = IncludeDefault) const = 0;
+    virtual uint64_t balance(uint32_t flags = IncludeDefault, uint64_t token_id = 0) const = 0;
+    virtual void getOutputs(std::vector<TransactionOutputInformation> &transfers, uint32_t flags = IncludeDefault, uint64_t token_id = 0) const = 0;
     virtual bool getTransactionInformation(const crypto::Hash &transactionHash, TransactionInformation &info,
                                            uint64_t *amountIn = nullptr, uint64_t *amountOut = nullptr) const = 0;
     virtual std::vector<TransactionOutputInformation> getTransactionOutputs(const crypto::Hash &transactionHash, uint32_t flags = IncludeDefault) const = 0;

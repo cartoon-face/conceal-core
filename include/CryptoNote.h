@@ -30,6 +30,14 @@ struct MultisignatureInput {
   uint32_t term;
 };
 
+struct TokenInput {
+  uint64_t amount;
+  uint8_t signatureCount;
+  uint32_t outputIndex;
+  uint64_t token_amount;
+  uint32_t token_id;
+};
+
 struct KeyOutput {
   crypto::PublicKey key;
 };
@@ -40,13 +48,21 @@ struct MultisignatureOutput {
   uint32_t term;
 };
 
-typedef boost::variant<BaseInput, KeyInput, MultisignatureInput> TransactionInput;
+struct TokenOutput {
+  std::vector<crypto::PublicKey> keys;
+  uint8_t requiredSignatureCount;
+  uint64_t token_id;
+};
 
-typedef boost::variant<KeyOutput, MultisignatureOutput> TransactionOutputTarget;
+typedef boost::variant<BaseInput, KeyInput, MultisignatureInput, TokenInput> TransactionInput;
+
+typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> TransactionOutputTarget;
 
 struct TransactionOutput {
   uint64_t amount;
   TransactionOutputTarget target;
+  uint64_t token_amount; // should default to 0 if we're not sending tokens
+  uint64_t token_id; // 0 should always be CCX main
 };
 
 using TransactionInputs = std::vector<TransactionInput>;
@@ -54,6 +70,7 @@ using TransactionInputs = std::vector<TransactionInput>;
 struct TransactionPrefix {
   uint8_t version;
   uint64_t unlockTime;
+  uint64_t token_id;
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;

@@ -46,6 +46,10 @@ namespace cn
           {
             messages.emplace_back(value);
           }
+          else if (arg == "-tid")
+          {
+            token_id = boost::lexical_cast<uint64_t>(value);
+          }
           else if (arg == "-ttl" && !ttl_to_str)
           {
             logger(ERROR, BRIGHT_RED) << "TTL has invalid format: \"" << value << "\", " <<
@@ -106,6 +110,9 @@ namespace cn
               ", expected number from 0 to " << m_currency.formatAmount(cn::parameters::MONEY_SUPPLY);
             return false;
           }
+
+          if (token_id > 0)
+            de.amount = cn::parameters::MINIMUM_FEE_V2;
 
           if (aliasUrl.empty())
           {

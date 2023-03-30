@@ -122,6 +122,8 @@ private:
 
   std::vector<DepositId> getDepositIdsBySpendingTransaction(TransactionId transactionId);
 
+  //TokenTxId getTokenId(const crypto::Hash& creatingTransactionHash, uint32_t outputInTransaction, uint64_t token_id);
+
   void eraseCreatedDeposit(DepositId id);
 
   using UserTransfers = std::vector<WalletLegacyTransfer>;
@@ -140,6 +142,7 @@ private:
   WalletUnconfirmedTransactions m_unconfirmedTransactions;
   //tuple<Creating transaction hash, outputIndexInTransaction> -> depositId
   std::unordered_map<std::tuple<crypto::Hash, uint32_t>, DepositId> m_transactionOutputToDepositIndex;
+  //std::unordered_map<std::tuple<crypto::Hash, uint32_t>, TokenTxId> m_transactionOutputToTokenIndex;
   UserPaymentIndex m_paymentsIndex;
 };
 

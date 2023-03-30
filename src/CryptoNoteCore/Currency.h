@@ -681,6 +681,10 @@ namespace cn
     {
       return keyInput.amount;
     }
+    uint64_t operator()(const TokenInput &tokenInput) const
+    {
+      return tokenInput.amount;
+    }
     uint64_t operator()(const MultisignatureInput &multisignatureInput) const
     {
       if (multisignatureInput.term == 0)

@@ -181,6 +181,15 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     }
     blockDetails.transactions.push_back(std::move(transactionDetails));
     blockDetails.totalFeeAmount += transactionDetails.fee;
+  
+    if (transactionDetails.token_id > 0)
+    {
+      // TODO scan token_id through known_token_ids, if no match then add a new token id to the blockchain
+      // if it matches then we update the info for that token_id
+
+
+      blockDetails.token_transactions_in_block++;
+    }
   }
   return true;
 }
@@ -288,7 +297,24 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       txInMultisigDetails.output.number = outputReference.second;
       txInMultisigDetails.output.transactionHash = outputReference.first;
       txInDetails.input = txInMultisigDetails;
-    } else {
+    } else if (txIn.type() == typeid(TokenInput)) {
+      TransactionInputTokenDetails txInTokenDetails;
+      const TokenInput& txInToken = boost::get<TokenInput>(txIn);
+      txInDetails.amount = txInToken.amount;
+      txInTokenDetails.signatures = txInToken.signatureCount;
+
+      //txInDetails.token_amount = txInToken.token_amount;
+      txInDetails.token_id = txInToken.token_id;
+
+      std::pair<crypto::Hash, size_t> outputReference;
+      if (!core.getTokenOutputReference(txInToken, outputReference)) {
+        return false;
+      }
+      txInTokenDetails.output.number = outputReference.second;
+      txInTokenDetails.output.transactionHash = outputReference.first;
+      txInDetails.input = txInTokenDetails;
+    }
+    else {
       return false;
     }
     transactionDetails.inputs.push_back(std::move(txInDetails));
