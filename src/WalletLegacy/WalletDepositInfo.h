@@ -15,4 +15,10 @@ struct DepositInfo {
   uint32_t outputInTransaction;
 };
 
+struct TokenTxInfo
+{
+  TokenDetails token;
+  uint32_t output_in_transaction;
+};
+
 }

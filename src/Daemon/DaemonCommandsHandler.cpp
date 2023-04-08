@@ -39,6 +39,7 @@ DaemonCommandsHandler::DaemonCommandsHandler(cn::core &core, cn::NodeServer &srv
   m_consoleHandler.setHandler("print_bc", boost::bind(&DaemonCommandsHandler::print_bc, this, boost::arg<1>()), "Print blockchain info in a given blocks range, print_bc <begin_height> [<end_height>]");
   m_consoleHandler.setHandler("print_block", boost::bind(&DaemonCommandsHandler::print_block, this, boost::arg<1>()), "Print block, print_block <block_hash> | <block_height>");
   m_consoleHandler.setHandler("print_stat", boost::bind(&DaemonCommandsHandler::print_stat, this, boost::arg<1>()), "Print statistics, print_stat <nothing=last> | <block_hash> | <block_height>");
+  m_consoleHandler.setHandler("print_token_stat", boost::bind(&DaemonCommandsHandler::print_token_stat, this, boost::arg<1>()), "Print token statistics, print_stat <token_id>");
   m_consoleHandler.setHandler("print_tx", boost::bind(&DaemonCommandsHandler::print_tx, this, boost::arg<1>()), "Print transaction, print_tx <transaction_hash>");
   m_consoleHandler.setHandler("start_mining", boost::bind(&DaemonCommandsHandler::start_mining, this, boost::arg<1>()), "Start mining for specified address, start_mining <addr> [threads=1]");
   m_consoleHandler.setHandler("stop_mining", boost::bind(&DaemonCommandsHandler::stop_mining, this, boost::arg<1>()), "Stop mining");
@@ -357,6 +358,31 @@ uint64_t DaemonCommandsHandler::calculatePercent(const cn::Currency &currency, u
   return static_cast<uint64_t>(100.0 * to_calc);
 }
 
+bool DaemonCommandsHandler::print_token_stat(const std::vector<std::string> &args)
+{
+  logger(logging::DEBUGGING) << "Attempting: print_token_stat";
+
+  if (args.size() != 1)
+  {
+    logger(logging::ERROR) << "Usage: \"print_token_stat <token_id>\"";
+    return false;
+  }
+
+  uint64_t token_id = boost::lexical_cast<uint32_t>(args.front());
+  uint64_t known_token_ids = m_core.known_token_ids();
+  uint64_t circulation_for_token_id = m_core.circulation_for_token_id(token_id);
+  // this will print in atomic units until we do a way format token amounts based of its own unique decimal place
+
+  std::string print_status = "\n";
+  print_status += "Known Token IDs: " + std::to_string(token_id) + "\n";
+  print_status += "Circulation for token: Token ID: (" + std::to_string(token_id) + ")" + std::to_string(circulation_for_token_id) + "\n";
+  logger(logging::INFO) << print_status;
+
+  logger(logging::DEBUGGING) << "Finished: print_stat";
+
+  return true;
+}
+
 bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
 {
   logger(logging::DEBUGGING) << "Attempting: print_stat";
@@ -392,6 +418,7 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
   uint64_t totalCoinsOnDeposits = m_core.depositAmountAtHeight(height);
   uint64_t amountOfActiveCoins = totalCoinsInNetwork - totalCoinsOnDeposits;
   const auto &currency = m_core.currency();
+  uint64_t known_token_ids = m_core.known_token_ids();
 
   std::string print_status = "\n";
   print_status += "Block Height: " + std::to_string(height) + "\n";
@@ -400,6 +427,7 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
   print_status += "Deposits (Locked Coins): " + currency.formatAmount(totalCoinsOnDeposits) + " (" + currency.formatAmount(calculatePercent(currency, totalCoinsOnDeposits, totalCoinsInNetwork)) + "%)\n";
   print_status += "Active Coins (Circulation Supply):  " + currency.formatAmount(amountOfActiveCoins) + " (" + currency.formatAmount(calculatePercent(currency, amountOfActiveCoins, totalCoinsInNetwork)) + "%)\n";
   print_status += "Rewards (Paid Interest): " + currency.formatAmount(m_core.depositInterestAtHeight(height)) + "\n";
+  print_status += "Known Token IDs: " + std::to_string(known_token_ids) + "\n";
 
   logger(logging::INFO) << print_status;
 

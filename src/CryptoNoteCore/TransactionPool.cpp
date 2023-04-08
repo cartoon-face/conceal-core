@@ -64,6 +64,13 @@ namespace cn
           (void)r; //just to make compiler to shut up
           assert(r.second);
         }
+        else if (in.type() == typeid(TokenInput))
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          auto r = m_token_outputs.insert(std::make_pair(tk.amount, tk.outputIndex));
+          (void)r; //just to make compiler to shut up
+          assert(r.second);
+        }
       }
 
       m_txHashes.push_back(txid);
@@ -95,12 +102,21 @@ namespace cn
             return false;
           }
         }
+        else if (in.type() == typeid(TokenInput))
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          if (m_token_outputs.count(std::make_pair(tk.amount, tk.outputIndex)))
+          {
+            return false;
+          }
+        }
       }
       return true;
     }
 
     std::unordered_set<crypto::KeyImage> m_keyImages;
     std::set<std::pair<uint64_t, uint64_t>> m_usedOutputs;
+    std::set<std::pair<uint64_t, uint64_t>> m_token_outputs;
     std::vector<crypto::Hash> m_txHashes;
   };
 
@@ -779,6 +795,16 @@ namespace cn
           m_spentOutputs.erase(output);
         }
       }
+      else if (in.type() == typeid(TokenInput))
+      {
+        if (!keptByBlock)
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          auto output = GlobalOutput(tk.amount, tk.outputIndex);
+          assert(m_spentOutputs.count(output));
+          m_spentOutputs.erase(output);
+        }
+      }
     }
 
     return true;
@@ -819,6 +845,16 @@ namespace cn
           assert(r.second);
         }
       }
+      else if (in.type() == typeid(TokenInput))
+      {
+        if (!keptByBlock)
+        {
+          const auto &tk = boost::get<TokenInput>(in);
+          auto r = m_spentOutputs.insert(GlobalOutput(tk.amount, tk.outputIndex));
+          (void)r;
+          assert(r.second);
+        }
+      }
     }
 
     return true;
@@ -841,6 +877,14 @@ namespace cn
       {
         const auto &msig = boost::get<MultisignatureInput>(in);
         if (m_spentOutputs.count(GlobalOutput(msig.amount, msig.outputIndex)))
+        {
+          return true;
+        }
+      }
+      else if (in.type() == typeid(TokenInput))
+      {
+        const auto &tk = boost::get<TokenInput>(in);
+        if (m_spentOutputs.count(GlobalOutput(tk.amount, tk.outputIndex)))
         {
           return true;
         }

@@ -36,6 +36,9 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
+
+    uint64_t token_amount;
+    uint64_t token_id;
   };
 
   struct TransactionOutputInformation
@@ -45,6 +48,9 @@ namespace cn
     uint64_t amount;
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
+
+    uint64_t token_amount;
+    uint64_t token_id;
 
     // transaction info
     crypto::Hash transactionHash;
@@ -84,12 +90,16 @@ namespace cn
       IncludeTypeKey = 0x100,
       IncludeTypeMultisignature = 0x200,
       IncludeTypeDeposit = 0x400,
+      IncludeTypeToken = 0x500,
       // combinations
       IncludeStateAll = 0xff,
       IncludeTypeAll = 0xff00,
 
       IncludeKeyUnlocked = IncludeTypeKey | IncludeStateUnlocked,
       IncludeKeyNotUnlocked = IncludeTypeKey | IncludeStateLocked | IncludeStateSoftLocked,
+
+      IncludeTokenUnlocked = IncludeTypeToken | IncludeStateUnlocked,
+      IncludeTokenNotUnlocked = IncludeTypeToken | IncludeStateLocked | IncludeStateSoftLocked,
 
       IncludeAllLocked = IncludeTypeAll | IncludeStateLocked | IncludeStateSoftLocked,
       IncludeAllUnlocked = IncludeTypeAll | IncludeStateUnlocked,

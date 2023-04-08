@@ -32,13 +32,20 @@ struct TransactionOutputMultisignatureDetails {
   uint32_t requiredSignatures;
 };
 
+struct TransactionOutputTokenDetails {
+  std::vector<crypto::PublicKey> keys;
+  uint32_t requiredSignatures;
+  uint64_t token_id;
+};
+
 struct TransactionOutputDetails {
   uint64_t amount;
   uint32_t globalIndex;
 
   boost::variant<
     TransactionOutputToKeyDetails,
-    TransactionOutputMultisignatureDetails> output;
+    TransactionOutputMultisignatureDetails,
+    TransactionOutputTokenDetails> output;
 };
 
 struct TransactionOutputReferenceDetails {
@@ -62,13 +69,20 @@ struct TransactionInputMultisignatureDetails {
   TransactionOutputReferenceDetails output;
 };
 
+struct TransactionInputTokenDetails {
+  uint32_t signatures;
+  uint64_t token_id;
+  TransactionOutputReferenceDetails output;
+};
+
 struct TransactionInputDetails {
   uint64_t amount;
 
   boost::variant<
     TransactionInputGenerateDetails,
     TransactionInputToKeyDetails,
-    TransactionInputMultisignatureDetails> input;
+    TransactionInputMultisignatureDetails,
+    TransactionInputTokenDetails> input;
 };
 
 struct TransactionExtraDetails {
@@ -91,6 +105,10 @@ struct TransactionDetails {
   bool inBlockchain;
   crypto::Hash blockHash;
   uint32_t blockHeight;
+  
+  uint64_t token_amount;
+  uint64_t token_id;
+
   TransactionExtraDetails extra;
   std::vector<std::vector<crypto::Signature>> signatures;
   std::vector<TransactionInputDetails> inputs;
@@ -117,6 +135,8 @@ struct BlockDetails {
   double penalty;
   uint64_t totalFeeAmount;
   std::vector<TransactionDetails> transactions;
+
+  std::vector<uint64_t> known_token_ids;
 };
 
 }

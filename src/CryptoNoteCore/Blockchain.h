@@ -88,6 +88,7 @@ namespace cn
     crypto::Hash getTailId();
     crypto::Hash getTailId(uint32_t &height);
     difficulty_type getDifficultyForNextBlock();
+    uint64_t circulation_for_token_id(uint64_t token_id);
     uint64_t getBlockTimestamp(uint32_t height); // k0x001
     uint64_t getCoinsInCirculation();
     uint8_t get_block_major_version_for_height(uint64_t height) const;
@@ -114,6 +115,7 @@ namespace cn
     bool getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins);
     bool getBlockSize(const crypto::Hash &hash, size_t &size);
     bool getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference);
+    bool getTokenOutputReference(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference);
     bool getGeneratedTransactionsNumber(uint32_t height, uint64_t &generatedTransactions);
     bool getOrphanBlockIdsByHeight(uint32_t height, std::vector<crypto::Hash> &blockHashes);
     bool getBlockIdsByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<crypto::Hash> &hashes, uint32_t &blocksNumberWithinTimestamps);
@@ -125,6 +127,7 @@ namespace cn
     uint64_t coinsEmittedAtHeight(uint64_t height);
     uint64_t difficultyAtHeight(uint64_t height);
     bool isInCheckpointZone(const uint32_t height) const;
+    uint64_t known_token_ids() const;
 
     template <class visitor_t>
     bool scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height = nullptr);
@@ -235,6 +238,24 @@ namespace cn
       }
     };
 
+    struct TokenOutputUsage
+    {
+      TransactionIndex transactionIndex;
+      uint16_t outputIndex;
+      bool isUsed;
+      uint64_t token_amount;
+      uint64_t token_id;
+
+      void serialize(ISerializer &s)
+      {
+        s(transactionIndex, "txindex");
+        s(outputIndex, "outindex");
+        s(isUsed, "used");
+        s(token_amount, "token_amount");
+        s(token_id, "token_id");
+      }
+    };
+
     struct TransactionEntry
     {
       Transaction tx;
@@ -255,6 +276,9 @@ namespace cn
       difficulty_type cumulative_difficulty;
       uint64_t already_generated_coins;
       std::vector<TransactionEntry> transactions;
+      std::vector<uint64_t> known_token_ids;
+      // token map consists of token_id, token_amount
+      std::map<uint64_t, uint64_t> token_map;
 
       void serialize(ISerializer &s)
       {
@@ -264,6 +288,8 @@ namespace cn
         s(cumulative_difficulty, "cumulative_difficulty");
         s(already_generated_coins, "already_generated_coins");
         s(transactions, "transactions");
+        s(known_token_ids, "known_token_ids");
+        s(token_map, "token_map");
       }
     };
 
@@ -271,6 +297,7 @@ namespace cn
     using blocks_ext_by_hash = parallel_flat_hash_map<crypto::Hash, BlockEntry>;
     using outputs_container = parallel_flat_hash_map<uint64_t, std::vector<std::pair<TransactionIndex, uint16_t>>>; //crypto::Hash - tx hash, size_t - index of out in transaction
     using MultisignatureOutputsContainer = parallel_flat_hash_map<uint64_t, std::vector<MultisignatureOutputUsage>>;
+    using TokenOutputsContainer = parallel_flat_hash_map<uint64_t, std::vector<TokenOutputUsage>>;
 
     const Currency &m_currency;
     tx_memory_pool &m_tx_pool;
@@ -298,8 +325,12 @@ namespace cn
     Blocks m_blocks;
     cn::BlockIndex m_blockIndex;
     cn::DepositIndex m_depositIndex;
+    cn::TokenTxIndex m_token_index;
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
+    TokenOutputsContainer m_token_outputs;
+    std::map<uint64_t, uint64_t> m_tokens_map;
+
     UpgradeDetector m_upgradeDetectorV2;
     UpgradeDetector m_upgradeDetectorV3;
     UpgradeDetector m_upgradeDetectorV4;
@@ -321,7 +352,7 @@ namespace cn
     bool switch_to_alternative_blockchain(const std::list<crypto::Hash> &alt_chain, bool discard_disconnected_chain);
     bool handle_alternative_block(const Block &b, const crypto::Hash &id, block_verification_context &bvc, bool sendNewAlternativeBlockMessage = true);
     difficulty_type get_next_difficulty_for_alternative_chain(const std::list<crypto::Hash> &alt_chain, const BlockEntry &bei);
-    void pushToDepositIndex(const BlockEntry &block, uint64_t interest);
+    void pushToDepositIndex(const BlockEntry &block, uint64_t interest, bool is_token = false);
     bool prevalidate_miner_transaction(const Block &b, uint32_t height) const;
     bool validate_miner_transaction(const Block &b, uint32_t height, size_t cumulativeBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint64_t &reward, int64_t &emissionChange);
     bool rollback_blockchain_switching(const std::list<Block> &original_chain, size_t rollback_height);
@@ -476,6 +507,35 @@ namespace cn
                       { return !check_key(key); }))
       {
         m_error = "contains multisignature output with invalid public key";
+        return false;
+      }
+
+      return true;
+    }
+    bool operator()(const TokenOutput &out) const
+    {
+      if (m_tx.version < TRANSACTION_VERSION_3)
+      {
+        m_error = "contains token output but have version " + m_tx.version;
+        return false;
+      }
+
+      if (std::any_of(out.keys.begin(), out.keys.end(), [](const crypto::PublicKey &key)
+                      { return !check_key(key); }))
+      {
+        m_error = "contains token output with invalid public key";
+        return false;
+      }
+
+      if (out.requiredSignatureCount > out.keys.size())
+      {
+        m_error = "contains token with invalid required signature count";
+        return false;
+      }
+
+      if (out.token_id == 0)
+      {
+        m_error = "contains token with invalid token id";
         return false;
       }
 

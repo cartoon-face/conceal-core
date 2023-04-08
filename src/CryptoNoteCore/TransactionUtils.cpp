@@ -38,6 +38,9 @@ size_t getRequiredSignaturesCount(const TransactionInput& in) {
   if (in.type() == typeid(MultisignatureInput)) {
     return boost::get<MultisignatureInput>(in).signatureCount;
   }
+  if (in.type() == typeid(TokenInput)) {
+    return boost::get<TokenInput>(in).signatureCount;
+  }
   return 0;
 }
 
@@ -49,6 +52,9 @@ uint64_t getTransactionInputAmount(const TransactionInput& in) {
     // TODO calculate interest
     return boost::get<MultisignatureInput>(in).amount;
   }
+  if (in.type() == typeid(TokenInput)) {
+    return boost::get<TokenInput>(in).amount;
+  }
   return 0;
 }
 
@@ -58,6 +64,9 @@ transaction_types::InputType getTransactionInputType(const TransactionInput& in)
   }
   if (in.type() == typeid(MultisignatureInput)) {
     return transaction_types::InputType::Multisignature;
+  }
+  if (in.type() == typeid(TokenInput)) {
+    return transaction_types::InputType::Token;
   }
   if (in.type() == typeid(BaseInput)) {
     return transaction_types::InputType::Generating;
@@ -88,6 +97,9 @@ transaction_types::OutputType getTransactionOutputType(const TransactionOutputTa
   }
   if (out.type() == typeid(MultisignatureOutput)) {
     return transaction_types::OutputType::Multisignature;
+  }
+  if (out.type() == typeid(TokenOutput)) {
+    return transaction_types::OutputType::Token;
   }
   return transaction_types::OutputType::Invalid;
 }
@@ -130,7 +142,7 @@ bool findOutputsToAccount(const cn::TransactionPrefix& transaction, const Accoun
   generate_key_derivation(txPubKey, keys.viewSecretKey, derivation);
 
   for (const TransactionOutput& o : transaction.outputs) {
-    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput));
+    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput) || o.target.type() == typeid(TokenOutput));
     if (o.target.type() == typeid(KeyOutput)) {
       if (is_out_to_acc(keys, boost::get<KeyOutput>(o.target), derivation, keyIndex)) {
         out.push_back(outputIndex);
@@ -139,6 +151,14 @@ bool findOutputsToAccount(const cn::TransactionPrefix& transaction, const Accoun
       ++keyIndex;
     } else if (o.target.type() == typeid(MultisignatureOutput)) {
       const auto& target = boost::get<MultisignatureOutput>(o.target);
+      for (const auto& key : target.keys) {
+        if (isOutToKey(keys.address.spendPublicKey, key, derivation, static_cast<size_t>(outputIndex))) {
+          out.push_back(outputIndex);
+        }
+        ++keyIndex;
+      }
+    } else if (o.target.type() == typeid(TokenOutput)) {
+      const auto& target = boost::get<TokenOutput>(o.target);
       for (const auto& key : target.keys) {
         if (isOutToKey(keys.address.spendPublicKey, key, derivation, static_cast<size_t>(outputIndex))) {
           out.push_back(outputIndex);

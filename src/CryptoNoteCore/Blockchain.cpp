@@ -222,6 +222,9 @@ namespace cn
       logger(INFO) << operation << "deposit index";
       s(m_bs.m_depositIndex, "deposit_index");
 
+      logger(INFO) << operation << "token index";
+      s(m_bs.m_token_outputs, "token_outputs");
+
       auto dur = std::chrono::steady_clock::now() - start;
 
       logger(INFO) << "Serialization time: " << std::chrono::duration_cast<std::chrono::milliseconds>(dur).count() << "ms";
@@ -624,6 +627,8 @@ namespace cn
     m_spent_keys.clear();
     m_outputs.clear();
     m_multisignatureOutputs.clear();
+    m_token_outputs.clear();
+
     for (uint32_t b = 0; b < m_blocks.size(); ++b)
     {
       if (b % 1000 == 0)
@@ -635,6 +640,7 @@ namespace cn
       crypto::Hash blockHash = get_block_hash(block.bl);
       m_blockIndex.push(blockHash);
       uint64_t interest = 0;
+      std::vector<uint64_t> known_token_ids = {};
       for (uint32_t t = 0; t < block.transactions.size(); ++t)
       {
         const TransactionEntry &transaction = block.transactions[t];
@@ -654,6 +660,16 @@ namespace cn
             const auto &out = boost::get<MultisignatureInput>(i);
             m_multisignatureOutputs[out.amount][out.outputIndex].isUsed = true;
           }
+          else if (i.type() == typeid(TokenInput))
+          {
+            const auto &out = boost::get<TokenInput>(i);
+            m_token_outputs[out.amount][out.outputIndex].isUsed = true;
+            if (m_token_outputs[out.amount][out.outputIndex].token_id > 0 &&
+              m_token_outputs[out.amount][out.outputIndex].token_id > known_token_ids.size())
+            {
+              known_token_ids.push_back(m_token_outputs[out.amount][out.outputIndex].token_id);
+            }
+          }
         }
 
         // process outputs
@@ -669,12 +685,23 @@ namespace cn
             MultisignatureOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
             m_multisignatureOutputs[out.amount].push_back(usage);
           }
+          else if (out.target.type() == typeid(TokenOutput))
+          {
+            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
+            m_token_outputs[out.amount].push_back(usage);
+            if (m_token_outputs[out.amount][o].token_id > 0 &&
+              m_token_outputs[out.amount][o].token_id > known_token_ids.size())
+            {
+              known_token_ids.push_back(m_token_outputs[out.amount][o].token_id);
+            }
+          }
         }
 
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b); //block.height); //block.height shows 0 wrongly sometimes apparently
       }
 
       pushToDepositIndex(block, interest);
+      pushToDepositIndex(block, known_token_ids.size(), true);
     }
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - timePoint;
@@ -696,6 +723,8 @@ namespace cn
       auto block = BlockEntry(m_blocks[b]);
       uint64_t interest = 0;
       uint64_t fee = 0;
+      std::vector<uint64_t> known_token_ids = {};
+
       for (const auto &transaction : block.transactions)
       {
         uint64_t inAmount = m_currency.getTransactionAllInputsAmount(transaction.tx, block.height);
@@ -704,6 +733,14 @@ namespace cn
 
         fee += txFee;
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b);
+
+        if (transaction.tx.token_id > 0 && transaction.tx.token_id > known_token_ids.size())
+        {
+          logger(INFO) << "New token ID found, adding to list of known token IDs"; 
+          known_token_ids.push_back(transaction.tx.token_id);
+        }
+
+        m_tokens_map.insert({transaction.tx.token_id, transaction.tx.token_amount});
       }
 
       std::vector<size_t> lastBlocksSizes;
@@ -712,13 +749,32 @@ namespace cn
 
       uint64_t reward;
       int64_t emissionChange;
-      if (!m_currency.getBlockReward(blocksSizeMedian, block.block_cumulative_size, alreadyGeneratedCoinsPrev, fee, b, reward, emissionChange))
+
+      // TODO from here we should be figuring out the information for each token id
+      // I.E: token supply, amounts, maybe symbol?, etc... then apply the information
+      // to m_blocks, maybe in its own tokenised struct. As for now, we do find out 
+      // the amount of known ids from above.
+      uint64_t token_reward;
+      bool is_token_creation;
+
+      if (!m_currency.get_block_token_reward(is_token_creation, token_reward))
       {
-        logger(ERROR, BRIGHT_RED) << "An error occurred";
+        logger(ERROR, BRIGHT_RED) << "An error occurred while getting the token block reward";
         return false;
       }
+
+      if (!m_currency.getBlockReward(blocksSizeMedian, block.block_cumulative_size, alreadyGeneratedCoinsPrev, fee, b, reward, emissionChange))
+      {
+        logger(ERROR, BRIGHT_RED) << "An error occurred while getting the block reward";
+        return false;
+      }
+
       uint64_t alreadyGeneratedCoins = alreadyGeneratedCoinsPrev + emissionChange + interest;
       block.already_generated_coins = alreadyGeneratedCoins;
+
+      block.known_token_ids = known_token_ids;
+      block.token_map = m_tokens_map;
+
       m_blocks.replace(b, block);
       alreadyGeneratedCoinsPrev = alreadyGeneratedCoins;
     }
@@ -920,6 +976,16 @@ namespace cn
   {
     assert(height < m_blocks.size());
     return m_blocks[height].bl.timestamp;
+  }
+
+  uint64_t Blockchain::circulation_for_token_id(uint64_t token_id)
+  {
+    // TODO this is not actual circulation but is the amount
+    // of coins in total that have been moved using the token id.
+    // Max supply of a token would be figured at creation as
+    // they would be premined tokens, then distributed from a wallet.
+    auto it = m_tokens_map.find(token_id);
+    return it->second;
   }
 
   uint64_t Blockchain::getCoinsInCirculation()
@@ -2112,6 +2178,18 @@ namespace cn
 
         ++inputIndex;
       }
+      else if (txin.type() == typeid(TokenInput))
+      {
+        if (!isInCheckpointZone(getCurrentBlockchainHeight()))
+        {
+          //if (!validateInput(::boost::get<TokenInput>(txin), transactionHash, tx_prefix_hash, tx.signatures[inputIndex]))
+          //{
+          //  return false;
+          //}
+        }
+
+        ++inputIndex;
+      }
       else
       {
         logger(INFO, BRIGHT_WHITE) << "Transaction << " << transactionHash << " contains input of unsupported type.";
@@ -2523,6 +2601,13 @@ namespace cn
     uint64_t fee_summary = 0;
     uint64_t interestSummary = 0;
 
+    // TODO maybe we should have a function searching for the values
+    // as they may not be empty on the chain and we could wipe infomation
+    // otherwise as its only getting the information from one block rather
+    // than the full chain.
+    std::vector<uint64_t> known_token_ids = {};
+    std::map<uint64_t, uint64_t> tokens_map{};
+
     for (size_t i = 0; i < transactions.size(); ++i)
     {
       const crypto::Hash &tx_id = blockData.transactionHashes[i];
@@ -2561,6 +2646,16 @@ namespace cn
         return false;
       }
 
+      if (transactions[i].token_id > 0 && transactions[i].token_id > known_token_ids.size())
+      {
+        known_token_ids.push_back(transactions[i].token_id);
+      }
+
+      uint64_t token_id = transactions[i].token_id;
+      uint64_t token_amount = transactions[i].token_amount;
+
+      tokens_map.insert(std::make_pair(token_id, token_amount));
+
       ++transactionIndex.transaction;
       pushTransaction(block, tx_id, transactionIndex);
 
@@ -2568,6 +2663,11 @@ namespace cn
       fee_summary += fee;
       interestSummary += m_currency.calculateTotalTransactionInterest(transactions[i], block.height);
     }
+
+    block.known_token_ids = known_token_ids;
+    block.token_map = tokens_map;
+    // save known token map to private field?
+    // m_tokens_map = tokens_map;
 
     if (!checkCumulativeBlockSize(blockHash, cumulative_block_size, block.height))
     {
@@ -2597,6 +2697,7 @@ namespace cn
 
     pushBlock(block);
     pushToDepositIndex(block, interestSummary);
+    pushToDepositIndex(block, known_token_ids.size(), true);
 
     auto block_processing_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - blockProcessingStart).count();
 
@@ -2625,6 +2726,12 @@ namespace cn
     return m_depositIndex.fullDepositAmount();
   }
 
+  uint64_t Blockchain::known_token_ids() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_token_index.known_token_ids();
+  }
+
   uint64_t Blockchain::depositAmountAtHeight(size_t height) const
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
@@ -2637,9 +2744,12 @@ namespace cn
     return m_depositIndex.depositInterestAtHeight(static_cast<DepositIndex::DepositHeight>(height));
   }
 
-  void Blockchain::pushToDepositIndex(const BlockEntry &block, uint64_t interest)
+  // TODO rename to "pushToIndexes"
+  void Blockchain::pushToDepositIndex(const BlockEntry &block, uint64_t interest_or_id, bool is_token)
   {
     int64_t deposit = 0;
+    uint64_t token = 0;
+
     for (const auto &tx : block.transactions)
     {
       for (const auto &in : tx.tx.inputs)
@@ -2650,6 +2760,13 @@ namespace cn
           if (multisign.term > 0)
           {
             deposit -= multisign.amount;
+          }
+        } else if (in.type() == typeid(TokenInput))
+        {
+          auto &token_in = boost::get<TokenInput>(in);
+          if (token_in.token_id > 0)
+          {
+            token -= token_in.amount;
           }
         }
       }
@@ -2662,10 +2779,20 @@ namespace cn
           {
             deposit += out.amount;
           }
+        } else if (out.target.type() == typeid(TokenOutput))
+        {
+          auto &token_out = boost::get<TokenOutput>(out.target);
+          if (token_out.token_id > 0)
+          {
+            token += out.amount;
+          }
         }
       }
     }
-    m_depositIndex.pushBlock(deposit, interest);
+    if (is_token)
+      m_token_index.pushBlock(token, interest_or_id);
+    else
+      m_depositIndex.pushBlock(deposit, interest_or_id);
   }
 
   bool Blockchain::pushBlock(const BlockEntry &block)
@@ -2767,6 +2894,12 @@ namespace cn
         auto &amountOutputs = m_multisignatureOutputs[in.amount];
         amountOutputs[in.outputIndex].isUsed = true;
       }
+      else if (inv.type() == typeid(TokenInput))
+      {
+        const TokenInput &in = ::boost::get<TokenInput>(inv);
+        auto &amountOutputs = m_token_outputs[in.amount];
+        amountOutputs[in.outputIndex].isUsed = true;
+      }
     }
 
     transaction.m_global_output_indexes.resize(transaction.tx.outputs.size());
@@ -2783,6 +2916,14 @@ namespace cn
         auto &amountOutputs = m_multisignatureOutputs[transaction.tx.outputs[output].amount];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
         MultisignatureOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
+        amountOutputs.push_back(outputUsage);
+      }
+      else if (transaction.tx.outputs[output].target.type() == typeid(TokenOutput))
+      {
+        auto &amountOutputs = m_token_outputs[transaction.tx.outputs[output].amount];
+        transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
+        // TODO add token id and token amounts to output usage here?
+        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
         amountOutputs.push_back(outputUsage);
       }
     }
@@ -2879,6 +3020,57 @@ namespace cn
           m_multisignatureOutputs.erase(amountOutputs);
         }
       }
+      else if (output.target.type() == typeid(TokenOutput))
+      {
+        auto amountOutputs = m_token_outputs.find(output.amount);
+        if (amountOutputs == m_token_outputs.end())
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - cannot find specific amount in outputs map.";
+
+          continue;
+        }
+
+        if (amountOutputs->second.empty())
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - output array for specific amount is empty.";
+
+          continue;
+        }
+
+        if (amountOutputs->second.back().isUsed)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - attempting to remove used output.";
+
+          continue;
+        }
+
+        if (amountOutputs->second.back().transactionIndex.block != transactionIndex.block || amountOutputs->second.back().transactionIndex.transaction != transactionIndex.transaction)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - invalid transaction index.";
+
+          continue;
+        }
+
+        if (amountOutputs->second.back().outputIndex != transaction.outputs.size() - 1 - outputIndex)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - invalid output index.";
+
+          continue;
+        }
+
+        if (amountOutputs->second.back().token_id == 0)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - attempting to remove invalid token id output.";
+
+          continue;
+        }
+
+        amountOutputs->second.pop_back();
+        if (amountOutputs->second.empty())
+        {
+          m_token_outputs.erase(amountOutputs);
+        }
+      }
     }
 
     for (auto &input : transaction.inputs)
@@ -2898,6 +3090,22 @@ namespace cn
         if (!amountOutputs[in.outputIndex].isUsed)
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - multisignature output not marked as used.";
+        }
+
+        amountOutputs[in.outputIndex].isUsed = false;
+      }
+      else if (input.type() == typeid(TokenInput))
+      {
+        const TokenInput &in = ::boost::get<TokenInput>(input);
+        auto &amountOutputs = m_token_outputs[in.amount];
+        if (!amountOutputs[in.outputIndex].isUsed)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output not marked as used.";
+        }
+
+        if (!amountOutputs[in.outputIndex].token_id == 0)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output is invalid.";
         }
 
         amountOutputs[in.outputIndex].isUsed = false;
@@ -3137,6 +3345,27 @@ namespace cn
       return false;
     }
     const MultisignatureOutputUsage &outputIndex = amountIter->second[txInMultisig.outputIndex];
+    const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
+    outputReference.first = getObjectHash(outputTransaction);
+    outputReference.second = outputIndex.outputIndex;
+    return true;
+  }
+
+  bool Blockchain::getTokenOutputReference(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference)
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    TokenOutputsContainer::const_iterator amountIter = m_token_outputs.find(txInToken.amount);
+    if (amountIter == m_token_outputs.end())
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid amount.";
+      return false;
+    }
+    if (amountIter->second.size() <= txInToken.outputIndex)
+    {
+      logger(DEBUGGING) << "Transaction contains token input with invalid outputIndex.";
+      return false;
+    }
+    const TokenOutputUsage &outputIndex = amountIter->second[txInToken.outputIndex];
     const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
     outputReference.first = getObjectHash(outputTransaction);
     outputReference.second = outputIndex.outputIndex;

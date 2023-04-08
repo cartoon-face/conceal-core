@@ -173,6 +173,7 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
   }
 
   blockDetails.totalFeeAmount = 0;
+  std::vector<uint64_t> token_ids = {};
 
   for (const Transaction& tx : found) {
     TransactionDetails transactionDetails;
@@ -181,7 +182,14 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     }
     blockDetails.transactions.push_back(std::move(transactionDetails));
     blockDetails.totalFeeAmount += transactionDetails.fee;
+
+    // TODO this isnt right but its the basic idea to get known ids
+    if (transactionDetails.token_id > 0 && transactionDetails.token_id > token_ids.size())
+    {
+      token_ids.push_back(transactionDetails.token_id);
+    }
   }
+  blockDetails.known_token_ids = token_ids;
   return true;
 }
 
@@ -288,6 +296,19 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       txInMultisigDetails.output.number = outputReference.second;
       txInMultisigDetails.output.transactionHash = outputReference.first;
       txInDetails.input = txInMultisigDetails;
+    } else if (txIn.type() == typeid(TokenInput)) {
+      TransactionInputTokenDetails txInTokenDetails;
+      const TokenInput& txInToken = boost::get<TokenInput>(txIn);
+      txInDetails.amount = txInToken.amount;
+      txInTokenDetails.signatures = txInToken.signatureCount;
+      std::pair<crypto::Hash, size_t> outputReference;
+      if (!core.getTokenOutputReference(txInToken, outputReference)) {
+        return false;
+      }
+      txInTokenDetails.token_id = txInToken.token_id;
+      txInTokenDetails.output.number = outputReference.second;
+      txInTokenDetails.output.transactionHash = outputReference.first;
+      txInDetails.input = txInTokenDetails;
     } else {
       return false;
     }
@@ -323,6 +344,16 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       }
       txOutMultisigDetails.requiredSignatures = txOutMultisig.requiredSignatureCount;
       txOutDetails.output = txOutMultisigDetails;
+    } else if (txOutput.get<0>().target.type() == typeid(TokenOutput)) {
+      TransactionOutputTokenDetails txOutTokensDetails;
+      TokenOutput txOutToken = boost::get<TokenOutput>(txOutput.get<0>().target);
+      txOutTokensDetails.keys.reserve(txOutToken.keys.size());
+      for (const crypto::PublicKey& key : txOutToken.keys) {
+        txOutTokensDetails.keys.push_back(std::move(key));
+      }
+      txOutTokensDetails.requiredSignatures = txOutToken.requiredSignatureCount;
+      txOutTokensDetails.token_id = txOutToken.token_id;
+      txOutDetails.output = txOutTokensDetails;
     } else {
       return false;
     }

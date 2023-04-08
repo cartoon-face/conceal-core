@@ -34,9 +34,16 @@ struct SendTransactionContext
   std::vector<TransactionOutputInformation> selectedTransfers;
   TxDustPolicy dustPolicy;
   uint64_t mixIn;
+
   std::vector<tx_message_entry> messages;
   uint64_t ttl;
+
   uint32_t depositTerm;
+
+  // add token details to basic send context to save duplicated code from above
+  uint64_t token_amount;
+  uint64_t token_id;
+  uint64_t found_token_money;
 };
 
 } //namespace cn

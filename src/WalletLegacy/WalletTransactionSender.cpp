@@ -197,6 +197,80 @@ namespace cn
     }
   }
 
+  std::unique_ptr<WalletRequest> WalletTransactionSender::make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<WalletLegacyTokenDetails>& token_transfers)
+  {
+    // throw if no details have been bound to token_transfers struct
+    throwIf(token_transfers.empty(), error::ZERO_DESTINATION);
+
+    // validate all addresses
+    for (const WalletLegacyTokenDetails& tk_details : token_transfers)
+    {
+      if (!validateDestinationAddress(tk_details.address))
+      {
+        throw std::system_error(make_error_code(error::BAD_ADDRESS));
+      }
+    }
+
+    // vars
+    std::shared_ptr<SendTransactionContext> context = std::make_shared<SendTransactionContext>();
+
+    uint64_t neededMoney = 0;
+    uint64_t mixIn = cn::parameters::MINIMUM_MIXIN;
+    uint64_t fee = cn::parameters::MINIMUM_FEE_V2;
+    uint64_t ttl = 0;
+    uint64_t needed_money = fee;
+    uint64_t needed_token_money = fee;
+    const std::vector<TransactionMessage> messages = {};
+
+    // find needed money
+    for (auto &transfer : token_transfers)
+    {
+      throwIf(transfer.amount == 0, error::ZERO_DESTINATION);
+      throwIf(transfer.amount < 0, error::WRONG_AMOUNT);
+
+      needed_money += transfer.amount;
+      throwIf(static_cast<int64_t>(needed_money) < transfer.amount, error::SUM_OVERFLOW);
+
+      throwIf(transfer.token_amount == 0, error::ZERO_DESTINATION);
+      throwIf(transfer.token_amount < 0, error::WRONG_AMOUNT);
+
+      needed_token_money += transfer.token_amount;
+      throwIf(static_cast<int64_t>(needed_token_money) < transfer.token_amount, error::SUM_OVERFLOW);
+    }
+
+    context->dustPolicy.dustThreshold = m_currency.defaultDustThreshold();
+    context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
+    context->found_token_money = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
+
+    throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
+    throwIf(context->found_token_money < needed_token_money, error::WRONG_AMOUNT);
+
+    transactionId = m_transactionsCache.add_new_token_transaction(neededMoney, fee, token_transfers);
+    context->transactionId = transactionId;
+    context->mixIn = mixIn;
+    context->ttl = ttl;
+
+    for (const TransactionMessage &message : messages)
+    {
+      AccountPublicAddress address;
+      bool extracted = m_currency.parseAccountAddressString(message.address, address);
+      if (!extracted)
+      {
+        throw std::system_error(make_error_code(error::BAD_ADDRESS));
+      }
+
+      context->messages.push_back({message.message, true, address});
+    }
+
+    if (context->mixIn != 0)
+    {
+      return makeGetRandomOutsRequest(std::move(context), false, transactionSK);
+    }
+
+    return do_send_token_transaction(std::move(context), events);
+  }
+
   std::unique_ptr<WalletRequest> WalletTransactionSender::makeSendRequest(
       crypto::SecretKey &transactionSK,
       bool optimize,
@@ -413,6 +487,11 @@ namespace cn
     {
       nextRequest = doSendMultisigTransaction(std::move(context), events);
     }
+    else if (context->token_id > 0)
+    {
+      // only token txs will have a token id higher than 0
+      nextRequest = do_send_token_transaction(std::move(context), events);
+    }
     else
     {
       nextRequest = doSendTransaction(std::move(context), events, transactionSK);
@@ -426,6 +505,91 @@ namespace cn
     });
 
     return scanty_it == outs.end();
+  }
+
+  std::unique_ptr<WalletRequest> WalletTransactionSender::do_send_token_transaction(std::shared_ptr<SendTransactionContext> &&context, std::deque<std::unique_ptr<WalletLegacyEvent>> &events)
+  {
+    if (m_isStoping)
+    {
+      events.push_back(makeCompleteEvent(m_transactionsCache, context->transactionId, make_error_code(error::TX_CANCELLED)));
+      return std::unique_ptr<WalletRequest>();
+    }
+
+    try
+    {
+      //TODO decompose this method
+      WalletLegacyTransaction &transactionInfo = m_transactionsCache.getTransaction(context->transactionId);
+      std::unique_ptr<ITransaction> transaction = createTransaction();
+
+      uint64_t totalAmount = std::abs(transactionInfo.totalAmount);
+      uint64_t totalTokenAmount = transactionInfo.token_amount;
+
+      std::vector<TokenInput> inputs = prepareTokenInputs(context->selectedTransfers);
+      std::vector<uint64_t> decomposedChange = splitAmount(context->foundMoney - totalAmount, context->dustPolicy.dustThreshold);
+      std::vector<uint64_t> decomposedTokenChange = splitAmount(context->foundMoney - totalTokenAmount, context->dustPolicy.dustThreshold);
+
+      auto token_index = transaction->addOutput(std::abs(transactionInfo.totalAmount) - transactionInfo.fee, {m_keys.address});
+
+      for (const auto &input : inputs)
+      {
+        transaction->addInput(input);
+      }
+
+      // TODO should we be doing this for both token and base amounts?
+      for (uint64_t changeOut : decomposedChange)
+      {
+        transaction->addOutput(changeOut, m_keys.address);
+      }
+
+      for (uint64_t changeOut : decomposedTokenChange)
+      {
+        transaction->addOutput(changeOut, m_keys.address);
+      }
+
+      transaction->setUnlockTime(transactionInfo.unlockTime);
+
+      assert(inputs.size() == context->selectedTransfers.size());
+      for (size_t i = 0; i < inputs.size(); ++i)
+      {
+        // TODO change name of this function, maybe signAlternativeInput
+        transaction->signInputMultisignature(i, context->selectedTransfers[i].transactionPublicKey, context->selectedTransfers[i].outputInTransaction, m_keys);
+      }
+
+      transactionInfo.hash = transaction->getTransactionHash();
+      
+      uint64_t t_height = transactionInfo.blockHeight;
+
+      TokenDetails token;
+      token.creating_transaction_id = context->transactionId;
+      token.amount = std::abs(transactionInfo.totalAmount) - transactionInfo.fee;
+      token.token_amount = transactionInfo.token_amount;
+      token.token_id = transactionInfo.token_id;
+      token.height = t_height;
+      TokenTxId token_tx_id = m_transactionsCache.insert_token_tx(token, token_index, transaction->getTransactionHash());
+      transactionInfo.firstDepositId = token_tx_id;
+      transactionInfo.token_txs_count = 1;
+
+      Transaction lowlevelTransaction = convertTransaction(*transaction, static_cast<size_t>(m_upperTransactionSizeLimit));
+      m_transactionsCache.updateTransaction(context->transactionId, lowlevelTransaction, totalAmount, context->selectedTransfers);
+      m_transactionsCache.add_created_token_tx(token_tx_id, token.amount);
+
+      notifyBalanceChanged(events, token.token_id);
+
+      std::vector<TokenTxId> tokens{token_tx_id};
+
+      return std::unique_ptr<WalletRequest>(new wallet_relay_token_transaction_request(lowlevelTransaction, std::bind(&WalletTransactionSender::relay_token_transaction_callback, this, context,
+                                                                                                                    tokens, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
+    }
+    catch (std::system_error &ec)
+    {
+      events.push_back(makeCompleteEvent(m_transactionsCache, context->transactionId, ec.code()));
+    }
+    catch (std::exception &)
+    {
+      events.push_back(makeCompleteEvent(m_transactionsCache, context->transactionId, make_error_code(error::INTERNAL_WALLET_ERROR)));
+    }
+
+    return std::unique_ptr<WalletRequest>();
   }
 
   std::unique_ptr<WalletRequest> WalletTransactionSender::doSendTransaction(std::shared_ptr<SendTransactionContext> &&context,
@@ -722,6 +886,21 @@ namespace cn
     events.push_back(std::unique_ptr<WalletDepositUpdatedEvent>(new WalletDepositUpdatedEvent(deposit)));
   }
 
+  void WalletTransactionSender::relay_token_transaction_callback(std::shared_ptr<SendTransactionContext> context,
+                                                                std::vector<TokenTxId> tokens,
+                                                                std::deque<std::unique_ptr<WalletLegacyEvent>> &events,
+                                                                std::unique_ptr<WalletRequest> &nextRequest,
+                                                                std::error_code ec)
+  {
+    if (m_isStoping)
+    {
+      return;
+    }
+
+    events.push_back(makeCompleteEvent(m_transactionsCache, context->transactionId, ec));
+    events.push_back(std::unique_ptr<WalletTokenTxsUpdatedEvent>(new WalletTokenTxsUpdatedEvent(std::move(tokens))));
+  }
+
   void WalletTransactionSender::relayDepositsTransactionCallback(std::shared_ptr<SendTransactionContext> context,
                                                                 std::vector<DepositId> deposits,
                                                                 std::deque<std::unique_ptr<WalletLegacyEvent>> &events,
@@ -841,6 +1020,29 @@ namespace cn
     return convertSources(std::move(sources));
   }
 
+  std::vector<TokenInput> WalletTransactionSender::prepareTokenInputs(const std::vector<TransactionOutputInformation> &selectedTransfers)
+  {
+    std::vector<TokenInput> inputs;
+    inputs.reserve(selectedTransfers.size());
+
+    for (const auto &output : selectedTransfers)
+    {
+      assert(output.type == transaction_types::OutputType::Token);
+      assert(output.requiredSignatures == 1); //Other types are currently unsupported
+
+      TokenInput input;
+      input.amount = output.amount;
+      input.signatureCount = output.requiredSignatures;
+      input.outputIndex = output.globalOutputIndex;
+      input.token_amount = output.token_amount;
+      input.token_id = output.token_id;
+
+      inputs.emplace_back(std::move(input));
+    }
+
+    return inputs;
+  }
+
   std::vector<MultisignatureInput> WalletTransactionSender::prepareMultisignatureInputs(const std::vector<TransactionOutputInformation> &selectedTransfers)
   {
     std::vector<MultisignatureInput> inputs;
@@ -863,16 +1065,22 @@ namespace cn
     return inputs;
   }
 
-  void WalletTransactionSender::notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>> &events)
+  void WalletTransactionSender::notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>> &events, uint64_t token_id)
   {
-    uint64_t unconfirmedOutsAmount = m_transactionsCache.unconfrimedOutsAmount();
-    uint64_t change = unconfirmedOutsAmount - m_transactionsCache.unconfirmedTransactionsAmount();
+    uint64_t unconfirmedOutsAmount = m_transactionsCache.unconfrimedOutsAmount(token_id);
+    uint64_t change = unconfirmedOutsAmount - m_transactionsCache.unconfirmedTransactionsAmount(token_id);
 
     uint64_t actualBalance = m_transferDetails.balance(ITransfersContainer::IncludeKeyUnlocked) - unconfirmedOutsAmount;
     uint64_t pendingBalance = m_transferDetails.balance(ITransfersContainer::IncludeKeyNotUnlocked) + change;
 
+    uint64_t actual_token_balance = m_transferDetails.balance(ITransfersContainer::IncludeTokenUnlocked) - unconfirmedOutsAmount;
+    uint64_t pending_token_balance = m_transferDetails.balance(ITransfersContainer::IncludeTokenNotUnlocked) + change;
+
     events.push_back(std::unique_ptr<WalletActualBalanceUpdatedEvent>(new WalletActualBalanceUpdatedEvent(actualBalance)));
     events.push_back(std::unique_ptr<WalletPendingBalanceUpdatedEvent>(new WalletPendingBalanceUpdatedEvent(pendingBalance)));
+
+    events.push_back(std::unique_ptr<wallet_actual_token_balance_updated_event>(new wallet_actual_token_balance_updated_event(actual_token_balance, token_id)));
+    events.push_back(std::unique_ptr<wallet_pending_token_balance_updated_event>(new wallet_pending_token_balance_updated_event(pending_token_balance, token_id)));
   }
 
   namespace
@@ -940,13 +1148,22 @@ namespace cn
       uint64_t neededMoney,
       bool addDust,
       uint64_t dust,
-      std::vector<TransactionOutputInformation> &selectedTransfers)
+      std::vector<TransactionOutputInformation> &selectedTransfers,
+      bool is_token_tx)
   {
     uint64_t foundMoney = 0;
 
     /** Get all the unlocked outputs from the wallet */
     std::vector<TransactionOutputInformation> outputs;
-    m_transferDetails.getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
+
+    if (is_token_tx == true)
+    {
+      m_transferDetails.getOutputs(outputs, ITransfersContainer::IncludeTokenUnlocked);
+    }
+    else
+    {
+      m_transferDetails.getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
+    }
 
     /** Before picking the input buckets, lets shuffle all 
      * the available outputs for privacy */

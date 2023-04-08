@@ -53,6 +53,18 @@ struct WalletTransactionCreatedData
   size_t transactionIndex;
 };
 
+struct TokenDetails
+{
+  size_t creating_transaction_id;
+  uint64_t amount; // base amount, usually a fee
+  uint64_t height;
+  uint64_t token_amount;
+  uint64_t token_id;
+  uint32_t outputInTransaction;
+  crypto::Hash transactionHash;
+  std::string address;
+};
+
 struct Deposit
 {
   size_t creatingTransactionId;

@@ -13,6 +13,9 @@
 #include <memory>
 #include <mutex>
 
+#include <atomic>
+#include <utility>
+
 #include "IWalletLegacy.h"
 #include "INode.h"
 #include "Wallet/WalletErrors.h"
@@ -82,6 +85,9 @@ public:
   virtual bool getDeposit(DepositId depositId, Deposit& deposit) override;
   virtual std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const override;
 
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const WalletLegacyTokenDetails& token_transfer) override;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTokenDetails>& token_transfers) override;
+
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         const WalletLegacyTransfer& transfer,
                                         uint64_t fee,
@@ -144,6 +150,9 @@ private:
   std::unique_ptr<WalletLegacyEvent> getActualBalanceChangedEvent();
   std::unique_ptr<WalletLegacyEvent> getPendingBalanceChangedEvent();
 
+  std::unique_ptr<WalletLegacyEvent> getActualTokenBalanceChangedEvent(uint64_t token_id);
+  std::unique_ptr<WalletLegacyEvent> getPendingTokenBalanceChangedEvent(uint64_t token_id);
+
   uint64_t calculateActualDepositBalance();
   uint64_t calculateActualInvestmentBalance();
   uint64_t calculatePendingDepositBalance();
@@ -151,15 +160,14 @@ private:
   uint64_t getWalletMaximum();
   uint64_t dustBalance();
 
-  uint64_t calculateActualBalance();
-  uint64_t calculatePendingBalance();
+  uint64_t calculateActualBalance(uint64_t token_id = 0);
+  uint64_t calculatePendingBalance(uint64_t token_id = 0);
 
   void pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue);
 
   std::vector<TransactionId> deleteOutdatedUnconfirmedTransactions();
 
   std::vector<uint32_t> getTransactionHeights(std::vector<TransactionOutputInformation> transfers);
-
 
   enum WalletState
   {
@@ -177,6 +185,9 @@ private:
   INode& m_node;
   logging::ILogger& m_loggerGroup;  
   bool m_isStopping;
+
+  std::atomic<uint64_t> m_lastNotifiedActualTokenBalance;
+  std::atomic<uint64_t> m_lastNotifiedPendingTokenBalance;
 
   std::atomic<uint64_t> m_lastNotifiedActualBalance;
   std::atomic<uint64_t> m_lastNotifiedPendingBalance;

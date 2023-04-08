@@ -162,6 +162,13 @@ namespace cn
 
   /* ---------------------------------------------------------------------------------------------------- */
 
+  uint64_t Currency::base_token_reward(uint64_t supply) const
+  {
+    uint64_t reward = 0;
+    reward = std::min(reward, supply);
+    return reward;
+  }
+
   uint64_t Currency::baseRewardFunction(uint64_t alreadyGeneratedCoins, uint32_t height) const
   {
     if (height == 1)
@@ -220,10 +227,18 @@ namespace cn
 
   /* ---------------------------------------------------------------------------------------------------- */
 
+  bool Currency::get_block_token_reward(bool token_creation, uint64_t reward) const
+  {
+    uint64_t base_reward = base_token_reward(reward);
+
+    return true;
+  }
+
+  /* ---------------------------------------------------------------------------------------------------- */
+
   bool Currency::getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins,
                                 uint64_t fee, uint32_t height, uint64_t &reward, int64_t &emissionChange) const
   {
-
     assert(alreadyGeneratedCoins <= m_moneySupply);
     uint64_t baseReward = baseRewardFunction(alreadyGeneratedCoins, height);
 

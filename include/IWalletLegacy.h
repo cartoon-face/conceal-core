@@ -28,11 +28,22 @@ namespace cn {
 typedef size_t TransactionId;
 typedef size_t TransferId;
 typedef size_t DepositId;
+typedef size_t TokenTxId;
 
 struct WalletLegacyTransfer {
   std::string address;
   int64_t amount;
 };
+
+struct WalletLegacyTokenDetails
+{
+  int64_t amount; // keep us sane when dealing with mixin amounts
+  std::string address;
+  uint64_t token_id;
+  uint64_t token_amount;
+  bool is_creation;
+};
+
 
 const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID    = std::numeric_limits<TransactionId>::max();
 const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID          = std::numeric_limits<TransferId>::max();
@@ -71,6 +82,12 @@ struct WalletLegacyTransaction {
   std::string      extra;
   WalletLegacyTransactionState state;
   std::vector<std::string> messages;
+
+  uint64_t token_id;
+  uint64_t token_amount;
+  TokenTxId first_token_tx_id;
+  size_t token_txs_count;
+  bool is_creation;
 };
 
 using PaymentId = crypto::Hash;
@@ -91,6 +108,10 @@ public:
   virtual void synchronizationCompleted(std::error_code result) {}
   virtual void actualBalanceUpdated(uint64_t actualBalance) {}
   virtual void pendingBalanceUpdated(uint64_t pendingBalance) {}
+
+  virtual void actualTokenBalanceUpdated(uint64_t actualBalance, uint64_t token_id) {}
+  virtual void pendingTokenBalanceUpdated(uint64_t pendingBalance, uint64_t token_id) {}
+
   virtual void actualDepositBalanceUpdated(uint64_t actualDepositBalance) {}
   virtual void pendingDepositBalanceUpdated(uint64_t pendingDepositBalance) {}
   virtual void actualInvestmentBalanceUpdated(uint64_t actualInvestmentBalance) {}
@@ -99,6 +120,7 @@ public:
   virtual void sendTransactionCompleted(TransactionId transactionId, std::error_code result) {}
   virtual void transactionUpdated(TransactionId transactionId) {}
   virtual void depositUpdated(const DepositId& depositId) {}
+  virtual void tokensUpdated(const std::vector<uint64_t>& token_tx_id) {}
   virtual void depositsUpdated(const std::vector<DepositId>& depositIds) {}
 };
 
@@ -158,6 +180,8 @@ public:
   virtual std::error_code cancelTransaction(size_t transferId) = 0;
   virtual Deposit get_deposit(DepositId depositId) = 0;
 
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const WalletLegacyTokenDetails& token_transfer) = 0;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTokenDetails>& token_transfers) = 0;
 
 };
 

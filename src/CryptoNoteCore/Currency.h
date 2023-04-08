@@ -156,6 +156,9 @@ namespace cn
 
     bool getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint32_t height,
                         uint64_t &reward, int64_t &emissionChange) const;
+
+    bool get_block_token_reward(bool token_creation, uint64_t reward) const;
+
     uint64_t calculateInterest(uint64_t amount, uint32_t term, uint32_t lockHeight) const;
     uint64_t calculateInterestV2(uint64_t amount, uint32_t term) const;
     uint64_t calculateInterestV3(uint64_t amount, uint32_t term) const;
@@ -208,6 +211,8 @@ namespace cn
     bool generateGenesisBlock();
     uint64_t baseRewardFunction(uint64_t alreadyGeneratedCoins, uint32_t height) const;
 
+    uint64_t base_token_reward(uint64_t supply) const;
+
     uint64_t m_maxBlockHeight;
     size_t m_maxBlockBlobSize;
     size_t m_maxTxSize;
@@ -221,6 +226,8 @@ namespace cn
     uint64_t m_blockFutureTimeLimit_v1;
 
     uint64_t m_moneySupply;
+
+    uint64_t m_token_supply;
 
     size_t m_rewardBlocksWindow;
 
@@ -690,6 +697,13 @@ namespace cn
       else
       {
         return multisignatureInput.amount + m_currency.getInterestForInput(multisignatureInput, m_height);
+      }
+    }
+    uint64_t operator()(const TokenInput &tokenInput) const
+    {
+      if (tokenInput.token_id > 0)
+      {
+        return tokenInput.amount;
       }
     }
   };

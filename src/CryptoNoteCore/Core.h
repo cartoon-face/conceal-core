@@ -71,6 +71,7 @@ namespace cn {
      virtual bool getBlockTimestamp(uint32_t height, uint64_t &timestamp) override;
      virtual bool getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId, uint32_t& blockHeight) override;
      virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& output_reference) override;
+     virtual bool getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& output_reference) override;
      virtual bool getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) override;
      virtual bool getOrphanBlocksByHeight(uint32_t height, std::vector<Block>& blocks) override;
      virtual bool getBlocksByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<Block>& blocks, uint32_t& blocksNumberWithinTimestamps) override;
@@ -150,7 +151,9 @@ namespace cn {
     uint64_t getNextBlockDifficulty();
     uint64_t getTotalGeneratedAmount();
     uint64_t fullDepositAmount() const;
+    uint64_t circulation_for_token_id(uint64_t token_id);
     uint64_t depositAmountAtHeight(size_t height) const;
+    uint64_t known_token_ids() const;
     uint64_t investmentAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
 

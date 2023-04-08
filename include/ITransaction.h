@@ -18,8 +18,8 @@ namespace cn {
 
 namespace transaction_types {
   
-  enum class InputType : uint8_t { Invalid, Key, Multisignature, Generating };
-  enum class OutputType : uint8_t { Invalid, Key, Multisignature };
+  enum class InputType : uint8_t { Invalid, Key, Multisignature, Token, Generating };
+  enum class OutputType : uint8_t { Invalid, Key, Multisignature, Token };
 
   struct GlobalOutput {
     crypto::PublicKey targetKey;
@@ -54,6 +54,8 @@ public:
   virtual crypto::PublicKey getTransactionPublicKey() const = 0;
   virtual bool getTransactionSecretKey(crypto::SecretKey& key) const = 0;
   virtual uint64_t getUnlockTime() const = 0;
+  virtual uint64_t get_token_amount() const = 0;
+  virtual uint64_t get_token_id() const = 0;
 
   // extra
   virtual bool getPaymentId(crypto::Hash& paymentId) const = 0;
@@ -66,6 +68,7 @@ public:
   virtual transaction_types::InputType getInputType(size_t index) const = 0;
   virtual void getInput(size_t index, KeyInput& input) const = 0;
   virtual void getInput(size_t index, MultisignatureInput& input) const = 0;
+  virtual void getInput(size_t index, TokenInput& input) const = 0;
   virtual std::vector<TransactionInput> getInputs() const = 0;
   // outputs
   virtual size_t getOutputCount() const = 0;
@@ -73,6 +76,7 @@ public:
   virtual transaction_types::OutputType getOutputType(size_t index) const = 0;
   virtual void getOutput(size_t index, KeyOutput& output, uint64_t& amount) const = 0;
   virtual void getOutput(size_t index, MultisignatureOutput& output, uint64_t& amount) const = 0;
+  virtual void getOutput(size_t index, TokenOutput& output, uint64_t& amount/*, uint64_t& token_id*/) const = 0;
 
   // signatures
   virtual size_t getRequiredSignaturesCount(size_t inputIndex) const = 0;
@@ -107,12 +111,14 @@ public:
   // Inputs/Outputs 
   virtual size_t addInput(const KeyInput& input) = 0;
   virtual size_t addInput(const MultisignatureInput& input) = 0;
+  virtual size_t addInput(const TokenInput& input) = 0;
   virtual size_t addInput(const AccountKeys& senderKeys, const transaction_types::InputKeyInfo& info, KeyPair& ephKeys) = 0;
 
   virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) = 0;
   virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) = 0;
   virtual size_t addOutput(uint64_t amount, const KeyOutput& out) = 0;
   virtual size_t addOutput(uint64_t amount, const MultisignatureOutput& out) = 0;
+  virtual size_t addOutput(uint64_t amount, const TokenOutput& out) = 0;
 
   // transaction info
   virtual void setTransactionSecretKey(const crypto::SecretKey& key) = 0;
@@ -120,6 +126,7 @@ public:
 
   // signing
   virtual void signInputKey(size_t input, const transaction_types::InputKeyInfo& info, const KeyPair& ephKeys) = 0;
+  // TODO rename next 2 functions to "signAlternativeInput"
   virtual void signInputMultisignature(size_t input, const crypto::PublicKey& sourceTransactionKey, size_t outputIndex, const AccountKeys& accountKeys) = 0;
   virtual void signInputMultisignature(size_t input, const KeyPair& ephemeralKeys) = 0;
 };

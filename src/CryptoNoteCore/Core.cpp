@@ -964,6 +964,10 @@ bool core::getMultisigOutputReference(const MultisignatureInput& txInMultisig, s
   return m_blockchain.getMultisigOutputReference(txInMultisig, outputReference);
 }
 
+bool core::getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference) {
+  return m_blockchain.getTokenOutputReference(txInToken, outputReference);
+}
+
 bool core::getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) {
   return m_blockchain.getGeneratedTransactionsNumber(height, generatedTransactions);
 }
@@ -1056,12 +1060,22 @@ uint64_t core::getTotalGeneratedAmount() {
   return m_blockchain.getCoinsInCirculation();
 }
 
+uint64_t core::circulation_for_token_id(uint64_t token_id)
+{
+  uint64_t amount = m_blockchain.circulation_for_token_id(token_id);
+  return amount;
+}
+
 uint64_t core::fullDepositAmount() const {
   return m_blockchain.fullDepositAmount();
 }
 
 uint64_t core::depositAmountAtHeight(size_t height) const {
   return m_blockchain.depositAmountAtHeight(height);
+}
+
+uint64_t core::known_token_ids() const {
+  return m_blockchain.known_token_ids();
 }
 
 uint64_t core::depositInterestAtHeight(size_t height) const {

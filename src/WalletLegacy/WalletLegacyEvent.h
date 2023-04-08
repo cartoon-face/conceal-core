@@ -93,6 +93,19 @@ private:
   std::vector<DepositId> updatedDeposits;
 };
 
+class WalletTokenTxsUpdatedEvent : public WalletLegacyEvent {
+public:
+  WalletTokenTxsUpdatedEvent(std::vector<uint64_t>&& token_tx_ids) : updated_token_txs(token_tx_ids) {}
+
+  virtual ~WalletTokenTxsUpdatedEvent() {}
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override {
+    observer.notify(&IWalletLegacyObserver::tokensUpdated, updated_token_txs);
+  }
+private:
+  std::vector<uint64_t> updated_token_txs;
+};
+
 class WalletSynchronizationProgressUpdatedEvent : public WalletLegacyEvent
 {
 public:
@@ -134,6 +147,36 @@ public:
   }
 private:
   uint64_t m_balance;
+};
+
+class wallet_actual_token_balance_updated_event : public WalletLegacyEvent
+{
+public:
+  wallet_actual_token_balance_updated_event(uint64_t balance, uint64_t token_id) : m_balance(balance), m_token_id(token_id) {};
+  virtual ~wallet_actual_token_balance_updated_event() {};
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override
+  {
+    observer.notify(&IWalletLegacyObserver::actualTokenBalanceUpdated, m_balance, m_token_id);
+  }
+private:
+  uint64_t m_balance;
+  uint64_t m_token_id;
+};
+
+class wallet_pending_token_balance_updated_event : public WalletLegacyEvent
+{
+public:
+  wallet_pending_token_balance_updated_event(uint64_t balance, uint64_t token_id) : m_balance(balance), m_token_id(token_id) {};
+  virtual ~wallet_pending_token_balance_updated_event() {};
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override
+  {
+    observer.notify(&IWalletLegacyObserver::pendingTokenBalanceUpdated, m_balance, m_token_id);
+  }
+private:
+  uint64_t m_balance;
+  uint64_t m_token_id;
 };
 
 class WalletPendingBalanceUpdatedEvent : public WalletLegacyEvent

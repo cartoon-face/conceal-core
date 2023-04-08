@@ -30,6 +30,14 @@ struct MultisignatureInput {
   uint32_t term;
 };
 
+struct TokenInput {
+  uint64_t amount;
+  uint8_t signatureCount;
+  uint32_t outputIndex;
+  uint64_t token_id;
+  uint64_t token_amount;
+};
+
 struct KeyOutput {
   crypto::PublicKey key;
 };
@@ -40,9 +48,17 @@ struct MultisignatureOutput {
   uint32_t term;
 };
 
-typedef boost::variant<BaseInput, KeyInput, MultisignatureInput> TransactionInput;
+struct TokenOutput
+{
+  std::vector<crypto::PublicKey> keys;
+  uint8_t requiredSignatureCount;
+  uint64_t token_id;
+  uint64_t token_amount;
+};
 
-typedef boost::variant<KeyOutput, MultisignatureOutput> TransactionOutputTarget;
+typedef boost::variant<BaseInput, KeyInput, MultisignatureInput, TokenInput> TransactionInput;
+
+typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> TransactionOutputTarget;
 
 struct TransactionOutput {
   uint64_t amount;
@@ -57,6 +73,8 @@ struct TransactionPrefix {
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
+  uint64_t token_amount;
+  uint64_t token_id;
 };
 
 struct Transaction : public TransactionPrefix {

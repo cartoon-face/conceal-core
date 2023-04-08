@@ -116,6 +116,9 @@ void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId tra
     utd.usedOutputs.push_back(id);
     m_usedOutputs.insert(id);
     outsAmount += out.amount;
+    utd.token_amount = out.token_amount;
+    // TODO should we vector this?
+    utd.token_id = out.token_id;
   }
 
   utd.outsAmount = outsAmount;
@@ -126,6 +129,10 @@ void WalletUnconfirmedTransactions::updateTransactionId(const Hash& hash, Transa
   if (it != m_unconfirmedTxs.end()) {
     it->second.transactionId = id;
   }
+}
+
+void WalletUnconfirmedTransactions::add_created_token_tx(TokenTxId id, uint64_t totalAmount) {
+  m_created_token_txs[id] = totalAmount;
 }
 
 void WalletUnconfirmedTransactions::addCreatedDeposit(DepositId id, uint64_t totalAmount) {
@@ -171,20 +178,36 @@ uint64_t WalletUnconfirmedTransactions::countSpentDepositsTotalAmount() const {
   return sum;
 }
 
-uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount() const {
+uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount(uint64_t token_id) const {
   uint64_t amount = 0;
 
-  for (auto& utx: m_unconfirmedTxs)
-    amount+= utx.second.outsAmount;
+  if (token_id > 0)
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.token_amount;
+  }
+  else
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.outsAmount;
+  }
 
   return amount;
 }
 
-uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount() const {
+uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount(uint64_t token_id) const {
   uint64_t amount = 0;
 
-  for (auto& utx: m_unconfirmedTxs)
-    amount+= utx.second.amount;
+  if (token_id > 0)
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.token_amount;
+  }
+  else
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.amount;
+  }
 
   return amount;
 }

@@ -28,6 +28,9 @@ public:
   WalletTransactionSender(const Currency& currency, WalletUserTransactionsCache& transactionsCache, AccountKeys keys, ITransfersContainer& transfersContainer, INode& node, bool testnet);
 
   void stop();
+  
+  std::unique_ptr<WalletRequest> make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<WalletLegacyTokenDetails>& token_transfers);
 
   std::unique_ptr<WalletRequest> makeSendRequest(crypto::SecretKey& transactionSK,
                                                  bool optimize,
@@ -64,6 +67,7 @@ std::shared_ptr<WalletRequest> makeSendFusionRequest(TransactionId& transactionI
 
 private:
   std::unique_ptr<WalletRequest> makeGetRandomOutsRequest(std::shared_ptr<SendTransactionContext>&& context, bool isMultisigTransaction, crypto::SecretKey& transactionSK);
+  std::unique_ptr<WalletRequest> do_send_token_transaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
   std::unique_ptr<WalletRequest> doSendTransaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events, crypto::SecretKey& transactionSK);
   std::unique_ptr<WalletRequest> doSendMultisigTransaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
   std::unique_ptr<WalletRequest> doSendDepositWithdrawTransaction(std::shared_ptr<SendTransactionContext>&& context,
@@ -88,6 +92,7 @@ private:
                                                                std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& outs,
                                                                uint64_t mixIn);
   std::vector<MultisignatureInput> prepareMultisignatureInputs(const std::vector<TransactionOutputInformation>& selectedTransfers);
+  std::vector<TokenInput> prepareTokenInputs(const std::vector<TransactionOutputInformation>& selectedTransfers);
   void splitDestinations(TransferId firstTransferId, size_t transfersCount, const TransactionDestinationEntry& changeDts,
     const TxDustPolicy& dustPolicy, std::vector<TransactionDestinationEntry>& splittedDests);
   void digitSplitStrategy(TransferId firstTransferId, size_t transfersCount, const TransactionDestinationEntry& change_dst, uint64_t dust_threshold,
@@ -107,13 +112,18 @@ private:
                                        std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                        std::unique_ptr<WalletRequest>& nextRequest,
                                        std::error_code ec);
-  void notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  void relay_token_transaction_callback(std::shared_ptr<SendTransactionContext> context,
+                                       std::vector<TokenTxId> tokens,
+                                       std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
+                                       std::unique_ptr<WalletRequest>& nextRequest,
+                                       std::error_code ec);
+  void notifyBalanceChanged(std::deque<std::unique_ptr<WalletLegacyEvent>>& events, uint64_t token_id = 0);
 
   void validateTransfersAddresses(const std::vector<WalletLegacyTransfer>& transfers);
   bool validateDestinationAddress(const std::string& address);
 
   uint64_t selectNTransfersToSend(std::vector<TransactionOutputInformation>& selectedTransfers);
-  uint64_t selectTransfersToSend(uint64_t neededMoney, bool addDust, uint64_t dust, std::vector<TransactionOutputInformation>& selectedTransfers);
+  uint64_t selectTransfersToSend(uint64_t neededMoney, bool addDust, uint64_t dust, std::vector<TransactionOutputInformation>& selectedTransfers, bool is_token_tx = false);
   uint64_t selectDepositTransfers(const DepositId& depositId, std::vector<TransactionOutputInformation>& selectedTransfers);
   uint64_t selectDepositsTransfers(const std::vector<DepositId>& depositIds, std::vector<TransactionOutputInformation>& selectedTransfers);
 

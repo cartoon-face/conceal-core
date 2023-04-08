@@ -50,6 +50,19 @@ struct UnconfirmedTransferDetails {
   time_t sentTime;
   TransactionId transactionId;
   std::vector<TransactionOutputId> usedOutputs;
+  uint64_t token_amount;
+  uint64_t token_id;
+};
+
+struct unconfirmed_token_tx_details {
+  unconfirmed_token_tx_details() :
+    amount(0), sentTime(0), transactionId(WALLET_LEGACY_INVALID_TRANSACTION_ID) {}
+
+  TransactionId transactionId;
+  time_t sentTime;
+  uint64_t amount;
+  uint64_t token_amount;
+  uint64_t token_id;
 };
 
 struct UnconfirmedSpentDepositDetails {
@@ -76,14 +89,16 @@ public:
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);
   void addDepositSpendingTransaction(const crypto::Hash& transactionHash, const UnconfirmedSpentDepositDetails& details);
 
+  void add_created_token_tx(TokenTxId id, uint64_t totalAmount);
+
   void eraseCreatedDeposit(DepositId id);
 
   uint64_t countCreatedDepositsSum() const;
   uint64_t countSpentDepositsProfit() const;
   uint64_t countSpentDepositsTotalAmount() const;
 
-  uint64_t countUnconfirmedOutsAmount() const;
-  uint64_t countUnconfirmedTransactionsAmount() const;
+  uint64_t countUnconfirmedOutsAmount(uint64_t token_id = 0) const;
+  uint64_t countUnconfirmedTransactionsAmount(uint64_t token_id = 0) const;
   bool isUsed(const TransactionOutputInformation& out) const;
   void reset();
 
@@ -109,6 +124,8 @@ private:
 
   std::unordered_map<DepositId, uint64_t> m_createdDeposits;
   std::unordered_map<crypto::Hash, UnconfirmedSpentDepositDetails> m_spentDeposits;
+
+  std::unordered_map<TokenTxId, uint64_t> m_created_token_txs;
 };
 
 } // namespace cn
