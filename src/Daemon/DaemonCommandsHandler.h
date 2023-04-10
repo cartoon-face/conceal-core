@@ -64,6 +64,9 @@ private:
   bool print_stat(const std::vector<std::string>& args);
   bool save(const std::vector<std::string> &args);
 
+  bool print_bc_token_map(const std::vector<std::string> &args);
+  bool print_bc_token_ids(const std::vector<std::string> &args);
+
   bool print_token_stat(const std::vector<std::string>& args);
 
   bool start_mining(const std::vector<std::string>& args);

@@ -153,9 +153,12 @@ namespace cn {
     uint64_t fullDepositAmount() const;
     uint64_t circulation_for_token_id(uint64_t token_id);
     uint64_t depositAmountAtHeight(size_t height) const;
-    uint64_t known_token_ids() const;
+    uint64_t known_token_ids_amount() const;
     uint64_t investmentAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
+
+    std::vector<uint64_t> known_token_ids() const;
+    std::map<uint64_t, uint64_t> get_token_map() const;
 
     bool is_key_image_spent(const crypto::KeyImage &key_im);
 

@@ -664,10 +664,14 @@ namespace cn
           {
             const auto &out = boost::get<TokenInput>(i);
             m_token_outputs[out.amount][out.outputIndex].isUsed = true;
-            if (m_token_outputs[out.amount][out.outputIndex].token_id > 0 &&
-              m_token_outputs[out.amount][out.outputIndex].token_id > known_token_ids.size())
+
+            uint64_t id = m_token_outputs[out.amount][out.outputIndex].token_id;
+            uint64_t amt = m_token_outputs[out.amount][out.outputIndex].token_amount;
+            m_tokens_map.insert(std::make_pair(id, amt));
+
+            if (id > 0 && id > known_token_ids.size())
             {
-              known_token_ids.push_back(m_token_outputs[out.amount][out.outputIndex].token_id);
+              known_token_ids.push_back(id);
             }
           }
         }
@@ -689,10 +693,14 @@ namespace cn
           {
             TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
             m_token_outputs[out.amount].push_back(usage);
-            if (m_token_outputs[out.amount][o].token_id > 0 &&
-              m_token_outputs[out.amount][o].token_id > known_token_ids.size())
+
+            uint64_t id = m_token_outputs[out.amount][o].token_id;
+            uint64_t amt = m_token_outputs[out.amount][o].token_amount;
+            m_tokens_map.insert(std::make_pair(id, amt));
+
+            if (id > 0 && id > known_token_ids.size())
             {
-              known_token_ids.push_back(m_token_outputs[out.amount][o].token_id);
+              known_token_ids.push_back(id);
             }
           }
         }
@@ -702,6 +710,7 @@ namespace cn
 
       pushToDepositIndex(block, interest);
       pushToDepositIndex(block, known_token_ids.size(), true);
+      m_known_token_ids = known_token_ids;
     }
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - timePoint;
@@ -714,6 +723,7 @@ namespace cn
 
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
     uint64_t alreadyGeneratedCoinsPrev = 0;
+    std::vector<uint64_t> known_token_ids = {};
     for (uint32_t b = 0; b < m_blocks.size(); ++b)
     {
       if (b % 10000 == 0)
@@ -723,7 +733,6 @@ namespace cn
       auto block = BlockEntry(m_blocks[b]);
       uint64_t interest = 0;
       uint64_t fee = 0;
-      std::vector<uint64_t> known_token_ids = {};
 
       for (const auto &transaction : block.transactions)
       {
@@ -778,6 +787,8 @@ namespace cn
       m_blocks.replace(b, block);
       alreadyGeneratedCoinsPrev = alreadyGeneratedCoins;
     }
+
+    m_known_token_ids = known_token_ids;
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - startTime;
     logger(INFO, BRIGHT_WHITE) << "Rebuilding blocks took: " << duration.count();
@@ -2665,9 +2676,9 @@ namespace cn
     }
 
     block.known_token_ids = known_token_ids;
+    m_known_token_ids = known_token_ids;
     block.token_map = tokens_map;
-    // save known token map to private field?
-    // m_tokens_map = tokens_map;
+    m_tokens_map = tokens_map;
 
     if (!checkCumulativeBlockSize(blockHash, cumulative_block_size, block.height))
     {
@@ -2726,10 +2737,36 @@ namespace cn
     return m_depositIndex.fullDepositAmount();
   }
 
-  uint64_t Blockchain::known_token_ids() const
+  uint64_t Blockchain::known_token_ids_amount() const
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
     return m_token_index.known_token_ids();
+  }
+
+  bool Blockchain::is_within_token_id_range(uint64_t token_id) const
+  {
+    // rather than checking if the id given is larger than the currently known
+    // on chain, it is probably safer to find it
+    auto it = m_token_outputs.find(token_id);
+    if (it == m_token_outputs.end())
+    {
+      logger(WARNING, YELLOW) << "token id cannot be found = " << token_id;
+      return false;
+    }
+
+    return true;
+  }
+
+  std::vector<uint64_t> Blockchain::known_token_ids() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_known_token_ids;
+  }
+  
+  std::map<uint64_t, uint64_t> Blockchain::get_token_map() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokens_map;
   }
 
   uint64_t Blockchain::depositAmountAtHeight(size_t height) const

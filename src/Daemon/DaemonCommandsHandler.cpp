@@ -369,7 +369,7 @@ bool DaemonCommandsHandler::print_token_stat(const std::vector<std::string> &arg
   }
 
   uint64_t token_id = boost::lexical_cast<uint32_t>(args.front());
-  uint64_t known_token_ids = m_core.known_token_ids();
+  uint64_t known_token_ids = m_core.known_token_ids_amount();
   uint64_t circulation_for_token_id = m_core.circulation_for_token_id(token_id);
   // this will print in atomic units until we do a way format token amounts based of its own unique decimal place
 
@@ -379,6 +379,52 @@ bool DaemonCommandsHandler::print_token_stat(const std::vector<std::string> &arg
   logger(logging::INFO) << print_status;
 
   logger(logging::DEBUGGING) << "Finished: print_stat";
+
+  return true;
+}
+
+bool DaemonCommandsHandler::print_bc_token_ids(const std::vector<std::string> &args)
+{
+  logger(logging::DEBUGGING) << "Attempting: print_bc_token_map";
+
+  if (!args.empty())
+  {
+    logger(logging::ERROR) << "Usage: \"print_bc_token_map\"";
+    return false;
+  }
+
+  std::vector<uint64_t> known_token_ids = m_core.known_token_ids();
+  std::string str;
+  
+  for (int i = 0; i < known_token_ids.size(); i++) {
+    str += std::to_string(known_token_ids[i]) + "\n";
+  }
+
+  std::string print_status = "\n";
+  print_status += "Known Token IDs: \n" + str + "\n";
+
+  return true;
+}
+
+bool DaemonCommandsHandler::print_bc_token_map(const std::vector<std::string> &args)
+{
+  logger(logging::DEBUGGING) << "Attempting: print_bc_token_map";
+
+  if (!args.empty())
+  {
+    logger(logging::ERROR) << "Usage: \"print_bc_token_map\"";
+    return false;
+  }
+
+  std::map<uint64_t, uint64_t> known_token_ids = m_core.get_token_map();
+  std::string str;
+
+  for (auto const& pair : known_token_ids) {
+    str += "ID: " + std::to_string(pair.first) + " - Amount: " + std::to_string(pair.second) + "\n";
+  }
+
+  std::string print_status = "\n";
+  print_status += "Known Token IDs: \n" + str + "\n";
 
   return true;
 }
@@ -418,7 +464,7 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
   uint64_t totalCoinsOnDeposits = m_core.depositAmountAtHeight(height);
   uint64_t amountOfActiveCoins = totalCoinsInNetwork - totalCoinsOnDeposits;
   const auto &currency = m_core.currency();
-  uint64_t known_token_ids = m_core.known_token_ids();
+  uint64_t known_token_ids = m_core.known_token_ids_amount();
 
   std::string print_status = "\n";
   print_status += "Block Height: " + std::to_string(height) + "\n";

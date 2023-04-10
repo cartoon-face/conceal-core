@@ -1074,8 +1074,8 @@ uint64_t core::depositAmountAtHeight(size_t height) const {
   return m_blockchain.depositAmountAtHeight(height);
 }
 
-uint64_t core::known_token_ids() const {
-  return m_blockchain.known_token_ids();
+uint64_t core::known_token_ids_amount() const {
+  return m_blockchain.known_token_ids_amount();
 }
 
 uint64_t core::depositInterestAtHeight(size_t height) const {
@@ -1147,6 +1147,14 @@ bool core::addMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) {
 
 bool core::removeMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) {
   return m_blockchain.removeMessageQueue(messageQueue);
+}
+
+std::vector<uint64_t> core::known_token_ids() const {
+  return m_blockchain.known_token_ids();
+}
+
+std::map<uint64_t, uint64_t> core::get_token_map() const {
+  return m_blockchain.get_token_map();
 }
 
 }

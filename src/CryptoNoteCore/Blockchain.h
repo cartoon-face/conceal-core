@@ -127,7 +127,11 @@ namespace cn
     uint64_t coinsEmittedAtHeight(uint64_t height);
     uint64_t difficultyAtHeight(uint64_t height);
     bool isInCheckpointZone(const uint32_t height) const;
-    uint64_t known_token_ids() const;
+    uint64_t known_token_ids_amount() const;
+
+    bool is_within_token_id_range(uint64_t token_id) const;
+    std::vector<uint64_t> known_token_ids() const;
+    std::map<uint64_t, uint64_t> get_token_map() const;
 
     template <class visitor_t>
     bool scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height = nullptr);
@@ -330,6 +334,7 @@ namespace cn
     MultisignatureOutputsContainer m_multisignatureOutputs;
     TokenOutputsContainer m_token_outputs;
     std::map<uint64_t, uint64_t> m_tokens_map;
+    std::vector<uint64_t> m_known_token_ids;
 
     UpgradeDetector m_upgradeDetectorV2;
     UpgradeDetector m_upgradeDetectorV3;
