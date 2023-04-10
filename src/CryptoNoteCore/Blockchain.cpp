@@ -2616,8 +2616,8 @@ namespace cn
     // as they may not be empty on the chain and we could wipe infomation
     // otherwise as its only getting the information from one block rather
     // than the full chain.
-    std::vector<uint64_t> known_token_ids = {};
-    std::map<uint64_t, uint64_t> tokens_map{};
+    std::vector<uint64_t> known_tk_ids = known_token_ids();
+    std::map<uint64_t, uint64_t> tokens_map = get_token_map();
 
     for (size_t i = 0; i < transactions.size(); ++i)
     {
@@ -2657,15 +2657,16 @@ namespace cn
         return false;
       }
 
-      if (transactions[i].token_id > 0 && transactions[i].token_id > known_token_ids.size())
+      if (transactions[i].token_id > 0 && transactions[i].token_id > known_tk_ids.size())
       {
-        known_token_ids.push_back(transactions[i].token_id);
+        uint64_t token_id = transactions[i].token_id;
+        uint64_t token_amount = transactions[i].token_amount;
+
+        // if its a new token id, the amount should be the supply to generate
+        // so this will need changing later on to fit that
+        tokens_map.insert(std::make_pair(token_id, token_amount));
+        known_tk_ids.push_back(transactions[i].token_id);
       }
-
-      uint64_t token_id = transactions[i].token_id;
-      uint64_t token_amount = transactions[i].token_amount;
-
-      tokens_map.insert(std::make_pair(token_id, token_amount));
 
       ++transactionIndex.transaction;
       pushTransaction(block, tx_id, transactionIndex);
@@ -2675,8 +2676,8 @@ namespace cn
       interestSummary += m_currency.calculateTotalTransactionInterest(transactions[i], block.height);
     }
 
-    block.known_token_ids = known_token_ids;
-    m_known_token_ids = known_token_ids;
+    block.known_token_ids = known_tk_ids;
+    m_known_token_ids = known_tk_ids;
     block.token_map = tokens_map;
     m_tokens_map = tokens_map;
 
@@ -2708,7 +2709,7 @@ namespace cn
 
     pushBlock(block);
     pushToDepositIndex(block, interestSummary);
-    pushToDepositIndex(block, known_token_ids.size(), true);
+    pushToDepositIndex(block, known_tk_ids.size(), true);
 
     auto block_processing_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - blockProcessingStart).count();
 
