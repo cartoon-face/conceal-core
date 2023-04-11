@@ -280,9 +280,6 @@ namespace cn
       difficulty_type cumulative_difficulty;
       uint64_t already_generated_coins;
       std::vector<TransactionEntry> transactions;
-      std::vector<uint64_t> known_token_ids;
-      // token map consists of token_id, token_amount
-      std::map<uint64_t, uint64_t> token_map;
 
       void serialize(ISerializer &s)
       {
@@ -292,8 +289,6 @@ namespace cn
         s(cumulative_difficulty, "cumulative_difficulty");
         s(already_generated_coins, "already_generated_coins");
         s(transactions, "transactions");
-        s(known_token_ids, "known_token_ids");
-        s(token_map, "token_map");
       }
     };
 
@@ -333,6 +328,8 @@ namespace cn
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
     TokenOutputsContainer m_token_outputs;
+    // TODO maybe we could tuple the token map to find out if we're creating new tokens
+    // token map should consist of token id and token supply
     std::map<uint64_t, uint64_t> m_tokens_map;
     std::vector<uint64_t> m_known_token_ids;
 

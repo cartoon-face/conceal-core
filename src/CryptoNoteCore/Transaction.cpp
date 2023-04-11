@@ -63,7 +63,7 @@ namespace cn {
     virtual transaction_types::InputType getInputType(size_t index) const override;
     virtual void getInput(size_t index, KeyInput& input) const override;
     virtual void getInput(size_t index, MultisignatureInput& input) const override;
-    virtual void getInput(size_t index, TokenInput& input) const override;
+    virtual void getInput(size_t index, TokenInput& input, uint64_t token_id, uint64_t token_amount) const override;
     virtual std::vector<TransactionInput> getInputs() const override;
 
     // outputs
@@ -522,8 +522,8 @@ namespace cn {
     input = boost::get<MultisignatureInput>(getInputChecked(transaction, index, transaction_types::InputType::Multisignature));
   }
 
-  void TransactionImpl::getInput(size_t index, TokenInput& input) const {
-    input = boost::get<TokenInput>(getInputChecked(transaction, index, transaction_types::InputType::Token));
+  void TransactionImpl::getInput(size_t index, TokenInput& input, uint64_t token_id, uint64_t token_amount) const {
+    input = boost::get<TokenInput>(getInputChecked(transaction, index, transaction_types::InputType::Token, token_id, token_amount));
   }
 
   size_t TransactionImpl::getOutputCount() const {

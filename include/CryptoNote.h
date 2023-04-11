@@ -75,6 +75,7 @@ struct TransactionPrefix {
   std::vector<uint8_t> extra;
   uint64_t token_amount;
   uint64_t token_id;
+  bool is_creation;
 };
 
 struct Transaction : public TransactionPrefix {

@@ -667,10 +667,10 @@ namespace cn
 
             uint64_t id = m_token_outputs[out.amount][out.outputIndex].token_id;
             uint64_t amt = m_token_outputs[out.amount][out.outputIndex].token_amount;
-            m_tokens_map.insert(std::make_pair(id, amt));
 
             if (id > 0 && id > known_token_ids.size())
             {
+              m_tokens_map.insert(std::make_pair(id, amt));
               known_token_ids.push_back(id);
             }
           }
@@ -691,16 +691,17 @@ namespace cn
           }
           else if (out.target.type() == typeid(TokenOutput))
           {
-            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
+            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), true, transaction.tx.token_id, transaction.tx.token_amount};
             m_token_outputs[out.amount].push_back(usage);
 
             uint64_t id = m_token_outputs[out.amount][o].token_id;
             uint64_t amt = m_token_outputs[out.amount][o].token_amount;
-            m_tokens_map.insert(std::make_pair(id, amt));
 
             if (id > 0 && id > known_token_ids.size())
             {
               known_token_ids.push_back(id);
+              // the amount to insert here should be the tokens max supply as its a new known token
+              m_tokens_map.insert(std::make_pair(id, amt));
             }
           }
         }
@@ -723,7 +724,6 @@ namespace cn
 
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
     uint64_t alreadyGeneratedCoinsPrev = 0;
-    std::vector<uint64_t> known_token_ids = {};
     for (uint32_t b = 0; b < m_blocks.size(); ++b)
     {
       if (b % 10000 == 0)
@@ -743,13 +743,13 @@ namespace cn
         fee += txFee;
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b);
 
-        if (transaction.tx.token_id > 0 && transaction.tx.token_id > known_token_ids.size())
+        if (transaction.tx.token_id > 0 && transaction.tx.token_id > m_known_token_ids.size())
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
-          known_token_ids.push_back(transaction.tx.token_id);
+          m_known_token_ids.push_back(transaction.tx.token_id);
+          // the amount to insert here should be the tokens max supply as its a new known token
+          m_tokens_map.insert({transaction.tx.token_id, transaction.tx.token_amount});
         }
-
-        m_tokens_map.insert({transaction.tx.token_id, transaction.tx.token_amount});
       }
 
       std::vector<size_t> lastBlocksSizes;
@@ -781,14 +781,9 @@ namespace cn
       uint64_t alreadyGeneratedCoins = alreadyGeneratedCoinsPrev + emissionChange + interest;
       block.already_generated_coins = alreadyGeneratedCoins;
 
-      block.known_token_ids = known_token_ids;
-      block.token_map = m_tokens_map;
-
       m_blocks.replace(b, block);
       alreadyGeneratedCoinsPrev = alreadyGeneratedCoins;
     }
-
-    m_known_token_ids = known_token_ids;
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - startTime;
     logger(INFO, BRIGHT_WHITE) << "Rebuilding blocks took: " << duration.count();
@@ -2618,6 +2613,7 @@ namespace cn
     // than the full chain.
     std::vector<uint64_t> known_tk_ids = known_token_ids();
     std::map<uint64_t, uint64_t> tokens_map = get_token_map();
+    uint8_t tokens_to_creation = 0;
 
     for (size_t i = 0; i < transactions.size(); ++i)
     {
@@ -2627,6 +2623,9 @@ namespace cn
       size_t blob_size = toBinaryArray(transactions[i]).size();
 
       uint64_t fee = m_currency.getTransactionFee(transactions[i], block.height);
+
+      uint64_t token_id = transactions[i].token_id;
+      uint64_t token_amount = transactions[i].token_amount;
 
       bool isTransactionValid = true;
       if (block.bl.majorVersion == BLOCK_MAJOR_VERSION_1 && transactions[i].version > TRANSACTION_VERSION_1)
@@ -2657,15 +2656,16 @@ namespace cn
         return false;
       }
 
-      if (transactions[i].token_id > 0 && transactions[i].token_id > known_tk_ids.size())
+      if (token_id > 0 && token_id > known_tk_ids.size())
       {
-        uint64_t token_id = transactions[i].token_id;
-        uint64_t token_amount = transactions[i].token_amount;
-
         // if its a new token id, the amount should be the supply to generate
         // so this will need changing later on to fit that
         tokens_map.insert(std::make_pair(token_id, token_amount));
-        known_tk_ids.push_back(transactions[i].token_id);
+        known_tk_ids.push_back(token_id);
+        if (transactions[i].is_creation ==  true)
+        {
+          ++tokens_to_creation;
+        }
       }
 
       ++transactionIndex.transaction;
@@ -2676,10 +2676,15 @@ namespace cn
       interestSummary += m_currency.calculateTotalTransactionInterest(transactions[i], block.height);
     }
 
-    block.known_token_ids = known_tk_ids;
     m_known_token_ids = known_tk_ids;
-    block.token_map = tokens_map;
     m_tokens_map = tokens_map;
+
+    if (tokens_to_creation > 0)
+    {
+      // do something here to create the tokens for the required ids
+      // then maybe add information for this to the validate_miner_transaction
+      // function.
+    }
 
     if (!checkCumulativeBlockSize(blockHash, cumulative_block_size, block.height))
     {
@@ -2961,7 +2966,7 @@ namespace cn
         auto &amountOutputs = m_token_outputs[transaction.tx.outputs[output].amount];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
         // TODO add token id and token amounts to output usage here?
-        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
+        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), true, transaction.tx.token_id, transaction.tx.token_amount};
         amountOutputs.push_back(outputUsage);
       }
     }

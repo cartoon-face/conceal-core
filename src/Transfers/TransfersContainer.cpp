@@ -414,7 +414,7 @@ bool TransfersContainer::addTransactionInputs(const TransactionBlockInfo& block,
       }
     } else if (inputType == transaction_types::InputType::Token) {
       TokenInput input;
-      tx.getInput(i, input);
+      tx.getInput(i, input, input.token_id, input.token_amount);
 
       auto& outputDescriptorIndex = m_availableTransfers.get<SpentOutputDescriptorIndex>();
       auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex, input.token_amount, input.token_id));

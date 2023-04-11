@@ -68,7 +68,7 @@ public:
   virtual transaction_types::InputType getInputType(size_t index) const = 0;
   virtual void getInput(size_t index, KeyInput& input) const = 0;
   virtual void getInput(size_t index, MultisignatureInput& input) const = 0;
-  virtual void getInput(size_t index, TokenInput& input) const = 0;
+  virtual void getInput(size_t index, TokenInput& input, uint64_t token_id, uint64_t token_amount) const = 0;
   virtual std::vector<TransactionInput> getInputs() const = 0;
   // outputs
   virtual size_t getOutputCount() const = 0;

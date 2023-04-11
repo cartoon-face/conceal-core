@@ -45,9 +45,10 @@ struct WalletLegacyTokenDetails
 };
 
 
-const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID    = std::numeric_limits<TransactionId>::max();
-const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID          = std::numeric_limits<TransferId>::max();
-const DepositId WALLET_LEGACY_INVALID_DEPOSIT_ID            = std::numeric_limits<DepositId>::max();
+const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID = std::numeric_limits<TransactionId>::max();
+const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID = std::numeric_limits<TransferId>::max();
+const DepositId WALLET_LEGACY_INVALID_DEPOSIT_ID = std::numeric_limits<DepositId>::max();
+const TokenTxId WALLET_LEGACY_INVALID_TOKEN_TX_ID = std::numeric_limits<TokenTxId>::max();
 const uint32_t WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT = std::numeric_limits<uint32_t>::max();
 
 enum class WalletLegacyTransactionState : uint8_t {

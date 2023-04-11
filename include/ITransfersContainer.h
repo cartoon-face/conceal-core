@@ -39,6 +39,7 @@ namespace cn
 
     uint64_t token_amount;
     uint64_t token_id;
+    bool is_creation;
   };
 
   struct TransactionOutputInformation

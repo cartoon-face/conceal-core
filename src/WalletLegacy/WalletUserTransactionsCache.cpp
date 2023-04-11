@@ -348,6 +348,12 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.unlockTime = txInfo.unlockTime;
     transaction.messages = txInfo.messages;
 
+    transaction.token_id = txInfo.token_id;
+    transaction.token_amount = txInfo.token_amount;
+    transaction.first_token_tx_id = WALLET_LEGACY_INVALID_TOKEN_TX_ID;
+    transaction.is_creation = txInfo.is_creation;
+    transaction.token_txs_count = 0;
+
     id = insertTransaction(std::move(transaction));
 
     events.push_back(std::unique_ptr<WalletLegacyEvent>(new WalletExternalTransactionCreatedEvent(id)));

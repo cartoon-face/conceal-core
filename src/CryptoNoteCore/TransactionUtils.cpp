@@ -74,15 +74,19 @@ transaction_types::InputType getTransactionInputType(const TransactionInput& in)
   return transaction_types::InputType::Invalid;
 }
 
-const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index) {
+const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, uint64_t token_id, uint64_t token_amount) {
   if (transaction.inputs.size() <= index) {
     throw std::runtime_error("Transaction input index out of range");
+  }
+  if (token_id == 0 || token_amount == 0)
+  {
+    throw std::runtime_error("Transaction input invalid token id/amount");
   }
   return transaction.inputs[index];
 }
 
-const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type) {
-  const auto& input = getInputChecked(transaction, index);
+const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type, uint64_t token_id, uint64_t token_amount) {
+  const auto& input = getInputChecked(transaction, index, token_id, token_amount);
   if (getTransactionInputType(input) != type) {
     throw std::runtime_error("Unexpected transaction input type");
   }

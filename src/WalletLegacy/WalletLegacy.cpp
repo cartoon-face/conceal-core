@@ -1203,7 +1203,7 @@ std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingInvestmentBalanceChan
 
 
 std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualTokenBalanceChangedEvent(uint64_t token_id) {
-  auto actual = calculateActualBalance();
+  auto actual = calculateActualBalance(token_id);
   auto prevActual = m_lastNotifiedActualTokenBalance.exchange(actual);
 
   std::unique_ptr<WalletLegacyEvent> event;
@@ -1216,7 +1216,7 @@ std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualTokenBalanceChangedEve
 }
 
 std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingTokenBalanceChangedEvent(uint64_t token_id) {
-  auto pending = calculatePendingBalance();
+  auto pending = calculatePendingBalance(token_id);
   auto prevPending = m_lastNotifiedActualTokenBalance.exchange(pending);
 
   std::unique_ptr<WalletLegacyEvent> event;
