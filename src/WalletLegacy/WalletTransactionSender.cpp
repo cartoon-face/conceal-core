@@ -56,7 +56,7 @@ namespace
   }
 
   void constructTx(const AccountKeys keys, const std::vector<TransactionSourceEntry> &sources, const std::vector<TransactionDestinationEntry> &splittedDests,
-                   const std::string &extra, uint64_t unlockTimestamp, uint64_t sizeLimit, Transaction &tx, const std::vector<tx_message_entry> &messages, uint64_t ttl, crypto::SecretKey &transactionSK)
+                   const std::string &extra, uint64_t unlockTimestamp, uint64_t sizeLimit, Transaction &tx, const std::vector<tx_message_entry> &messages, const std::vector<token_tx_entry>& token_entry, uint64_t ttl, crypto::SecretKey &transactionSK)
   {
     std::vector<uint8_t> extraVec;
     extraVec.reserve(extra.size());
@@ -64,7 +64,7 @@ namespace
 
     logging::LoggerGroup nullLog;
     crypto::SecretKey txSK;
-    bool r = constructTransaction(keys, sources, splittedDests, messages, ttl, extraVec, tx, unlockTimestamp, nullLog, txSK);
+    bool r = constructTransaction(keys, sources, splittedDests, messages, token_entry, ttl, extraVec, tx, unlockTimestamp, nullLog, txSK);
     transactionSK = txSK;
 
     throwIf(!r, error::INTERNAL_WALLET_ERROR);
@@ -208,6 +208,7 @@ namespace cn
       uint64_t mixIn,
       uint64_t unlockTimestamp,
       const std::vector<TransactionMessage> &messages,
+      const std::vector<TokenTransaction> &token_entry,
       uint64_t ttl)
   {
     throwIf(transfers.empty(), error::ZERO_DESTINATION);
@@ -235,6 +236,18 @@ namespace cn
     context->transactionId = transactionId;
     context->mixIn = mixIn;
     context->ttl = ttl;
+
+    for (const TokenTransaction &token : token_entry)
+    {
+      AccountPublicAddress address;
+      bool extracted = m_currency.parseAccountAddressString(token.address, address);
+      if (!extracted)
+      {
+        throw std::system_error(make_error_code(error::BAD_ADDRESS));
+      }
+
+      context->token_entry.push_back({token.token_id, token.token_amount, address});
+    }
 
     for (const TransactionMessage &message : messages)
     {
@@ -446,7 +459,15 @@ namespace cn
       WalletLegacyTransaction &transaction = m_transactionsCache.getTransaction(context->transactionId);
 
       std::vector<TransactionSourceEntry> sources;
-      prepareKeyInputs(context->selectedTransfers, context->outs, sources, context->mixIn);
+
+      // TODO this is not the way to create a token transaction, change this implementation to match
+      // how we send a deposit tx by adding the inputs then converting. as for now, it builds but it
+      // is wrong.
+
+      if (context->token_entry[0].token_id > 0)
+        prepareTokenInputs(context->selectedTransfers);
+      else
+        prepareKeyInputs(context->selectedTransfers, context->outs, sources, context->mixIn);
 
       TransactionDestinationEntry changeDts;
       changeDts.amount = 0;
@@ -457,7 +478,7 @@ namespace cn
       splitDestinations(transaction.firstTransferId, transaction.transferCount, changeDts, context->dustPolicy, splittedDests);
 
       Transaction tx;
-      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->ttl, transactionSK);
+      constructTx(m_keys, sources, splittedDests, transaction.extra, transaction.unlockTime, m_upperTransactionSizeLimit, tx, context->messages, context->token_entry, context->ttl, transactionSK);
 
       getObjectHash(tx, transaction.hash);
       transaction.secretKey = transactionSK;
@@ -856,6 +877,30 @@ namespace cn
       input.signatureCount = output.requiredSignatures;
       input.outputIndex = output.globalOutputIndex;
       input.term = output.term;
+
+      inputs.emplace_back(std::move(input));
+    }
+
+    return inputs;
+  }
+
+  std::vector<TokenInput> WalletTransactionSender::prepareTokenInputs(const std::vector<TransactionOutputInformation> &selectedTransfers)
+  {
+    std::vector<TokenInput> inputs;
+    inputs.reserve(selectedTransfers.size());
+
+    for (const auto &output : selectedTransfers)
+    {
+      assert(output.type == transaction_types::OutputType::Token);
+      assert(output.requiredSignatures == 1); //Other types are currently unsupported
+
+      TokenInput input;
+      input.amount = output.amount;
+      input.signatureCount = output.requiredSignatures;
+      input.outputIndex = output.globalOutputIndex;
+
+      input.token_id = output.token_id;
+      input.token_amount = output.token_amount;
 
       inputs.emplace_back(std::move(input));
     }

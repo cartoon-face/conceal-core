@@ -38,6 +38,9 @@ size_t getRequiredSignaturesCount(const TransactionInput& in) {
   if (in.type() == typeid(MultisignatureInput)) {
     return boost::get<MultisignatureInput>(in).signatureCount;
   }
+  if (in.type() == typeid(TokenInput)) {
+    return boost::get<TokenInput>(in).signatureCount;
+  }
   return 0;
 }
 
@@ -49,6 +52,9 @@ uint64_t getTransactionInputAmount(const TransactionInput& in) {
     // TODO calculate interest
     return boost::get<MultisignatureInput>(in).amount;
   }
+  if (in.type() == typeid(TokenInput)) {
+    return boost::get<TokenInput>(in).amount;
+  }
   return 0;
 }
 
@@ -58,6 +64,9 @@ transaction_types::InputType getTransactionInputType(const TransactionInput& in)
   }
   if (in.type() == typeid(MultisignatureInput)) {
     return transaction_types::InputType::Multisignature;
+  }
+  if (in.type() == typeid(TokenInput)) {
+    return transaction_types::InputType::Token;
   }
   if (in.type() == typeid(BaseInput)) {
     return transaction_types::InputType::Generating;

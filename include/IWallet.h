@@ -18,6 +18,7 @@ namespace cn
 {
 
 typedef size_t DepositId;
+typedef size_t TokenTxId;
 
 const size_t WALLET_INVALID_TRANSACTION_ID = std::numeric_limits<size_t>::max();
 const size_t WALLET_INVALID_TRANSFER_ID = std::numeric_limits<size_t>::max();
@@ -104,6 +105,7 @@ struct WalletTransaction
   size_t firstDepositId = WALLET_INVALID_DEPOSIT_ID;
   size_t depositCount = 0;
   bool isBase;
+  uint64_t token_id = 0;
 };
 
 enum class WalletTransferType : uint8_t

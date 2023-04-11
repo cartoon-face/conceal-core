@@ -14,10 +14,13 @@
 
 #include "Common/ObserverManager.h"
 #include "Common/Util.h"
+
 #include "CryptoNoteCore/BlockIndex.h"
+#include "CryptoNoteCore/DepositIndex.h"
+#include "CryptoNoteCore/TokenIndex.h"
+
 #include "CryptoNoteCore/Checkpoints.h"
 #include "CryptoNoteCore/Currency.h"
-#include "CryptoNoteCore/DepositIndex.h"
 #include "CryptoNoteCore/IBlockchainStorageObserver.h"
 #include "CryptoNoteCore/ITransactionValidator.h"
 #include "CryptoNoteCore/SwappedVector.h"
@@ -114,6 +117,7 @@ namespace cn
     bool getAlreadyGeneratedCoins(const crypto::Hash &hash, uint64_t &generatedCoins);
     bool getBlockSize(const crypto::Hash &hash, size_t &size);
     bool getMultisigOutputReference(const MultisignatureInput &txInMultisig, std::pair<crypto::Hash, size_t> &outputReference);
+    bool getTokenOutputReference(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference);
     bool getGeneratedTransactionsNumber(uint32_t height, uint64_t &generatedTransactions);
     bool getOrphanBlockIdsByHeight(uint32_t height, std::vector<crypto::Hash> &blockHashes);
     bool getBlockIdsByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<crypto::Hash> &hashes, uint32_t &blocksNumberWithinTimestamps);
@@ -122,6 +126,9 @@ namespace cn
     uint64_t fullDepositAmount() const;
     uint64_t depositAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
+    uint64_t fullTokenAmount() const;
+    uint64_t tokenAmountAtHeight(size_t height) const;
+    uint64_t tokenIdAtHeight(size_t height) const;
     uint64_t coinsEmittedAtHeight(uint64_t height);
     uint64_t difficultyAtHeight(uint64_t height);
     bool isInCheckpointZone(const uint32_t height) const;
@@ -235,6 +242,22 @@ namespace cn
       }
     };
 
+    struct TokenOutputUsage
+    {
+      TransactionIndex transactionIndex;
+      uint16_t outputIndex;
+      bool isUsed;
+      bool token_id;
+
+      void serialize(ISerializer &s)
+      {
+        s(transactionIndex, "txindex");
+        s(outputIndex, "outindex");
+        s(isUsed, "used");
+        s(token_id, "token_id");
+      }
+    };
+
     struct TransactionEntry
     {
       Transaction tx;
@@ -271,6 +294,7 @@ namespace cn
     using blocks_ext_by_hash = parallel_flat_hash_map<crypto::Hash, BlockEntry>;
     using outputs_container = parallel_flat_hash_map<uint64_t, std::vector<std::pair<TransactionIndex, uint16_t>>>; //crypto::Hash - tx hash, size_t - index of out in transaction
     using MultisignatureOutputsContainer = parallel_flat_hash_map<uint64_t, std::vector<MultisignatureOutputUsage>>;
+    using TokenOutputsContainer = parallel_flat_hash_map<uint64_t, std::vector<TokenOutputUsage>>;
 
     const Currency &m_currency;
     tx_memory_pool &m_tx_pool;
@@ -298,8 +322,10 @@ namespace cn
     Blocks m_blocks;
     cn::BlockIndex m_blockIndex;
     cn::DepositIndex m_depositIndex;
+    cn::TokenIndex m_tokenIndex;
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
+    TokenOutputsContainer m_tokenOutputs;
     UpgradeDetector m_upgradeDetectorV2;
     UpgradeDetector m_upgradeDetectorV3;
     UpgradeDetector m_upgradeDetectorV4;
@@ -321,6 +347,7 @@ namespace cn
     bool switch_to_alternative_blockchain(const std::list<crypto::Hash> &alt_chain, bool discard_disconnected_chain);
     bool handle_alternative_block(const Block &b, const crypto::Hash &id, block_verification_context &bvc, bool sendNewAlternativeBlockMessage = true);
     difficulty_type get_next_difficulty_for_alternative_chain(const std::list<crypto::Hash> &alt_chain, const BlockEntry &bei);
+    void pushToTokenIndex(const BlockEntry &block, uint64_t token_id);
     void pushToDepositIndex(const BlockEntry &block, uint64_t interest);
     bool prevalidate_miner_transaction(const Block &b, uint32_t height) const;
     bool validate_miner_transaction(const Block &b, uint32_t height, size_t cumulativeBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint64_t &reward, int64_t &emissionChange);
@@ -479,6 +506,15 @@ namespace cn
         return false;
       }
 
+      return true;
+    }
+    bool operator()(const TokenOutput &out) const
+    {
+      if (m_tx.version < TRANSACTION_VERSION_3)
+      {
+        m_error = "contains multisignature output but have version " + m_tx.version;
+        return false;
+      }
       return true;
     }
   };

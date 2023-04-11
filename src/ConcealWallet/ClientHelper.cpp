@@ -417,27 +417,43 @@ namespace cn
     }
   }
   
-  std::stringstream client_helper::balances(std::unique_ptr<cn::IWalletLegacy>& wallet, const Currency& currency)
+  std::stringstream client_helper::balances(std::unique_ptr<cn::IWalletLegacy>& wallet, const Currency& currency, uint64_t token_id)
   {
     std::stringstream balances;
-    
-    uint64_t full_balance = wallet->actualBalance() + wallet->pendingBalance() + wallet->actualDepositBalance() + wallet->pendingDepositBalance();
-    std::string full_balance_text = "Total Balance: " + currency.formatAmount(full_balance) + "\n";
 
-    uint64_t non_deposit_unlocked_balance = wallet->actualBalance();
-    std::string non_deposit_unlocked_balance_text = "Available: " + currency.formatAmount(non_deposit_unlocked_balance) + "\n";
+    if (token_id > 0)
+    {
+      uint64_t full_balance = wallet->actualTokenBalance(token_id) + wallet->pendingTokenBalance(token_id);
+      std::string full_balance_text = "Total Balance: " + currency.formatAmount(full_balance) + "\n";
 
-    uint64_t non_deposit_locked_balance = wallet->pendingBalance();
-    std::string non_deposit_locked_balance_text = "Locked: " + currency.formatAmount(non_deposit_locked_balance) + "\n";
+      uint64_t non_deposit_unlocked_balance = wallet->actualTokenBalance(token_id);
+      std::string non_deposit_unlocked_balance_text = "Available: " + currency.formatAmount(non_deposit_unlocked_balance) + "\n";
 
-    uint64_t deposit_unlocked_balance = wallet->actualDepositBalance();
-    std::string deposit_locked_balance_text = "Unlocked Balance: " + currency.formatAmount(deposit_unlocked_balance) + "\n";
+      uint64_t non_deposit_locked_balance = wallet->pendingTokenBalance(token_id);
+      std::string non_deposit_locked_balance_text = "Locked: " + currency.formatAmount(non_deposit_locked_balance) + "\n";
 
-    uint64_t deposit_locked_balance = wallet->pendingDepositBalance();
-    std::string deposit_unlocked_balance_text = "Locked Deposits: " + currency.formatAmount(deposit_locked_balance) + "\n";
+      balances << full_balance_text << non_deposit_unlocked_balance_text << non_deposit_locked_balance_text;
+    }
+    else
+    {
+      uint64_t full_balance = wallet->actualBalance() + wallet->pendingBalance() + wallet->actualDepositBalance() + wallet->pendingDepositBalance();
+      std::string full_balance_text = "Total Balance: " + currency.formatAmount(full_balance) + "\n";
 
-    balances << full_balance_text << non_deposit_unlocked_balance_text << non_deposit_locked_balance_text
-      << deposit_unlocked_balance_text << deposit_locked_balance_text; 
+      uint64_t non_deposit_unlocked_balance = wallet->actualBalance();
+      std::string non_deposit_unlocked_balance_text = "Available: " + currency.formatAmount(non_deposit_unlocked_balance) + "\n";
+
+      uint64_t non_deposit_locked_balance = wallet->pendingBalance();
+      std::string non_deposit_locked_balance_text = "Locked: " + currency.formatAmount(non_deposit_locked_balance) + "\n";
+
+      uint64_t deposit_unlocked_balance = wallet->actualDepositBalance();
+      std::string deposit_locked_balance_text = "Unlocked Balance: " + currency.formatAmount(deposit_unlocked_balance) + "\n";
+
+      uint64_t deposit_locked_balance = wallet->pendingDepositBalance();
+      std::string deposit_unlocked_balance_text = "Locked Deposits: " + currency.formatAmount(deposit_locked_balance) + "\n";
+
+      balances << full_balance_text << non_deposit_unlocked_balance_text << non_deposit_locked_balance_text
+        << deposit_unlocked_balance_text << deposit_locked_balance_text;
+    }
 
     return balances;
   }

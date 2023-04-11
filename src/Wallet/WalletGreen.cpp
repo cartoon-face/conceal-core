@@ -2152,7 +2152,7 @@ namespace cn
     }
   }
 
-  size_t WalletGreen::insertOutgoingTransactionAndPushEvent(const Hash &transactionHash, uint64_t fee, const BinaryArray &extra, uint64_t unlockTimestamp)
+  size_t WalletGreen::insertOutgoingTransactionAndPushEvent(const Hash &transactionHash, uint64_t fee, const BinaryArray &extra, uint64_t unlockTimestamp, uint64_t token_id)
   {
     WalletTransaction insertTx;
     insertTx.state = WalletTransactionState::CREATED;
@@ -2165,6 +2165,7 @@ namespace cn
     insertTx.totalAmount = 0; // 0 until transactionHandlingEnd() is called
     insertTx.timestamp = 0;   //0 until included in a block
     insertTx.isBase = false;
+    insertTx.token_id = token_id;
 
     size_t txId = m_transactions.get<RandomAccessIndex>().size();
     m_transactions.get<RandomAccessIndex>().push_back(std::move(insertTx));

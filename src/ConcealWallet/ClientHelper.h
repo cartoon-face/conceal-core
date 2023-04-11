@@ -106,6 +106,6 @@ namespace cn
     /**
      * @return - Displays all balances (main + deposits)
      */
-    std::stringstream balances(std::unique_ptr<cn::IWalletLegacy>& wallet, const Currency& currency);
+    std::stringstream balances(std::unique_ptr<cn::IWalletLegacy>& wallet, const Currency& currency, uint64_t token_id = 0);
   };
 }

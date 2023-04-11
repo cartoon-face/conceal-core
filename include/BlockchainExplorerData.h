@@ -62,13 +62,21 @@ struct TransactionInputMultisignatureDetails {
   TransactionOutputReferenceDetails output;
 };
 
+struct TransactionInputTokenDetails {
+  uint32_t signatures;
+  TransactionOutputReferenceDetails output;
+  uint64_t token_id;
+};
+
 struct TransactionInputDetails {
   uint64_t amount;
+  uint64_t token_id; // 0 should always be $CCX
 
   boost::variant<
     TransactionInputGenerateDetails,
     TransactionInputToKeyDetails,
-    TransactionInputMultisignatureDetails> input;
+    TransactionInputMultisignatureDetails,
+    TransactionInputTokenDetails> input;
 };
 
 struct TransactionExtraDetails {
@@ -95,6 +103,7 @@ struct TransactionDetails {
   std::vector<std::vector<crypto::Signature>> signatures;
   std::vector<TransactionInputDetails> inputs;
   std::vector<TransactionOutputDetails> outputs;
+  uint64_t token_id;
 };
 
 struct BlockDetails {
@@ -117,6 +126,9 @@ struct BlockDetails {
   double penalty;
   uint64_t totalFeeAmount;
   std::vector<TransactionDetails> transactions;
+
+  uint64_t token_transactions_in_block;
+  std::vector<uint64_t> known_token_ids;
 };
 
 }

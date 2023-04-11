@@ -960,6 +960,10 @@ bool core::getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId,
   return m_blockchain.getBlockContainingTransaction(txId, blockId, blockHeight);
 }
 
+bool core::getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference) {
+  return m_blockchain.getTokenOutputReference(txInToken, outputReference);
+}
+
 bool core::getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& outputReference) {
   return m_blockchain.getMultisigOutputReference(txInMultisig, outputReference);
 }

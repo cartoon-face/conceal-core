@@ -454,6 +454,20 @@ uint64_t WalletLegacy::pendingBalance() {
   return calculatePendingBalance();
 }
 
+uint64_t WalletLegacy::actualTokenBalance(uint64_t token_id) {
+  std::unique_lock<std::mutex> lock(m_cacheMutex);
+  throwIfNotInitialised();
+
+  return calculateActualBalance(token_id);
+}
+
+uint64_t WalletLegacy::pendingTokenBalance(uint64_t token_id) {
+  std::unique_lock<std::mutex> lock(m_cacheMutex);
+  throwIfNotInitialised();
+
+  return calculatePendingBalance(token_id);
+}
+
 
 uint64_t WalletLegacy::actualDepositBalance() {
   std::unique_lock<std::mutex> lock(m_cacheMutex);
@@ -551,12 +565,13 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
                                             const std::vector<TransactionMessage>& messages,
+                                            const std::vector<TokenTransaction>& token_entry,
                                             uint64_t ttl) {
   std::vector<WalletLegacyTransfer> transfers;
   transfers.push_back(transfer);
   throwIfNotInitialised();
 
-  return sendTransaction(transactionSK, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+  return sendTransaction(transactionSK, transfers, fee, extra, mixIn, unlockTimestamp, messages, token_entry, ttl);
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
@@ -566,6 +581,7 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
                                             uint64_t mixIn,
                                             uint64_t unlockTimestamp,
                                             const std::vector<TransactionMessage>& messages,
+                                            const std::vector<TokenTransaction>& token_entry,
                                             uint64_t ttl) 
                                             {
   
@@ -596,7 +612,7 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
 
   {
     std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+    request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, token_entry, ttl);
   }
 
   notifyClients(events);
@@ -1077,6 +1093,13 @@ void WalletLegacy::notifyIfBalanceChanged() {
     m_observerManager.notify(&IWalletLegacyObserver::pendingBalanceUpdated, pending);
   }
 
+  //std::vector<uint64_t> token_ids;
+  //uint64_t token_id = 0;
+  //for (token_id < token_ids;)
+  //{
+  //  token_id++;
+  //}
+
 }
 
 void WalletLegacy::notifyIfDepositBalanceChanged() {
@@ -1216,6 +1239,18 @@ std::vector<TransactionId> WalletLegacy::deleteOutdatedUnconfirmedTransactions()
   return m_transactionsCache.deleteOutdatedTransactions();
 }
 
+uint64_t WalletLegacy::knownTokenIds()
+{
+  uint64_t token_ids = 0;
+
+  std::vector<TransactionOutputInformation> transfers;
+  m_transferDetails->getOutputs(transfers, ITransfersContainer::IncludeTypeToken | ITransfersContainer::IncludeStateUnlocked);
+  std::vector<uint32_t> heights = getTransactionHeights(transfers);
+
+  // TODO scan through transfers for known token ids until we reach a limit
+
+  return token_ids;
+}
 uint64_t WalletLegacy::calculateActualDepositBalance() {
   std::vector<TransactionOutputInformation> transfers;
   m_transferDetails->getOutputs(transfers, ITransfersContainer::IncludeTypeDeposit | ITransfersContainer::IncludeStateUnlocked);
@@ -1261,15 +1296,20 @@ uint64_t WalletLegacy::calculatePendingInvestmentBalance() {
   return calculateInvestmentsAmount(transfers, m_currency, heights);
 }
 
-uint64_t WalletLegacy::calculateActualBalance() {
+uint64_t WalletLegacy::calculateActualBalance(uint64_t token_id) {
+  if (token_id > 0)
+  {
+    return m_transferDetails->balance(ITransfersContainer::IncludeKeyUnlocked, token_id) -
+      m_transactionsCache.unconfrimedOutsAmount();
+  }
   return m_transferDetails->balance(ITransfersContainer::IncludeKeyUnlocked) -
     m_transactionsCache.unconfrimedOutsAmount();
 }
 
-uint64_t WalletLegacy::calculatePendingBalance() {
+uint64_t WalletLegacy::calculatePendingBalance(uint64_t token_id) {
   uint64_t change = m_transactionsCache.unconfrimedOutsAmount() - m_transactionsCache.unconfirmedTransactionsAmount();
   uint64_t spentDeposits = m_transactionsCache.countUnconfirmedSpentDepositsProfit();
-  uint64_t container = m_transferDetails->balance(ITransfersContainer::IncludeKeyNotUnlocked);
+  uint64_t container = m_transferDetails->balance(ITransfersContainer::IncludeKeyNotUnlocked, token_id);
 
   return container + change + spentDeposits;
 }

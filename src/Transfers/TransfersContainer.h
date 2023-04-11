@@ -82,6 +82,8 @@ private:
     struct {
       uint64_t m_amount;
       uint32_t m_globalOutputIndex;
+      uint64_t m_token_amount;
+      uint64_t m_token_id;
     };
   };
 };
@@ -125,6 +127,9 @@ struct TransactionOutputInformationEx : public TransactionOutputInformationIn {
     } else if (type == transaction_types::OutputType::Multisignature) {
       s(requiredSignatures, "");
       s(term, "");
+    } else if (type == transaction_types::OutputType::Token) {
+      s(token_amount, "");
+      s(token_id, "");
     }
   }
 
@@ -201,8 +206,8 @@ public:
   // ITransfersContainer
   virtual size_t transfersCount() const override;
   virtual size_t transactionsCount() const override;
-  virtual uint64_t balance(uint32_t flags) const override;
-  virtual void getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags) const override;
+  virtual uint64_t balance(uint32_t flags, uint64_t token_id = 0) const override;
+  virtual void getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags, uint64_t token_id = 0) const override;
   virtual bool getTransactionInformation(const crypto::Hash& transactionHash, TransactionInformation& info,
     uint64_t* amountIn = nullptr, uint64_t* amountOut = nullptr) const override;
   virtual std::vector<TransactionOutputInformation> getTransactionOutputs(const crypto::Hash& transactionHash, uint32_t flags) const override;
@@ -347,6 +352,8 @@ private:
   bool addTransactionInputs(const TransactionBlockInfo& block, const ITransactionReader& tx);
   void deleteTransactionTransfers(const crypto::Hash& transactionHash);
   bool isSpendTimeUnlocked(const TransactionOutputInformationEx& info) const;
+  bool isToken(const TransactionOutputInformationEx& info, uint32_t flags) const;
+  static bool isToken(const TransactionOutputInformationEx& output, uint32_t state, uint32_t flags);
   bool isIncluded(const TransactionOutputInformationEx& info, uint32_t flags) const;
   static bool isIncluded(const TransactionOutputInformationEx& output, uint32_t state, uint32_t flags);
   void updateTransfersVisibility(const crypto::KeyImage& keyImage);
@@ -365,8 +372,12 @@ private:
 
 private:
   TransactionMultiIndex m_transactions;
+
   UnconfirmedTransfersMultiIndex m_unconfirmedTransfers;
   AvailableTransfersMultiIndex m_availableTransfers;
+  UnconfirmedTransfersMultiIndex m_unconfirmedTokenTransfers;
+  AvailableTransfersMultiIndex m_availableTokenTransfers;
+
   SpentTransfersMultiIndex m_spentTransfers;
   TransfersUnlockMultiIndex m_transfersUnlockJobs;
   //std::unordered_map<KeyImage, KeyOutputInfo, boost::hash<KeyImage>> m_keyImages;

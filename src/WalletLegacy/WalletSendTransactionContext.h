@@ -35,8 +35,10 @@ struct SendTransactionContext
   TxDustPolicy dustPolicy;
   uint64_t mixIn;
   std::vector<tx_message_entry> messages;
+  std::vector<token_tx_entry> token_entry;
   uint64_t ttl;
   uint32_t depositTerm;
+  //uint64_t token_id;
 };
 
 } //namespace cn

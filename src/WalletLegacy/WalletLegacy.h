@@ -61,6 +61,8 @@ public:
 
   virtual uint64_t actualBalance() override;
   virtual uint64_t pendingBalance() override;
+  virtual uint64_t actualTokenBalance(uint64_t token_id) override;
+  virtual uint64_t pendingTokenBalance(uint64_t token_id) override;
   virtual uint64_t actualDepositBalance() override;
   virtual uint64_t actualInvestmentBalance() override;  
   virtual uint64_t pendingDepositBalance() override;
@@ -89,6 +91,7 @@ public:
                                         uint64_t mixIn = parameters::MINIMUM_MIXIN,
                                         uint64_t unlockTimestamp = 0,
                                         const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(),
+                                        const std::vector<TokenTransaction>& token_entry = std::vector<TokenTransaction>(),
                                         uint64_t ttl = 0) override;
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         std::vector<WalletLegacyTransfer>& transfers,
@@ -97,6 +100,7 @@ public:
                                         uint64_t mixIn = parameters::MINIMUM_MIXIN,
                                         uint64_t unlockTimestamp = 0,
                                         const std::vector<TransactionMessage>& messages = std::vector<TransactionMessage>(),
+                                        const std::vector<TokenTransaction>& token_entry = std::vector<TokenTransaction>(),
                                         uint64_t ttl = 0) override;
   virtual size_t estimateFusion(const uint64_t& threshold);
   virtual std::list<TransactionOutputInformation> selectFusionTransfersToSend(uint64_t threshold, size_t minInputCount, size_t maxInputCount);
@@ -144,6 +148,7 @@ private:
   std::unique_ptr<WalletLegacyEvent> getActualBalanceChangedEvent();
   std::unique_ptr<WalletLegacyEvent> getPendingBalanceChangedEvent();
 
+  uint64_t knownTokenIds();
   uint64_t calculateActualDepositBalance();
   uint64_t calculateActualInvestmentBalance();
   uint64_t calculatePendingDepositBalance();
@@ -151,8 +156,8 @@ private:
   uint64_t getWalletMaximum();
   uint64_t dustBalance();
 
-  uint64_t calculateActualBalance();
-  uint64_t calculatePendingBalance();
+  uint64_t calculateActualBalance(uint64_t token_id = 0);
+  uint64_t calculatePendingBalance(uint64_t token_id = 0);
 
   void pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue);
 

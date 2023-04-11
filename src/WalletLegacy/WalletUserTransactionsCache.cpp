@@ -608,6 +608,7 @@ std::vector<DepositId> WalletUserTransactionsCache::createNewDeposits(Transactio
   return deposits;
 }
 
+
 DepositId WalletUserTransactionsCache::insertNewDeposit(const TransactionOutputInformation& depositOutput, TransactionId creatingTransactionId,
   const Currency& currency, uint32_t height) {
   assert(depositOutput.type == transaction_types::OutputType::Multisignature);
@@ -644,6 +645,7 @@ std::vector<DepositId> WalletUserTransactionsCache::processSpentDeposits(Transac
   }
   return deposits;
 }
+
 
 DepositId WalletUserTransactionsCache::getDepositId(const Hash& creatingTransactionHash, uint32_t outputInTransaction) {
   auto it = m_transactionOutputToDepositIndex.find(std::tie(creatingTransactionHash, outputInTransaction));

@@ -40,6 +40,8 @@ uint64_t getInputAmount(const Transaction& transaction) {
       amount += boost::get<KeyInput>(input).amount;
     } else if (input.type() == typeid(MultisignatureInput)) {
       amount += boost::get<MultisignatureInput>(input).amount;
+    } else if (input.type() == typeid(TokenInput)) {
+      amount += boost::get<TokenInput>(input).amount;
     }
   }
 
@@ -55,6 +57,8 @@ std::vector<uint64_t> getInputsAmounts(const Transaction& transaction) {
       inputsAmounts.push_back(boost::get<KeyInput>(input).amount);
     } else if (input.type() == typeid(MultisignatureInput)) {
       inputsAmounts.push_back(boost::get<MultisignatureInput>(input).amount);
+    } else if (input.type() == typeid(TokenInput)) {
+      inputsAmounts.push_back(boost::get<TokenInput>(input).amount);
     }
   }
 
