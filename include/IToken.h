@@ -14,18 +14,32 @@
 
 namespace cn
 {
-  struct TokenTransfer
+  class TokenSummary
   {
-    // standard with every tx
-    int64_t amount;
-    std::string address;
-
-    // token details
+  public:
+// Store for information
     uint64_t token_id;
+    uint64_t token_supply;
+    uint64_t decimals;
+    uint64_t created_height;
+    std::string ticker;
+//
+
+// Use for moving tokens
     uint64_t token_amount;
     bool is_creation;
-    uint64_t decimals;
-    std::string ticker;
+//
+
+// Serialize all data
+    void serialize(cn::ISerializer& serializer) {
+      serializer(token_id, "token_id");
+      serializer(token_supply, "token_supply");
+      serializer(decimals, "decimals");
+      serializer(created_height, "created_height");
+      serializer(ticker, "ticker");
+      serializer(token_amount, "token_amount");
+      serializer(is_creation, "is_creation");
+    }
   };
 
   struct TokenTransactionDetails
@@ -45,27 +59,14 @@ namespace cn
     std::string address;
   };
 
-  class TokenSummary
+  struct TokenTransfer
   {
-  public:
-    uint64_t token_id;
-    uint64_t token_supply;
-    uint64_t decimals;
-    uint64_t created_height;
-    std::string ticker;
+    // standard with every tx
+    int64_t amount;
+    std::string address;
 
-    uint64_t token_amount; // used for moving tokens
-    bool is_creation;      // used for moving tokens
-    
-    void serialize(cn::ISerializer& serializer) {
-      serializer(token_id, "amount");
-      serializer(token_supply, "token_id");
-      serializer(decimals, "decimals");
-      serializer(created_height, "created_height");
-      serializer(ticker, "ticker");
-      serializer(token_amount, "token_amount");
-      serializer(is_creation, "is_creation");
-    }
+    // token details
+    TokenSummary token_details;
   };
 
 }

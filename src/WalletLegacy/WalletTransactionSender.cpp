@@ -231,10 +231,10 @@ namespace cn
       needed_money += transfer.amount;
       throwIf(static_cast<int64_t>(needed_money) < transfer.amount, error::SUM_OVERFLOW);
 
-      throwIf(transfer.token_amount == 0, error::ZERO_DESTINATION);
+      throwIf(transfer.token_details.token_amount == 0, error::ZERO_DESTINATION);
 
-      needed_token_money += transfer.token_amount;
-      throwIf(static_cast<int64_t>(needed_token_money) < transfer.token_amount, error::SUM_OVERFLOW);
+      needed_token_money += transfer.token_details.token_amount;
+      throwIf(static_cast<int64_t>(needed_token_money) < transfer.token_details.token_amount, error::SUM_OVERFLOW);
     }
 
     context->dustPolicy.dustThreshold = m_currency.defaultDustThreshold();
@@ -534,7 +534,6 @@ namespace cn
         transaction->addInput(input);
       }
 
-      // TODO should we be doing this for both token and base amounts?
       for (uint64_t changeOut : decomposedChange)
       {
         transaction->addOutput(changeOut, {m_keys.address}, transactionInfo.token_details.token_id, transactionInfo.token_details.token_amount);

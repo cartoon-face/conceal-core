@@ -25,6 +25,8 @@
 #include "CryptoNoteCore/MessageQueue.h"
 #include "CryptoNoteCore/BlockchainMessages.h"
 
+#include "IToken.h"
+
 #include <Logging/LoggerMessage.h>
 
 namespace cn {
@@ -158,7 +160,7 @@ namespace cn {
     uint64_t depositInterestAtHeight(size_t height) const;
 
     std::vector<uint64_t> known_token_ids() const;
-    std::map<uint64_t, uint64_t> get_token_map() const;
+    std::map<uint64_t, TokenSummary> get_token_map() const;
 
     bool is_key_image_spent(const crypto::KeyImage &key_im);
 

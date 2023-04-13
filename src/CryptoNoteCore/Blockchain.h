@@ -32,6 +32,8 @@
 
 #include <Logging/LoggerRef.h>
 
+#include "IToken.h"
+
 #undef ERROR
 using phmap::parallel_flat_hash_map;
 namespace cn
@@ -131,7 +133,7 @@ namespace cn
 
     bool is_within_token_id_range(uint64_t token_id) const;
     std::vector<uint64_t> known_token_ids() const;
-    std::map<uint64_t, uint64_t> get_token_map() const;
+    std::map<uint64_t, TokenSummary> get_token_map() const;
 
     template <class visitor_t>
     bool scanOutputKeysForIndexes(const KeyInput &tx_in_to_key, visitor_t &vis, uint32_t *pmax_related_block_height = nullptr);
@@ -326,9 +328,8 @@ namespace cn
     TransactionMap m_transactionMap;
     MultisignatureOutputsContainer m_multisignatureOutputs;
     TokenOutputsContainer m_token_outputs;
-    // TODO maybe we could tuple the token map to find out if we're creating new tokens
-    // token map should consist of token id and token supply
-    std::map<uint64_t, uint64_t> m_tokens_map;
+
+    std::map<uint64_t, TokenSummary> m_tokens_map;
     std::vector<uint64_t> m_known_token_ids;
 
     UpgradeDetector m_upgradeDetectorV2;

@@ -7,6 +7,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "Blockchain.h"
+#include "IToken.h"
 
 #include <algorithm>
 #include <numeric>
@@ -669,7 +670,7 @@ namespace cn
 
             if (id > 0 && id > m_known_token_ids.size())
             {
-              m_tokens_map.insert(std::make_pair(id, amt));
+              m_tokens_map.insert(std::make_pair(id, m_token_outputs[out.amount][out.outputIndex].token_details));
               m_known_token_ids.push_back(id);
               m_token_outputs[out.amount][out.outputIndex].token_details.token_supply == amt;
             }
@@ -701,7 +702,7 @@ namespace cn
             {
               m_known_token_ids.push_back(id);
               // the amount to insert here should be the tokens max supply as its a new known token
-              m_tokens_map.insert(std::make_pair(id, amt));
+              m_tokens_map.insert(std::make_pair(id, m_token_outputs[out.amount][o].token_details));
               m_token_outputs[out.amount][o].token_details.token_supply == amt;
             }
           }
@@ -748,7 +749,7 @@ namespace cn
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
           m_known_token_ids.push_back(transaction.tx.token_details.token_id);
           // the amount to insert here should be the tokens max supply as its a new known token
-          m_tokens_map.insert({transaction.tx.token_details.token_id, transaction.tx.token_details.token_amount});
+          m_tokens_map.insert({transaction.tx.token_details.token_id, transaction.tx.token_details});
           transaction.tx.token_details.token_supply == transaction.tx.token_details.token_amount;
         }
       }
@@ -988,12 +989,8 @@ namespace cn
 
   uint64_t Blockchain::circulation_for_token_id(uint64_t token_id)
   {
-    // TODO this is not actual circulation but is the amount
-    // of coins in total that have been moved using the token id.
-    // Max supply of a token would be figured at creation as
-    // they would be premined tokens, then distributed from a wallet.
     auto it = m_tokens_map.find(token_id);
-    return it->second;
+    return it->second.token_supply;
   }
 
   uint64_t Blockchain::getCoinsInCirculation()
@@ -2609,12 +2606,7 @@ namespace cn
     uint64_t fee_summary = 0;
     uint64_t interestSummary = 0;
 
-    // TODO maybe we should have a function searching for the values
-    // as they may not be empty on the chain and we could wipe infomation
-    // otherwise as its only getting the information from one block rather
-    // than the full chain.
     std::vector<uint64_t> known_tk_ids = known_token_ids();
-    std::map<uint64_t, uint64_t> tokens_map = get_token_map();
     uint8_t tokens_to_creation = 0;
 
     for (size_t i = 0; i < transactions.size(); ++i)
@@ -2625,9 +2617,6 @@ namespace cn
       size_t blob_size = toBinaryArray(transactions[i]).size();
 
       uint64_t fee = m_currency.getTransactionFee(transactions[i], block.height);
-
-      uint64_t token_id = transactions[i].token_details.token_id;
-      uint64_t token_amount = transactions[i].token_details.token_amount;
 
       bool isTransactionValid = true;
       if (block.bl.majorVersion == BLOCK_MAJOR_VERSION_1 && transactions[i].version > TRANSACTION_VERSION_1)
@@ -2658,11 +2647,12 @@ namespace cn
         return false;
       }
 
+      uint64_t token_id = transactions[i].token_details.token_id;
       if (token_id > 0 && token_id > known_tk_ids.size())
       {
         // if its a new token id, the amount should be the supply to generate
         // so this will need changing later on to fit that
-        tokens_map.insert(std::make_pair(token_id, token_amount));
+        m_tokens_map.insert(std::make_pair(token_id, transactions[i].token_details));
         known_tk_ids.push_back(token_id);
         if (transactions[i].token_details.is_creation ==  true)
         {
@@ -2679,7 +2669,6 @@ namespace cn
     }
 
     m_known_token_ids = known_tk_ids;
-    m_tokens_map = tokens_map;
 
     if (tokens_to_creation > 0)
     {
@@ -2771,7 +2760,7 @@ namespace cn
     return m_known_token_ids;
   }
   
-  std::map<uint64_t, uint64_t> Blockchain::get_token_map() const
+  std::map<uint64_t, TokenSummary> Blockchain::get_token_map() const
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
     return m_tokens_map;

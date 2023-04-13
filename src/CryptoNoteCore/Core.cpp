@@ -1158,7 +1158,7 @@ std::vector<uint64_t> core::known_token_ids() const {
   return m_blockchain.known_token_ids();
 }
 
-std::map<uint64_t, uint64_t> core::get_token_map() const {
+std::map<uint64_t, TokenSummary> core::get_token_map() const {
   return m_blockchain.get_token_map();
 }
 

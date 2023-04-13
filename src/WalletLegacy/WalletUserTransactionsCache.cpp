@@ -258,11 +258,11 @@ TransactionId WalletUserTransactionsCache::add_new_token_transaction(uint64_t am
 
   for (auto txs : token_transfers)
   {
-    transaction.token_details.token_amount = -static_cast<int64_t>(txs.token_amount);
-    transaction.token_details.token_amount = txs.token_id;
-    transaction.token_details.is_creation = txs.is_creation;
-    transaction.token_details.decimals = txs.decimals;
-    transaction.token_details.ticker = txs.ticker;
+    transaction.token_details.token_amount = -static_cast<int64_t>(txs.token_details.token_amount);
+    transaction.token_details.token_amount = txs.token_details.token_id;
+    transaction.token_details.is_creation = txs.token_details.is_creation;
+    transaction.token_details.decimals = txs.token_details.decimals;
+    transaction.token_details.ticker = txs.token_details.ticker;
 
     if (transaction.token_details.token_id > m_known_token_ids.size())
     {
