@@ -116,9 +116,9 @@ void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId tra
     utd.usedOutputs.push_back(id);
     m_usedOutputs.insert(id);
     outsAmount += out.amount;
-    utd.token_amount = out.token_amount;
+    utd.token_amount = out.token_details.token_amount;
     // TODO should we vector this?
-    utd.token_id = out.token_id;
+    utd.token_id = out.token_details.token_id;
   }
 
   utd.outsAmount = outsAmount;

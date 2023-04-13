@@ -7,6 +7,7 @@
 
 #include "TransfersContainer.h"
 #include "IWalletLegacy.h"
+#include "IToken.h"
 #include "Common/StdInputStream.h"
 #include "Common/StdOutputStream.h"
 #include "CryptoNoteCore/CryptoNoteFormatUtils.h"
@@ -30,8 +31,7 @@ void serialize(TransactionInformation& ti, cn::ISerializer& s) {
   s(ti.extra, "");
   s(ti.paymentId, "");
   s(ti.messages, "");
-  s(ti.token_amount, "");
-  s(ti.token_id, "");
+  s(ti.token_details, "");
 }
 
 const uint32_t TRANSFERS_CONTAINER_STORAGE_VERSION = 1;
@@ -134,8 +134,8 @@ SpentOutputDescriptor::SpentOutputDescriptor(const TransactionOutputInformationI
   } else if (m_type == transaction_types::OutputType::Token) {
     m_amount = transactionInfo.amount;
     m_globalOutputIndex = transactionInfo.globalOutputIndex;
-    m_token_amount = transactionInfo.token_amount;
-    m_token_id = transactionInfo.token_id;
+    m_token_amount = transactionInfo.token_details.token_amount;
+    m_token_id = transactionInfo.token_details.token_id;
   } else {
     assert(false);
   }
@@ -201,9 +201,8 @@ size_t SpentOutputDescriptor::hash() const {
   } else if (m_type == transaction_types::OutputType::Token) {
     size_t hashValue = boost::hash_value(m_amount);
     boost::hash_combine(hashValue, m_globalOutputIndex);
-    size_t hashTValue = boost::hash_value(m_token_amount);
-    boost::hash_combine(hashTValue, m_token_id);
-    boost::hash_combine(hashValue, hashTValue);
+    boost::hash_combine(hashValue, m_token_amount);
+    boost::hash_combine(hashValue, m_token_id);
     return hashValue;
   } else {
     assert(false);
@@ -266,8 +265,7 @@ void TransfersContainer::addTransaction(const TransactionBlockInfo& block, const
   txInfo.totalAmountOut = tx.getOutputTotalAmount();
   txInfo.extra = tx.getExtra();
   txInfo.messages = std::move(messages);
-  txInfo.token_amount = tx.get_token_amount();
-  txInfo.token_id = tx.get_token_id();
+  txInfo.token_details = tx.get_token_details();
 
   if (!tx.getPaymentId(txInfo.paymentId)) {
     txInfo.paymentId = NULL_HASH;
@@ -304,8 +302,7 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
     info.unlockTime = tx.getUnlockTime();
     info.transactionHash = txHash;
     info.visible = true;
-    info.token_amount = tx.get_token_amount();
-    info.token_id = tx.get_token_id();
+    info.token_details = tx.get_token_details();
 
     if (transferIsUnconfirmed) {
       auto result = m_unconfirmedTransfers.emplace(std::move(info));
@@ -414,10 +411,11 @@ bool TransfersContainer::addTransactionInputs(const TransactionBlockInfo& block,
       }
     } else if (inputType == transaction_types::InputType::Token) {
       TokenInput input;
-      tx.getInput(i, input, input.token_id, input.token_amount);
+      TokenSummary token_details;
+      tx.getInput(i, input, token_details);
 
       auto& outputDescriptorIndex = m_availableTransfers.get<SpentOutputDescriptorIndex>();
-      auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex, input.token_amount, input.token_id));
+      auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex, token_details.token_amount, token_details.token_id));
       if (availableOutputIt != outputDescriptorIndex.end()) {
         deleteUnlockJob(*availableOutputIt);
         copyToSpent(block, tx, i, *availableOutputIt);
@@ -1017,7 +1015,7 @@ bool TransfersContainer::isIncluded(const TransactionOutputInformationEx& output
     ((flags & IncludeTypeKey) != 0            && output.type == transaction_types::OutputType::Key) ||
     ((flags & IncludeTypeMultisignature) != 0 && output.type == transaction_types::OutputType::Multisignature && output.term == 0) ||
     ((flags & IncludeTypeDeposit) != 0        && output.type == transaction_types::OutputType::Multisignature && output.term > 0) ||
-    ((flags & IncludeTypeToken) != 0          && output.type == transaction_types::OutputType::Token && output.token_id > 0)
+    ((flags & IncludeTypeToken) != 0          && output.type == transaction_types::OutputType::Token && (output.token_details.token_id > 0 && output.token_details.token_amount > 0))
     )
     &&
     // filter by state

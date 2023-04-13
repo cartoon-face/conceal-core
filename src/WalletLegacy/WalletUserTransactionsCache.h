@@ -55,11 +55,14 @@ public:
   uint64_t countUnconfirmedSpentDepositsProfit() const;
   uint64_t countUnconfirmedSpentDepositsTotalAmount() const;
 
+  std::vector<uint64_t> get_known_token_ids() const;
+
   size_t getTransactionCount() const;
   size_t getTransferCount() const;
   size_t getDepositCount() const;
+  size_t getTokenTxsCount() const;
 
-  TransactionId add_new_token_transaction(uint64_t amount, uint64_t fee, const std::vector<WalletLegacyTokenDetails>& token_transfers);
+  TransactionId add_new_token_transaction(uint64_t amount, uint64_t fee, const std::vector<TokenTransfer>& token_transfers);
 
   TransactionId addNewTransaction(uint64_t amount,
                                   uint64_t fee,
@@ -105,7 +108,7 @@ public:
   DepositId insertDeposit(const Deposit& deposit, size_t depositIndexInTransaction, const crypto::Hash& transactionHash);
   bool getDepositInTransactionInfo(DepositId depositId, crypto::Hash& transactionHash, uint32_t& outputInTransaction);
 
-  TokenTxId insert_token_tx(const TokenDetails& token, size_t token_tx_index_in_transaction, const crypto::Hash& transaction_hash);
+  TokenTxId insert_token_tx(const TokenTransactionDetails& token, size_t token_tx_index_in_transaction, const crypto::Hash& transaction_hash);
 
   std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const;
   TransactionId findTransactionByHash(const crypto::Hash& hash);
@@ -114,7 +117,7 @@ private:
 
   TransactionId insertTransaction(WalletLegacyTransaction&& Transaction);
   TransferId insertTransfers(const std::vector<WalletLegacyTransfer>& transfers);
-  TransferId insertTransfers(const std::vector<WalletLegacyTokenDetails>& token_transfers);
+  TransferId insertTransfers(const std::vector<TokenTransfer>& token_transfers);
 
   void updateUnconfirmedTransactions();
 
@@ -134,7 +137,7 @@ private:
   void eraseCreatedDeposit(DepositId id);
 
   using UserTransfers = std::vector<WalletLegacyTransfer>;
-  using UserTokenTransfers = std::vector<WalletLegacyTokenDetails>;
+  using UserTokenTransfers = std::vector<TokenTransfer>;
   using UserTransactions = std::vector<WalletLegacyTransaction>;
   using Offset = UserTransactions::size_type;
   using UserPaymentIndex = std::unordered_map<PaymentId, std::vector<Offset>, boost::hash<PaymentId>>;
@@ -156,6 +159,8 @@ private:
   std::unordered_map<std::tuple<crypto::Hash, uint32_t>, TokenTxId> m_transactionOutputToTokenTxIndex;
 
   UserPaymentIndex m_paymentsIndex;
+
+  std::vector<uint64_t> m_known_token_ids;
 };
 
 } //namespace cn

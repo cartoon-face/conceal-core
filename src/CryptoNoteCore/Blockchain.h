@@ -247,16 +247,14 @@ namespace cn
       TransactionIndex transactionIndex;
       uint16_t outputIndex;
       bool isUsed;
-      uint64_t token_amount;
-      uint64_t token_id;
+      TokenSummary token_details;
 
       void serialize(ISerializer &s)
       {
         s(transactionIndex, "txindex");
         s(outputIndex, "outindex");
         s(isUsed, "used");
-        s(token_amount, "token_amount");
-        s(token_id, "token_id");
+        s(token_details, "token_details");
       }
     };
 

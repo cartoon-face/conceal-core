@@ -198,13 +198,13 @@ namespace cn
   }
 
   std::unique_ptr<WalletRequest> WalletTransactionSender::make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
-    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<WalletLegacyTokenDetails>& token_transfers)
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<TokenTransfer>& token_transfers)
   {
     // throw if no details have been bound to token_transfers struct
     throwIf(token_transfers.empty(), error::ZERO_DESTINATION);
 
     // validate all addresses
-    for (const WalletLegacyTokenDetails& tk_details : token_transfers)
+    for (const TokenTransfer& tk_details : token_transfers)
     {
       if (!validateDestinationAddress(tk_details.address))
       {
@@ -227,13 +227,11 @@ namespace cn
     for (auto &transfer : token_transfers)
     {
       throwIf(transfer.amount == 0, error::ZERO_DESTINATION);
-      throwIf(transfer.amount < 0, error::WRONG_AMOUNT);
 
       needed_money += transfer.amount;
       throwIf(static_cast<int64_t>(needed_money) < transfer.amount, error::SUM_OVERFLOW);
 
       throwIf(transfer.token_amount == 0, error::ZERO_DESTINATION);
-      throwIf(transfer.token_amount < 0, error::WRONG_AMOUNT);
 
       needed_token_money += transfer.token_amount;
       throwIf(static_cast<int64_t>(needed_token_money) < transfer.token_amount, error::SUM_OVERFLOW);
@@ -241,7 +239,7 @@ namespace cn
 
     context->dustPolicy.dustThreshold = m_currency.defaultDustThreshold();
     context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
-    context->found_token_money = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
+    context->found_token_money = selectTransfersToSend(needed_token_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
 
     throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
     throwIf(context->found_token_money < needed_token_money, error::WRONG_AMOUNT);
@@ -522,13 +520,14 @@ namespace cn
       std::unique_ptr<ITransaction> transaction = createTransaction();
 
       uint64_t totalAmount = std::abs(transactionInfo.totalAmount);
-      uint64_t totalTokenAmount = transactionInfo.token_amount;
+      uint64_t totalTokenAmount = transactionInfo.token_details.token_amount;
 
       std::vector<TokenInput> inputs = prepareTokenInputs(context->selectedTransfers);
       std::vector<uint64_t> decomposedChange = splitAmount(context->foundMoney - totalAmount, context->dustPolicy.dustThreshold);
       std::vector<uint64_t> decomposedTokenChange = splitAmount(context->foundMoney - totalTokenAmount, context->dustPolicy.dustThreshold);
 
-      auto token_index = transaction->addOutput(std::abs(transactionInfo.totalAmount) - transactionInfo.fee, {m_keys.address});
+      auto token_index = transaction->addOutput(std::abs(transactionInfo.totalAmount) - transactionInfo.fee,
+        {m_keys.address}, transactionInfo.token_details.token_id, transactionInfo.token_details.token_amount);
 
       for (const auto &input : inputs)
       {
@@ -538,12 +537,7 @@ namespace cn
       // TODO should we be doing this for both token and base amounts?
       for (uint64_t changeOut : decomposedChange)
       {
-        transaction->addOutput(changeOut, m_keys.address);
-      }
-
-      for (uint64_t changeOut : decomposedTokenChange)
-      {
-        transaction->addOutput(changeOut, m_keys.address);
+        transaction->addOutput(changeOut, {m_keys.address}, transactionInfo.token_details.token_id, transactionInfo.token_details.token_amount);
       }
 
       transaction->setUnlockTime(transactionInfo.unlockTime);
@@ -559,19 +553,24 @@ namespace cn
       
       uint64_t t_height = transactionInfo.blockHeight;
 
-      TokenDetails token;
-      token.creating_transaction_id = context->transactionId;
-      token.amount = std::abs(transactionInfo.totalAmount) - transactionInfo.fee;
-      token.token_amount = transactionInfo.token_amount;
-      token.token_id = transactionInfo.token_id;
-      token.height = t_height;
+      TokenTransactionDetails token;
+      token.transaction_id = context->transactionId;
+      token.ccx_amount = std::abs(transactionInfo.totalAmount) - transactionInfo.fee;
+      token.height_sent = t_height;
+
+      token.token_amount = transactionInfo.token_details.token_amount;
+      token.token_id = transactionInfo.token_details.token_id;
+      token.is_creation = transactionInfo.token_details.is_creation;
+      token.decimals = transactionInfo.token_details.decimals;
+      token.ticker = transactionInfo.token_details.ticker;
+
       TokenTxId token_tx_id = m_transactionsCache.insert_token_tx(token, token_index, transaction->getTransactionHash());
-      transactionInfo.firstDepositId = token_tx_id;
+      transactionInfo.first_token_tx_id = token_tx_id;
       transactionInfo.token_txs_count = 1;
 
       Transaction lowlevelTransaction = convertTransaction(*transaction, static_cast<size_t>(m_upperTransactionSizeLimit));
       m_transactionsCache.updateTransaction(context->transactionId, lowlevelTransaction, totalAmount, context->selectedTransfers);
-      m_transactionsCache.add_created_token_tx(token_tx_id, token.amount);
+      m_transactionsCache.add_created_token_tx(token_tx_id, token.ccx_amount);
 
       notifyBalanceChanged(events, token.token_id);
 
@@ -1034,8 +1033,8 @@ namespace cn
       input.amount = output.amount;
       input.signatureCount = output.requiredSignatures;
       input.outputIndex = output.globalOutputIndex;
-      input.token_amount = output.token_amount;
-      input.token_id = output.token_id;
+      input.token_amount = output.token_details.token_amount;
+      input.token_id = output.token_details.token_id;
 
       inputs.emplace_back(std::move(input));
     }

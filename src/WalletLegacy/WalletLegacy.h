@@ -85,8 +85,8 @@ public:
   virtual bool getDeposit(DepositId depositId, Deposit& deposit) override;
   virtual std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const override;
 
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const WalletLegacyTokenDetails& token_transfer) override;
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTokenDetails>& token_transfers) override;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer) override;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers) override;
 
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         const WalletLegacyTransfer& transfer,
@@ -185,6 +185,8 @@ private:
   INode& m_node;
   logging::ILogger& m_loggerGroup;  
   bool m_isStopping;
+
+  std::vector<uint64_t> m_known_token_ids;
 
   std::atomic<uint64_t> m_lastNotifiedActualTokenBalance;
   std::atomic<uint64_t> m_lastNotifiedPendingTokenBalance;

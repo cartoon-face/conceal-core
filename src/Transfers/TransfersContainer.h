@@ -133,11 +133,9 @@ struct TransactionOutputInformationEx : public TransactionOutputInformationIn {
     else if (type == transaction_types::OutputType::Token)
     {
       s(requiredSignatures, "");
-      s(token_amount, "");
-      s(token_id, "");
+      s(token_details, "");
     }
   }
-
 };
 
 struct TransactionBlockInfo {

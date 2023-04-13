@@ -344,7 +344,12 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
       }
     } else if (out.target.type() == typeid(TokenOutput)) {
       if (tx.version < TRANSACTION_VERSION_3) {
-        *error = "Transaction contains token output but its version is less than 2";
+        *error = "Transaction contains token output but its version is less than 3";
+        return false;
+      }
+
+      if (tx.token_details.token_amount == 0 || tx.token_details.token_id == 0) {
+        *error = "Transaction contains token output but its token id or amount is 0";
         return false;
       }
 
@@ -491,7 +496,7 @@ bool lookup_acc_outs(const AccountKeys& acc, const Transaction& tx, const Public
   generate_key_derivation(tx_pub_key, acc.viewSecretKey, derivation);
 
   for (const TransactionOutput& o : tx.outputs) {
-    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput));
+    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput) || o.target.type() == typeid(TokenOutput));
     if (o.target.type() == typeid(KeyOutput)) {
       if (is_out_to_acc(acc, boost::get<KeyOutput>(o.target), derivation, keyIndex)) {
         outs.push_back(outputIndex);

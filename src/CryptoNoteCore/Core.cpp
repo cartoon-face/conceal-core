@@ -54,7 +54,7 @@ public:
   }
 
 private:
-  Block block;
+  cn::Block block;
   std::vector<Transaction> transactions;
 
   friend class core;
@@ -204,6 +204,11 @@ size_t core::addChain(const std::vector<const IBlock*>& chain) {
       size_t blobSize = 0;
       getObjectHash(tx, txHash, blobSize);
       tx_verification_context tvc = boost::value_initialized<tx_verification_context>();
+
+      if (tx.token_details.token_id > 0 && tx.token_details.token_amount > 0)
+      {
+        logger(INFO) << "Token transaction found:" << txHash;
+      }
 
       if (!handleIncomingTransaction(tx, txHash, blobSize, tvc, true, get_block_height(block->getBlock()))) {
         logger(ERROR, BRIGHT_RED) << "core::addChain() failed to handle transaction " << txHash << " from block " << blocksCounter << "/" << chain.size();

@@ -10,6 +10,7 @@
 #include <vector>
 #include <boost/variant.hpp>
 #include "CryptoTypes.h"
+#include "IToken.h"
 
 namespace cn {
 
@@ -63,6 +64,8 @@ typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> Transaction
 struct TransactionOutput {
   uint64_t amount;
   TransactionOutputTarget target;
+  uint64_t token_id;
+  uint64_t token_amount;
 };
 
 using TransactionInputs = std::vector<TransactionInput>;
@@ -73,13 +76,22 @@ struct TransactionPrefix {
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
-  uint64_t token_amount;
-  uint64_t token_id;
-  bool is_creation;
+  
+  TokenSummary token_details;
 };
 
 struct Transaction : public TransactionPrefix {
   std::vector<std::vector<crypto::Signature>> signatures;
+};
+
+struct TokenInformation
+{
+  uint64_t    token_id;
+  uint64_t    max_supply;
+  uint8_t     decimals;
+  std::string token_name;
+  std::string token_ticker;
+
 };
 
 struct BlockHeader {

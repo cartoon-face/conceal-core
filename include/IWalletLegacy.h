@@ -22,6 +22,7 @@
 #include "Rpc/CoreRpcServerCommandsDefinitions.h"
 #include "ITransfersContainer.h"
 #include "IWallet.h"
+#include "IToken.h"
 
 namespace cn {
 
@@ -34,16 +35,6 @@ struct WalletLegacyTransfer {
   std::string address;
   int64_t amount;
 };
-
-struct WalletLegacyTokenDetails
-{
-  int64_t amount; // keep us sane when dealing with mixin amounts
-  std::string address;
-  uint64_t token_id;
-  uint64_t token_amount;
-  bool is_creation;
-};
-
 
 const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID = std::numeric_limits<TransactionId>::max();
 const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID = std::numeric_limits<TransferId>::max();
@@ -84,11 +75,10 @@ struct WalletLegacyTransaction {
   WalletLegacyTransactionState state;
   std::vector<std::string> messages;
 
-  uint64_t token_id;
-  uint64_t token_amount;
   TokenTxId first_token_tx_id;
   size_t token_txs_count;
-  bool is_creation;
+
+  TokenSummary token_details;
 };
 
 using PaymentId = crypto::Hash;
@@ -181,8 +171,8 @@ public:
   virtual std::error_code cancelTransaction(size_t transferId) = 0;
   virtual Deposit get_deposit(DepositId depositId) = 0;
 
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const WalletLegacyTokenDetails& token_transfer) = 0;
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTokenDetails>& token_transfers) = 0;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer) = 0;
+  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers) = 0;
 
 };
 

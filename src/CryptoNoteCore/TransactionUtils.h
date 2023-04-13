@@ -7,6 +7,7 @@
 
 #include "CryptoNoteCore/CryptoNoteBasic.h"
 #include "ITransaction.h"
+#include "IToken.h"
 
 namespace cn {
 
@@ -16,8 +17,9 @@ bool checkInputsKeyimagesDiff(const cn::TransactionPrefix& tx);
 size_t getRequiredSignaturesCount(const TransactionInput& in);
 uint64_t getTransactionInputAmount(const TransactionInput& in);
 transaction_types::InputType getTransactionInputType(const TransactionInput& in);
-const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, uint64_t token_id = 0, uint64_t token_amount = 0);
-const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type, uint64_t token_id = 0, uint64_t token_amount = 0);
+const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index);
+const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type);
+const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type, TokenSummary& token_details);
 
 bool isOutToKey(const crypto::PublicKey& spendPublicKey, const crypto::PublicKey& outKey, const crypto::KeyDerivation& derivation, size_t keyIndex);
 
@@ -25,6 +27,7 @@ bool isOutToKey(const crypto::PublicKey& spendPublicKey, const crypto::PublicKey
 transaction_types::OutputType getTransactionOutputType(const TransactionOutputTarget& out);
 const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index);
 const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type);
+const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type, TokenSummary& token_details);
 
 bool findOutputsToAccount(const cn::TransactionPrefix& transaction, const AccountPublicAddress& addr,
         const crypto::SecretKey& viewSecretKey, std::vector<uint32_t>& out, uint64_t& amount);

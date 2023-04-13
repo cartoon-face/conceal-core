@@ -19,6 +19,7 @@
 #include "CryptoNoteCore/TransactionExtra.h"
 
 #include "IWallet.h"
+#include "IToken.h"
 #include "INode.h"
 
 
@@ -91,9 +92,9 @@ void findMyOutputs(
     } else if (outType == transaction_types::OutputType::Token) {
 
       uint64_t amount;
+      TokenSummary token_details;
       TokenOutput out;
-      // TODO add token id to getOutput on Token types?
-      tx.getOutput(idx, out, amount);
+      tx.getOutput(idx, out, amount, token_details);
       for (const auto& key : out.keys) {
         checkOutputKey(derivation, key, idx, idx, spendKeys, outputs);
         ++keyIndex;
@@ -457,7 +458,7 @@ std::error_code createTransfers(
       uint64_t amount;
       MultisignatureOutput out;
       tx.getOutput(idx, out, amount);
-	    
+
 		  for (const auto& key : out.keys) {
         std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(txHash);
         if (it == transactions_hash_seen.end()) {
@@ -478,10 +479,10 @@ std::error_code createTransfers(
       info.term = out.term;
     } else if (outType == transaction_types::OutputType::Token) {
       uint64_t amount;
+      TokenSummary token_details;
       TokenOutput out;
-      // TODO add token id to getOutput on Token types?
-      tx.getOutput(idx, out, amount);
-	    
+      tx.getOutput(idx, out, amount, token_details);
+
 		  for (const auto& key : out.keys) {
         std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(txHash);
         if (it == transactions_hash_seen.end()) {
@@ -499,8 +500,8 @@ std::error_code createTransfers(
       }
       info.amount = amount;
       info.requiredSignatures = out.requiredSignatureCount;
-      info.token_amount = out.token_amount;
-      info.token_id = out.token_id;
+      info.token_details.token_amount = out.token_amount;
+      info.token_details.token_id = out.token_id;
     }
     
    transfers.push_back(info);

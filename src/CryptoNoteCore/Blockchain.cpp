@@ -640,7 +640,6 @@ namespace cn
       crypto::Hash blockHash = get_block_hash(block.bl);
       m_blockIndex.push(blockHash);
       uint64_t interest = 0;
-      std::vector<uint64_t> known_token_ids = {};
       for (uint32_t t = 0; t < block.transactions.size(); ++t)
       {
         const TransactionEntry &transaction = block.transactions[t];
@@ -665,13 +664,14 @@ namespace cn
             const auto &out = boost::get<TokenInput>(i);
             m_token_outputs[out.amount][out.outputIndex].isUsed = true;
 
-            uint64_t id = m_token_outputs[out.amount][out.outputIndex].token_id;
-            uint64_t amt = m_token_outputs[out.amount][out.outputIndex].token_amount;
+            uint64_t id = m_token_outputs[out.amount][out.outputIndex].token_details.token_id;
+            uint64_t amt = m_token_outputs[out.amount][out.outputIndex].token_details.token_amount;
 
-            if (id > 0 && id > known_token_ids.size())
+            if (id > 0 && id > m_known_token_ids.size())
             {
               m_tokens_map.insert(std::make_pair(id, amt));
-              known_token_ids.push_back(id);
+              m_known_token_ids.push_back(id);
+              m_token_outputs[out.amount][out.outputIndex].token_details.token_supply == amt;
             }
           }
         }
@@ -691,17 +691,18 @@ namespace cn
           }
           else if (out.target.type() == typeid(TokenOutput))
           {
-            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), true, transaction.tx.token_id, transaction.tx.token_amount};
+            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), true, transaction.tx.token_details};
             m_token_outputs[out.amount].push_back(usage);
 
-            uint64_t id = m_token_outputs[out.amount][o].token_id;
-            uint64_t amt = m_token_outputs[out.amount][o].token_amount;
+            uint64_t id = m_token_outputs[out.amount][o].token_details.token_id;
+            uint64_t amt = m_token_outputs[out.amount][o].token_details.token_amount;
 
-            if (id > 0 && id > known_token_ids.size())
+            if (id > 0 && id > m_known_token_ids.size())
             {
-              known_token_ids.push_back(id);
+              m_known_token_ids.push_back(id);
               // the amount to insert here should be the tokens max supply as its a new known token
               m_tokens_map.insert(std::make_pair(id, amt));
+              m_token_outputs[out.amount][o].token_details.token_supply == amt;
             }
           }
         }
@@ -710,8 +711,7 @@ namespace cn
       }
 
       pushToDepositIndex(block, interest);
-      pushToDepositIndex(block, known_token_ids.size(), true);
-      m_known_token_ids = known_token_ids;
+      pushToDepositIndex(block, m_known_token_ids.size(), true);
     }
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - timePoint;
@@ -743,12 +743,13 @@ namespace cn
         fee += txFee;
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b);
 
-        if (transaction.tx.token_id > 0 && transaction.tx.token_id > m_known_token_ids.size())
+        if (transaction.tx.token_details.token_id > 0 && transaction.tx.token_details.token_id > m_known_token_ids.size())
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
-          m_known_token_ids.push_back(transaction.tx.token_id);
+          m_known_token_ids.push_back(transaction.tx.token_details.token_id);
           // the amount to insert here should be the tokens max supply as its a new known token
-          m_tokens_map.insert({transaction.tx.token_id, transaction.tx.token_amount});
+          m_tokens_map.insert({transaction.tx.token_details.token_id, transaction.tx.token_details.token_amount});
+          transaction.tx.token_details.token_supply == transaction.tx.token_details.token_amount;
         }
       }
 
@@ -828,6 +829,7 @@ namespace cn
     m_spent_keys.clear();
     m_alternative_chains.clear();
     m_outputs.clear();
+    m_token_outputs.clear();
 
     m_paymentIdIndex.clear();
     m_timestampIndex.clear();
@@ -2624,8 +2626,8 @@ namespace cn
 
       uint64_t fee = m_currency.getTransactionFee(transactions[i], block.height);
 
-      uint64_t token_id = transactions[i].token_id;
-      uint64_t token_amount = transactions[i].token_amount;
+      uint64_t token_id = transactions[i].token_details.token_id;
+      uint64_t token_amount = transactions[i].token_details.token_amount;
 
       bool isTransactionValid = true;
       if (block.bl.majorVersion == BLOCK_MAJOR_VERSION_1 && transactions[i].version > TRANSACTION_VERSION_1)
@@ -2662,7 +2664,7 @@ namespace cn
         // so this will need changing later on to fit that
         tokens_map.insert(std::make_pair(token_id, token_amount));
         known_tk_ids.push_back(token_id);
-        if (transactions[i].is_creation ==  true)
+        if (transactions[i].token_details.is_creation ==  true)
         {
           ++tokens_to_creation;
         }
@@ -2966,7 +2968,7 @@ namespace cn
         auto &amountOutputs = m_token_outputs[transaction.tx.outputs[output].amount];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
         // TODO add token id and token amounts to output usage here?
-        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), true, transaction.tx.token_id, transaction.tx.token_amount};
+        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), true, transaction.tx.token_details};
         amountOutputs.push_back(outputUsage);
       }
     }
@@ -3101,7 +3103,7 @@ namespace cn
           continue;
         }
 
-        if (amountOutputs->second.back().token_id == 0)
+        if (amountOutputs->second.back().token_details.token_id == 0)
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - attempting to remove invalid token id output.";
 
@@ -3146,9 +3148,14 @@ namespace cn
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output not marked as used.";
         }
 
-        if (!amountOutputs[in.outputIndex].token_id == 0)
+        if (!amountOutputs[in.outputIndex].token_details.token_id == 0)
         {
-          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output is invalid.";
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output id is invalid.";
+        }
+
+        if (!amountOutputs[in.outputIndex].token_details.token_amount == 0)
+        {
+          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output amount is invalid.";
         }
 
         amountOutputs[in.outputIndex].isUsed = false;

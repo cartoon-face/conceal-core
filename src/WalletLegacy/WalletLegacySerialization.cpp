@@ -10,6 +10,7 @@
 #include "WalletLegacy/WalletDepositInfo.h"
 #include "WalletLegacy/WalletUnconfirmedTransactions.h"
 #include "IWalletLegacy.h"
+#include "IToken.h"
 
 #include "CryptoNoteCore/CryptoNoteSerialization.h"
 #include "Serialization/ISerializer.h"
@@ -102,6 +103,35 @@ void serialize(Deposit& deposit, cn::ISerializer& serializer) {
 void serialize(DepositInfo& depositInfo, cn::ISerializer& serializer) {
   serializer(depositInfo.deposit, "deposit");
   serializer(depositInfo.outputInTransaction, "output_in_transaction");
+}
+
+void serialize(TokenTxInfo& token_info, cn::ISerializer& serializer) {
+  serializer(token_info.token, "token");
+  serializer(token_info.output_in_transaction, "output_in_transaction");
+}
+
+void serialize(TokenTransactionDetails& token_details, cn::ISerializer& serializer) {
+  serializer(token_details.transaction_id, "token");
+  serializer(token_details.ccx_amount, "ccx_amount");
+  serializer(token_details.height_sent, "height_sent");
+  serializer(token_details.token_amount, "token_amount");
+  serializer(token_details.token_id, "token_id");
+  serializer(token_details.decimals, "decimals");
+  serializer(token_details.is_creation, "is_creation");
+  serializer(token_details.ticker, "ticker");
+  serializer(token_details.outputInTransaction, "outputInTransaction");
+  serializer(token_details.transactionHash, "transactionHash");
+  serializer(token_details.address, "address");
+}
+
+void serialize(TokenSummary& token_summary, cn::ISerializer& serializer) {
+  serializer(token_summary.token_id, "token_id");
+  serializer(token_summary.token_supply, "token_supply");
+  serializer(token_summary.decimals, "decimals");
+  serializer(token_summary.created_height, "created_height");
+  serializer(token_summary.ticker, "ticker");
+  serializer(token_summary.token_amount, "token_amount");
+  serializer(token_summary.is_creation, "is_creation");
 }
 
 } //namespace cn

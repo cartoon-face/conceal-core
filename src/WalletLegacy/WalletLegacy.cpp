@@ -544,16 +544,16 @@ std::vector<TransactionOutputInformation> WalletLegacy::getUnspentOutputs() {
   return outputs;
 }
 
-TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, const WalletLegacyTokenDetails& token_transfer)
+TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer)
 {
-  std::vector<WalletLegacyTokenDetails> token_transfers;
+  std::vector<TokenTransfer> token_transfers;
   token_transfers.push_back(token_transfer);
   throwIfNotInitialised();
 
   return send_token_transaction(transactionSK, token_transfers);
 }
 
-TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, std::vector<WalletLegacyTokenDetails>& token_transfers)
+TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers)
 {
   TransactionId txId = 0;
   std::unique_ptr<WalletRequest> request;
@@ -1372,12 +1372,18 @@ void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLeg
     eventsQueue.push_back(std::move(pendingInvestmentBalanceUpdated));
   }
 
-  // TODO, store all known token ids, then loop through
-  // updating all balances for each token id
-  std::vector<uint64_t> known_tokens;
-  // known_tokens = get_list_of_known_token_ids();
+  auto actualBalanceUpdated = getActualBalanceChangedEvent();
+  if (actualBalanceUpdated != nullptr) {
+    eventsQueue.push_back(std::move(actualBalanceUpdated));
+  }
 
-  for (auto known_tids : known_tokens)
+  auto pendingBalanceUpdated = getPendingBalanceChangedEvent();
+  if (pendingBalanceUpdated != nullptr) {
+    eventsQueue.push_back(std::move(pendingBalanceUpdated));
+  }
+
+  m_known_token_ids = m_transactionsCache.get_known_token_ids();
+  for (auto known_tids : m_known_token_ids)
   {
     auto actualTokenBalanceUpdated = getActualTokenBalanceChangedEvent(known_tids);
     if (actualTokenBalanceUpdated != nullptr) {
@@ -1390,15 +1396,6 @@ void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLeg
     }
   }
 
-  auto actualBalanceUpdated = getActualBalanceChangedEvent();
-  if (actualBalanceUpdated != nullptr) {
-    eventsQueue.push_back(std::move(actualBalanceUpdated));
-  }
-
-  auto pendingBalanceUpdated = getPendingBalanceChangedEvent();
-  if (pendingBalanceUpdated != nullptr) {
-    eventsQueue.push_back(std::move(pendingBalanceUpdated));
-  }
 }
 
 crypto::SecretKey WalletLegacy::getTxKey(crypto::Hash &txid)

@@ -105,7 +105,7 @@ struct TransactionDetails {
   bool inBlockchain;
   crypto::Hash blockHash;
   uint32_t blockHeight;
-  
+
   uint64_t token_amount;
   uint64_t token_id;
 

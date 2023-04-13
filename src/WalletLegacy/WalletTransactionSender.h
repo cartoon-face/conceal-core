@@ -30,7 +30,7 @@ public:
   void stop();
   
   std::unique_ptr<WalletRequest> make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
-    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<WalletLegacyTokenDetails>& token_transfers);
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<TokenTransfer>& token_transfers);
 
   std::unique_ptr<WalletRequest> makeSendRequest(crypto::SecretKey& transactionSK,
                                                  bool optimize,
