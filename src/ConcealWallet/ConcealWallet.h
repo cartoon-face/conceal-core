@@ -49,7 +49,7 @@ namespace cn
   
     std::string getFeeAddress();
 
-    const cn::Currency& currency() const { return m_currency; }
+    const cn::Currency& currency() const { return m_currency; } 
 
     std::string m_remote_node_address;
 

@@ -263,6 +263,7 @@ TransactionId WalletUserTransactionsCache::add_new_token_transaction(uint64_t am
     transaction.token_details.is_creation = txs.token_details.is_creation;
     transaction.token_details.decimals = txs.token_details.decimals;
     transaction.token_details.ticker = txs.token_details.ticker;
+    transaction.token_details.token_name = txs.token_details.token_name;
 
     if (transaction.token_details.token_id > m_known_token_ids.size())
     {
@@ -374,6 +375,7 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.token_details.is_creation = txInfo.token_details.is_creation;
     transaction.token_details.decimals = txInfo.token_details.decimals;
     transaction.token_details.ticker = txInfo.token_details.ticker;
+    transaction.token_details.token_name = txInfo.token_details.token_name;
 
     id = insertTransaction(std::move(transaction));
 

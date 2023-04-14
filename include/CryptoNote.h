@@ -76,22 +76,12 @@ struct TransactionPrefix {
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
-  
+
   TokenSummary token_details;
 };
 
 struct Transaction : public TransactionPrefix {
   std::vector<std::vector<crypto::Signature>> signatures;
-};
-
-struct TokenInformation
-{
-  uint64_t    token_id;
-  uint64_t    max_supply;
-  uint8_t     decimals;
-  std::string token_name;
-  std::string token_ticker;
-
 };
 
 struct BlockHeader {

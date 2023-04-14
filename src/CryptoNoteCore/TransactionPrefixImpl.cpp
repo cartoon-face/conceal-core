@@ -109,7 +109,8 @@ uint64_t TransactionPrefixImpl::getUnlockTime() const {
   return m_txPrefix.unlockTime;
 }
 
-TokenSummary TransactionPrefixImpl::get_token_details() const {
+TokenSummary TransactionPrefixImpl::get_token_details() const
+{
   return m_txPrefix.token_details;
 }
 

@@ -53,6 +53,8 @@ public:
   virtual bool removeObserver(ICoreObserver* observer) = 0;
   virtual bool saveBlockchain() = 0;
 
+  virtual std::vector<uint64_t> known_token_ids() = 0;
+
   virtual bool have_block(const crypto::Hash& id) = 0;
   virtual std::vector<crypto::Hash> buildSparseChain() = 0;
   virtual std::vector<crypto::Hash> buildSparseChain(const crypto::Hash& startBlockId) = 0;

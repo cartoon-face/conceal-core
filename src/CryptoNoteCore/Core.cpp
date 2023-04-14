@@ -1154,7 +1154,7 @@ bool core::removeMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) {
   return m_blockchain.removeMessageQueue(messageQueue);
 }
 
-std::vector<uint64_t> core::known_token_ids() const {
+std::vector<uint64_t> core::known_token_ids() {
   return m_blockchain.known_token_ids();
 }
 

@@ -18,16 +18,22 @@ namespace cn
   {
   public:
 // Store for information
-    uint64_t token_id;
-    uint64_t token_supply;
-    uint64_t decimals;
-    uint64_t created_height;
-    std::string ticker;
+    uint64_t token_id = 0;
+    uint64_t token_supply = 0;
+    uint64_t decimals = 0;
+    uint64_t created_height = 0;
+    std::string ticker = "";
+    std::string token_name = "";
 //
 
 // Use for moving tokens
-    uint64_t token_amount;
-    bool is_creation;
+    uint64_t token_amount = 0;
+    bool is_creation{false};
+//
+
+// for mining tokens
+    uint64_t token_block_reward = 0;
+    bool is_mineable{false};
 //
 
 // Serialize all data
@@ -37,9 +43,12 @@ namespace cn
       serializer(decimals, "decimals");
       serializer(created_height, "created_height");
       serializer(ticker, "ticker");
+      serializer(token_name, "token_name");
       serializer(token_amount, "token_amount");
       serializer(is_creation, "is_creation");
+      // don't serialize mining data yet
     }
+//
   };
 
   struct TokenTransactionDetails
@@ -53,6 +62,7 @@ namespace cn
     uint64_t decimals;
     bool     is_creation;
     std::string ticker;
+    std::string token_name;
 
     uint32_t outputInTransaction;
     crypto::Hash transactionHash;

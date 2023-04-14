@@ -144,6 +144,8 @@ private:
   std::atomic<uint64_t> m_lastLocalBlockTimestamp;
   std::unordered_set<crypto::Hash> m_knownTxs;
 
+  std::vector<uint64_t> m_known_token_ids;
+
   bool m_connected;
 };
 

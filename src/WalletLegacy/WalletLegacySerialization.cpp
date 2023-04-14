@@ -119,6 +119,7 @@ void serialize(TokenTransactionDetails& token_details, cn::ISerializer& serializ
   serializer(token_details.decimals, "decimals");
   serializer(token_details.is_creation, "is_creation");
   serializer(token_details.ticker, "ticker");
+  serializer(token_details.token_name, "token_name");
   serializer(token_details.outputInTransaction, "outputInTransaction");
   serializer(token_details.transactionHash, "transactionHash");
   serializer(token_details.address, "address");
@@ -130,6 +131,7 @@ void serialize(TokenSummary& token_summary, cn::ISerializer& serializer) {
   serializer(token_summary.decimals, "decimals");
   serializer(token_summary.created_height, "created_height");
   serializer(token_summary.ticker, "ticker");
+  serializer(token_summary.token_name, "token_name");
   serializer(token_summary.token_amount, "token_amount");
   serializer(token_summary.is_creation, "is_creation");
 }

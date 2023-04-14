@@ -1395,7 +1395,6 @@ void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLeg
       eventsQueue.push_back(std::move(pendingTokenBalanceUpdated));
     }
   }
-
 }
 
 crypto::SecretKey WalletLegacy::getTxKey(crypto::Hash &txid)

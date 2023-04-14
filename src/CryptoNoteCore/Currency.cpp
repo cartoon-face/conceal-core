@@ -545,7 +545,8 @@ namespace cn
 
   bool Currency::constructMinerTx(uint32_t height, size_t medianSize, uint64_t alreadyGeneratedCoins, size_t currentBlockSize,
                                   uint64_t fee, const AccountPublicAddress &minerAddress, Transaction &tx,
-                                  const BinaryArray &extraNonce /* = BinaryArray()*/, size_t maxOuts /* = 1*/) const
+                                  const BinaryArray &extraNonce /* = BinaryArray()*/,
+                                  size_t maxOuts /* = 1*/) const
   {
     tx.inputs.clear();
     tx.outputs.clear();
@@ -558,8 +559,8 @@ namespace cn
       return false;
     }
 
-    BaseInput in;
-    in.blockIndex = height;
+    BaseInput bin;
+    bin.blockIndex = height;
 
     uint64_t blockReward;
     int64_t emissionChange;
@@ -636,7 +637,7 @@ namespace cn
     tx.version = TRANSACTION_VERSION_1;
     // lock
     tx.unlockTime = height + m_minedMoneyUnlockWindow;
-    tx.inputs.emplace_back(in);
+    tx.inputs.emplace_back(bin);
     return true;
   }
 

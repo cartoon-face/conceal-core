@@ -613,6 +613,7 @@ bool DaemonCommandsHandler::print_bc_token_map(const std::vector<std::string> &a
   {
     for (auto const& pair : token_map) {
       str += "ID: " + std::to_string(pair.first);
+      str += "\n\tToken Name: " + pair.second.token_name + "\n";
       str += "\n\tToken Supply: " + std::to_string(pair.second.token_supply) + "\n";
       str += "\n\tDecimals: " + std::to_string(pair.second.decimals) + "\n";
       str += "\n\tCreated Height: " + std::to_string(pair.second.created_height) + "\n";

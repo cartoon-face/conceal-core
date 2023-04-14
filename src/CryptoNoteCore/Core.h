@@ -159,7 +159,7 @@ namespace cn {
     uint64_t investmentAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
 
-    std::vector<uint64_t> known_token_ids() const;
+    std::vector<uint64_t> known_token_ids() override;
     std::map<uint64_t, TokenSummary> get_token_map() const;
 
     bool is_key_image_spent(const crypto::KeyImage &key_im);

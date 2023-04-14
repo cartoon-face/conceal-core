@@ -427,6 +427,13 @@ void NodeRpcProxy::getTransactions(const std::vector<crypto::Hash>& transactionH
     callback(make_error_code(error::NOT_INITIALIZED));
     return;
   }
+  
+  for (auto& tx : transactions) {
+    if (tx.token_id > 0 && tx.token_id > m_known_token_ids.size())
+    {
+      m_known_token_ids.push_back(tx.token_id);
+    }
+  }
 
   // TODO NOT IMPLEMENTED
   callback(std::error_code());

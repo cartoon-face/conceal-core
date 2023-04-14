@@ -562,6 +562,7 @@ namespace cn
       token.is_creation = transactionInfo.token_details.is_creation;
       token.decimals = transactionInfo.token_details.decimals;
       token.ticker = transactionInfo.token_details.ticker;
+      token.token_name = transactionInfo.token_details.token_name;
 
       TokenTxId token_tx_id = m_transactionsCache.insert_token_tx(token, token_index, transaction->getTransactionHash());
       transactionInfo.first_token_tx_id = token_tx_id;

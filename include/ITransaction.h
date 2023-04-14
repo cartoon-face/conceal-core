@@ -55,6 +55,7 @@ public:
   virtual crypto::PublicKey getTransactionPublicKey() const = 0;
   virtual bool getTransactionSecretKey(crypto::SecretKey& key) const = 0;
   virtual uint64_t getUnlockTime() const = 0;
+  // Get full token details rather than single values
   virtual TokenSummary get_token_details() const = 0;
 
   // extra
