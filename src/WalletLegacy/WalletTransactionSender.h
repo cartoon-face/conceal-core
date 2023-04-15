@@ -127,6 +127,8 @@ private:
   uint64_t selectDepositTransfers(const DepositId& depositId, std::vector<TransactionOutputInformation>& selectedTransfers);
   uint64_t selectDepositsTransfers(const std::vector<DepositId>& depositIds, std::vector<TransactionOutputInformation>& selectedTransfers);
 
+  std::pair<uint64_t, uint64_t> select_token_transfer(const TokenTxId& token_tx_id, std::vector<TransactionOutputInformation>& selectedTransfers);
+  
   void setSpendingTransactionToDeposit(TransactionId transactionId, const DepositId& depositId);
   void setSpendingTransactionToDeposits(TransactionId transactionId, const std::vector<DepositId>& depositIds);
 

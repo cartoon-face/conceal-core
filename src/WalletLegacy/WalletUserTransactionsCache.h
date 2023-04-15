@@ -108,10 +108,14 @@ public:
   DepositId insertDeposit(const Deposit& deposit, size_t depositIndexInTransaction, const crypto::Hash& transactionHash);
   bool getDepositInTransactionInfo(DepositId depositId, crypto::Hash& transactionHash, uint32_t& outputInTransaction);
 
-  TokenTxId insert_token_tx(const TokenTransactionDetails& token, size_t token_tx_index_in_transaction, const crypto::Hash& transaction_hash);
-
   std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const;
   TransactionId findTransactionByHash(const crypto::Hash& hash);
+
+  TokenTxId insert_token_tx(const TokenTransactionDetails& token, size_t token_tx_index_in_transaction, const crypto::Hash& transaction_hash);
+  bool get_token_in_tx_info(TokenTxId token_tx_id, crypto::Hash& tx_hash, uint32_t& output_in_tx);
+  bool get_token_tx(TokenTxId token_tx_id, TokenTransactionDetails& token) const;
+  TokenTransactionDetails& get_token_tx(TokenTxId token_tx_id);
+
 private:
 
 

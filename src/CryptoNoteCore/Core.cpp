@@ -1067,8 +1067,7 @@ uint64_t core::getTotalGeneratedAmount() {
 
 uint64_t core::circulation_for_token_id(uint64_t token_id)
 {
-  uint64_t amount = m_blockchain.circulation_for_token_id(token_id);
-  return amount;
+  return m_blockchain.circulation_for_token_id(token_id);
 }
 
 uint64_t core::fullDepositAmount() const {

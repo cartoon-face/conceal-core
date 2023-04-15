@@ -570,6 +570,21 @@ Deposit& WalletUserTransactionsCache::getDeposit(DepositId depositId) {
   return m_deposits[depositId].deposit;
 }
 
+bool WalletUserTransactionsCache::get_token_tx(TokenTxId token_tx_id, TokenTransactionDetails& token) const {
+  if (token_tx_id >= m_token_txs.size()) {
+    return false;
+  }
+
+  token = m_token_txs[token_tx_id].token;
+  return true;
+}
+
+TokenTransactionDetails& WalletUserTransactionsCache::get_token_tx(TokenTxId token_tx_id) {
+  assert(token_tx_id < m_token_txs.size());
+
+  return m_token_txs[token_tx_id].token;
+}
+
 TransactionId WalletUserTransactionsCache::insertTransaction(WalletLegacyTransaction&& transaction) {
   m_transactions.emplace_back(std::move(transaction));
   return m_transactions.size() - 1;
@@ -660,6 +675,19 @@ TokenTxId WalletUserTransactionsCache::insert_token_tx(const TokenTransactionDet
     std::forward_as_tuple(id));
 
   return id;
+}
+
+bool WalletUserTransactionsCache::get_token_in_tx_info(TokenTxId token_tx_id, Hash& tx_hash, uint32_t& output_in_tx) {
+  if (token_tx_id >= m_token_txs.size()) {
+    return false;
+  }
+
+  assert(m_token_txs[token_tx_id].token.transaction_id < m_transactions.size());
+
+  output_in_tx = m_token_txs[token_tx_id].output_in_transaction;
+  tx_hash = m_transactions[m_token_txs[token_tx_id].token.transaction_id].hash;
+
+  return true;
 }
 
 DepositId WalletUserTransactionsCache::insertDeposit(const Deposit& deposit, size_t depositIndexInTransaction, const Hash& transactionHash) {

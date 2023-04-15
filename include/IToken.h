@@ -53,7 +53,8 @@ namespace cn
 
   struct TokenTransactionDetails
   {
-    size_t transaction_id;
+    size_t transaction_id; // for every token tx
+    size_t creation_spending_transaction_id; // for token generation txs
 
     uint64_t ccx_amount; // usually a fee
     uint64_t height_sent;

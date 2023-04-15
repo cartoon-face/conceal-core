@@ -223,6 +223,9 @@ namespace cn
     uint64_t needed_token_money = fee;
     const std::vector<TransactionMessage> messages = {};
 
+    uint64_t ccx_amount;
+    uint64_t tk_amount;
+
     // find needed money
     for (auto &transfer : token_transfers)
     {
@@ -238,8 +241,18 @@ namespace cn
     }
 
     context->dustPolicy.dustThreshold = m_currency.defaultDustThreshold();
-    context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
-    context->found_token_money = selectTransfersToSend(needed_token_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
+
+    if (context->is_creation == true)
+    {
+      std::tie(ccx_amount, tk_amount) = select_token_transfer(transactionId, context->selectedTransfers);
+      context->foundMoney = ccx_amount;
+      context->found_token_money = tk_amount;
+    }
+    else
+    {
+      context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
+      context->found_token_money = selectTransfersToSend(needed_token_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
+    }
 
     throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
     throwIf(context->found_token_money < needed_token_money, error::WRONG_AMOUNT);
@@ -1215,6 +1228,35 @@ namespace cn
     }
 
     return foundMoney;
+  }
+
+  std::pair<uint64_t, uint64_t> WalletTransactionSender::select_token_transfer(const TokenTxId& token_tx_id, std::vector<TransactionOutputInformation> &selectedTransfers)
+  {
+    uint64_t ccx_amount = 0;
+    uint64_t token_amount = 0;
+    crypto::Hash tx_hash;
+    uint32_t output_in_tx;
+
+    throwIf(m_transactionsCache.get_token_in_tx_info(token_tx_id, tx_hash, output_in_tx) == false, error::DEPOSIT_DOESNOT_EXIST);
+
+    {
+      TransactionOutputInformation transfer;
+      ITransfersContainer::TransferState state;
+
+      throwIf(m_transferDetails.getTransfer(tx_hash, output_in_tx, transfer, state) == false, error::DEPOSIT_DOESNOT_EXIST);
+      throwIf(state != ITransfersContainer::TransferState::TransferAvailable, error::DEPOSIT_LOCKED);
+
+      selectedTransfers.push_back(std::move(transfer));
+    }
+
+    TokenTransactionDetails token;
+    bool r = m_transactionsCache.get_token_tx(token_tx_id, token);
+    assert(r);
+
+    ccx_amount += token.ccx_amount;
+    token_amount += token.token_amount;
+
+    return std::make_pair(ccx_amount, token_amount);;
   }
 
   uint64_t WalletTransactionSender::selectDepositTransfers(const DepositId &depositId, std::vector<TransactionOutputInformation> &selectedTransfers)

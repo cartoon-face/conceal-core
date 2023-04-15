@@ -559,6 +559,7 @@ bool DaemonCommandsHandler::print_token_stat(const std::vector<std::string> &arg
   auto it = token_details.find(token_id);
   if (it != token_details.end()) {
     str += "ID: " + std::to_string(token_id);
+    str += "\n\tToken Name: " + it->second.token_name + "\n";
     str += "\n\tToken Supply: " + std::to_string(it->second.token_supply) + "\n";
     str += "\n\tDecimals: " + std::to_string(it->second.decimals) + "\n";
     str += "\n\tCreated Height: " + std::to_string(it->second.created_height) + "\n";

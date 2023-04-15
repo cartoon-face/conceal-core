@@ -666,13 +666,11 @@ namespace cn
             m_token_outputs[out.amount][out.outputIndex].isUsed = true;
 
             uint64_t id = m_token_outputs[out.amount][out.outputIndex].token_details.token_id;
-            uint64_t amt = m_token_outputs[out.amount][out.outputIndex].token_details.token_amount;
 
             if (id > 0 && id > m_known_token_ids.size())
             {
               m_tokens_map.insert(std::make_pair(id, m_token_outputs[out.amount][out.outputIndex].token_details));
               m_known_token_ids.push_back(id);
-              m_token_outputs[out.amount][out.outputIndex].token_details.token_supply == amt;
             }
           }
         }
@@ -696,14 +694,11 @@ namespace cn
             m_token_outputs[out.amount].push_back(usage);
 
             uint64_t id = m_token_outputs[out.amount][o].token_details.token_id;
-            uint64_t amt = m_token_outputs[out.amount][o].token_details.token_amount;
 
             if (id > 0 && id > m_known_token_ids.size())
             {
               m_known_token_ids.push_back(id);
-              // the amount to insert here should be the tokens max supply as its a new known token
               m_tokens_map.insert(std::make_pair(id, m_token_outputs[out.amount][o].token_details));
-              m_token_outputs[out.amount][o].token_details.token_supply == amt;
             }
           }
         }
@@ -748,9 +743,7 @@ namespace cn
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
           m_known_token_ids.push_back(transaction.tx.token_details.token_id);
-          // the amount to insert here should be the tokens max supply as its a new known token
           m_tokens_map.insert({transaction.tx.token_details.token_id, transaction.tx.token_details});
-          transaction.tx.token_details.token_supply == transaction.tx.token_details.token_amount;
         }
       }
 
@@ -760,19 +753,6 @@ namespace cn
 
       uint64_t reward;
       int64_t emissionChange;
-
-      // TODO from here we should be figuring out the information for each token id
-      // I.E: token supply, amounts, maybe symbol?, etc... then apply the information
-      // to m_blocks, maybe in its own tokenised struct. As for now, we do find out 
-      // the amount of known ids from above.
-      uint64_t token_reward;
-      bool is_token_creation;
-
-      if (!m_currency.get_block_token_reward(is_token_creation, token_reward))
-      {
-        logger(ERROR, BRIGHT_RED) << "An error occurred while getting the token block reward";
-        return false;
-      }
 
       if (!m_currency.getBlockReward(blocksSizeMedian, block.block_cumulative_size, alreadyGeneratedCoinsPrev, fee, b, reward, emissionChange))
       {
@@ -2607,7 +2587,6 @@ namespace cn
     uint64_t interestSummary = 0;
 
     std::vector<uint64_t> known_tk_ids = known_token_ids();
-    uint8_t tokens_to_creation = 0;
 
     for (size_t i = 0; i < transactions.size(); ++i)
     {
@@ -2650,14 +2629,8 @@ namespace cn
       uint64_t token_id = transactions[i].token_details.token_id;
       if (token_id > 0 && token_id > known_tk_ids.size())
       {
-        // if its a new token id, the amount should be the supply to generate
-        // so this will need changing later on to fit that
         m_tokens_map.insert(std::make_pair(token_id, transactions[i].token_details));
         known_tk_ids.push_back(token_id);
-        if (transactions[i].token_details.is_creation ==  true)
-        {
-          ++tokens_to_creation;
-        }
       }
 
       ++transactionIndex.transaction;
@@ -2669,13 +2642,6 @@ namespace cn
     }
 
     m_known_token_ids = known_tk_ids;
-
-    if (tokens_to_creation > 0)
-    {
-      // do something here to create the tokens for the required ids
-      // then maybe add information for this to the validate_miner_transaction
-      // function.
-    }
 
     if (!checkCumulativeBlockSize(blockHash, cumulative_block_size, block.height))
     {
