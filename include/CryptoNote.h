@@ -69,15 +69,14 @@ struct TransactionOutput {
 };
 
 using TransactionInputs = std::vector<TransactionInput>;
+typedef cn::TokenSummary TokenSummaryBase;
 
-struct TransactionPrefix {
+struct TransactionPrefix : public TokenSummaryBase {
   uint8_t version;
   uint64_t unlockTime;
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
-
-  TokenSummary token_details;
 };
 
 struct Transaction : public TransactionPrefix {

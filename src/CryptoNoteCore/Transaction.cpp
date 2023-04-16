@@ -213,7 +213,15 @@ namespace cn {
 
   TokenSummary TransactionImpl::get_token_details() const
   {
-    return transaction.token_details;
+    TokenSummary tk_details;
+    tk_details.token_id = transaction.token_id;
+    tk_details.token_supply = transaction.token_supply;
+    tk_details.decimals = transaction.decimals;
+    tk_details.created_height = transaction.created_height;
+    tk_details.ticker = transaction.ticker;
+    tk_details.token_name = transaction.token_name;
+    tk_details.creators_signature = transaction.creators_signature;
+    return tk_details;
   }
 
   void TransactionImpl::setUnlockTime(uint64_t unlockTime) {
@@ -578,7 +586,7 @@ namespace cn {
     const auto& out = getOutputChecked(transaction, index, transaction_types::OutputType::Token, token_details);
     output = boost::get<TokenOutput>(out.target);
     amount = out.amount;
-    token_details = transaction.token_details;
+    token_details = get_token_details();
   }
 
   bool TransactionImpl::findOutputsToAccount(const AccountPublicAddress& addr, const SecretKey& viewSecretKey, std::vector<uint32_t>& out, uint64_t& amount) const {

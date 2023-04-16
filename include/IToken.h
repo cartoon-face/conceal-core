@@ -11,6 +11,7 @@
 #include <vector>
 #include "CryptoNote.h"
 #include "../src/Serialization/ISerializer.h"
+#include "crypto/crypto.h"
 
 namespace cn
 {
@@ -24,6 +25,7 @@ namespace cn
     uint64_t created_height = 0;
     std::string ticker = "";
     std::string token_name = "";
+    crypto::Signature creators_signature{};
 //
 
 // Use for moving tokens

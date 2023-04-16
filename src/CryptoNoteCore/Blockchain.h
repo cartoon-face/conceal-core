@@ -228,6 +228,38 @@ namespace cn
     bool rollbackBlockchainTo(uint32_t height);
     bool have_tx_keyimg_as_spent(const crypto::KeyImage &key_im);
 
+    struct TokenOutputUsage
+    {
+      TransactionIndex transactionIndex;
+      uint16_t outputIndex;
+      bool isUsed;
+
+      uint64_t token_id;
+      uint64_t token_supply;
+      uint64_t decimals;
+      uint64_t created_height;
+      std::string ticker;
+      std::string token_name;
+      crypto::Signature creators_signature;
+
+      void serialize(ISerializer &s)
+      {
+        s(transactionIndex, "txindex");
+        s(outputIndex, "outindex");
+        s(isUsed, "used");
+        s(token_id, "token_id");
+        s(token_supply, "token_supply");
+        s(decimals, "decimals");
+        s(created_height, "created_height");
+        s(ticker, "ticker");
+        s(token_name, "token_name");
+        s(creators_signature, "creators_signature");
+      }
+    };
+
+    TokenSummary convert_to_summary(const cn::Transaction &transaction);
+    TokenSummary convert_to_summary(const TokenOutputUsage &out);
+
   private:
     bool m_testnet = false;
     struct MultisignatureOutputUsage
@@ -241,22 +273,6 @@ namespace cn
         s(transactionIndex, "txindex");
         s(outputIndex, "outindex");
         s(isUsed, "used");
-      }
-    };
-
-    struct TokenOutputUsage
-    {
-      TransactionIndex transactionIndex;
-      uint16_t outputIndex;
-      bool isUsed;
-      TokenSummary token_details;
-
-      void serialize(ISerializer &s)
-      {
-        s(transactionIndex, "txindex");
-        s(outputIndex, "outindex");
-        s(isUsed, "used");
-        s(token_details, "token_details");
       }
     };
 

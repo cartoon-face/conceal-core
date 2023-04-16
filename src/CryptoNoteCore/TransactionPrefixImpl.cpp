@@ -111,7 +111,15 @@ uint64_t TransactionPrefixImpl::getUnlockTime() const {
 
 TokenSummary TransactionPrefixImpl::get_token_details() const
 {
-  return m_txPrefix.token_details;
+  TokenSummary tk_details;
+  tk_details.token_id = m_txPrefix.token_id;
+  tk_details.token_supply = m_txPrefix.token_supply;
+  tk_details.decimals = m_txPrefix.decimals;
+  tk_details.created_height = m_txPrefix.created_height;
+  tk_details.ticker = m_txPrefix.ticker;
+  tk_details.token_name = m_txPrefix.token_name;
+  tk_details.creators_signature = m_txPrefix.creators_signature;
+  return tk_details;
 }
 
 bool TransactionPrefixImpl::getPaymentId(Hash& hash) const {
@@ -202,7 +210,7 @@ void TransactionPrefixImpl::getOutput(size_t index, TokenOutput& output, uint64_
   const auto& out = getOutputChecked(m_txPrefix, index, transaction_types::OutputType::Token, token_details);
   output = boost::get<TokenOutput>(out.target);
   amount = out.amount;
-  token_details = m_txPrefix.token_details;
+  token_details = get_token_details();
 }
 
 size_t TransactionPrefixImpl::getRequiredSignaturesCount(size_t inputIndex) const {

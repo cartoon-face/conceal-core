@@ -348,16 +348,15 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
         return false;
       }
 
-      if (tx.token_details.token_amount == 0 || tx.token_details.token_id == 0) {
-        *error = "Transaction contains token output but its token id or amount is 0";
-        return false;
-      }
-
       const TokenOutput& tokenOutput = ::boost::get<TokenOutput>(out.target);
       if (tokenOutput.requiredSignatureCount > tokenOutput.keys.size()) {
         if (error) {
           *error = "Token output with invalid required signature count";
         }
+        return false;
+      }
+      if (tokenOutput.token_amount == 0 || tokenOutput.token_id == 0) {
+        *error = "Transaction contains token output but its token id or amount is 0";
         return false;
       }
       for (const PublicKey& key : tokenOutput.keys) {
