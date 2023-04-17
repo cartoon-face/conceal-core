@@ -81,6 +81,27 @@ struct WalletLegacyTransaction {
   TokenSummary token_details;
 };
 
+struct TokenTransactionDetails
+{
+  size_t transaction_id; // for every token tx
+  size_t creation_spending_transaction_id; // for token generation txs
+
+  uint64_t ccx_amount; // usually a fee
+  uint64_t height_sent;
+  uint64_t token_amount;
+  uint64_t token_id;
+  uint8_t decimals;
+  bool     is_creation;
+  std::string ticker;
+  std::string token_name;
+
+  uint32_t outputInTransaction;
+  crypto::Hash transactionHash;
+  std::string address;
+  uint64_t sent_time;
+  // need more parameters before it can be ported to walletgreen
+};
+
 using PaymentId = crypto::Hash;
 struct Payments {
   PaymentId paymentId;

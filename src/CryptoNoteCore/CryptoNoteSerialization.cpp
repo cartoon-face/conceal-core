@@ -269,6 +269,18 @@ void serialize(TransactionInput& in, ISerializer& serializer) {
   }
 }
 
+void serialize(TokenSummary& token_details, ISerializer& serializer) {
+  serializer(token_details.token_id, "token_id");
+  serializer(token_details.token_supply, "token_supply");
+  serializer(token_details.decimals, "decimals");
+  serializer(token_details.created_height, "created_height");
+  serializer(token_details.ticker, "ticker");
+  serializer(token_details.token_name, "token_name");
+  serializer(token_details.creators_signature, "creators_signature");
+  serializer(token_details.token_amount, "token_amount");
+  serializer(token_details.is_creation, "is_creation");
+}
+
 void serialize(BaseInput& gen, ISerializer& serializer) {
   serializer(gen.blockIndex, "height");
 }

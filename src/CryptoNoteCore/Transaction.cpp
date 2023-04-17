@@ -214,13 +214,13 @@ namespace cn {
   TokenSummary TransactionImpl::get_token_details() const
   {
     TokenSummary tk_details;
-    tk_details.token_id = transaction.token_id;
-    tk_details.token_supply = transaction.token_supply;
-    tk_details.decimals = transaction.decimals;
-    tk_details.created_height = transaction.created_height;
-    tk_details.ticker = transaction.ticker;
-    tk_details.token_name = transaction.token_name;
-    tk_details.creators_signature = transaction.creators_signature;
+    tk_details.token_id = transaction.token_details.token_id;
+    tk_details.token_supply = transaction.token_details.token_supply;
+    tk_details.decimals = transaction.token_details.decimals;
+    tk_details.created_height = transaction.token_details.created_height;
+    tk_details.ticker = transaction.token_details.ticker;
+    tk_details.token_name = transaction.token_details.token_name;
+    tk_details.creators_signature = transaction.token_details.creators_signature;
     return tk_details;
   }
 

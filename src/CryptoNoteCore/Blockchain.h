@@ -236,7 +236,7 @@ namespace cn
 
       uint64_t token_id;
       uint64_t token_supply;
-      uint64_t decimals;
+      uint8_t decimals;
       uint64_t created_height;
       std::string ticker;
       std::string token_name;

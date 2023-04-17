@@ -7,7 +7,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "Blockchain.h"
-#include "IToken.h"
+#include "CryptoNote.h"
 
 #include <algorithm>
 #include <numeric>
@@ -686,13 +686,13 @@ namespace cn
               transactionIndex,
               static_cast<uint16_t>(o),
               true,
-              transaction.tx.token_id,
-              transaction.tx.token_supply,
-              transaction.tx.decimals,
-              transaction.tx.created_height,
-              transaction.tx.ticker,
-              transaction.tx.token_name,
-              transaction.tx.creators_signature
+              transaction.tx.token_details.token_id,
+              transaction.tx.token_details.token_supply,
+              transaction.tx.token_details.decimals,
+              transaction.tx.token_details.created_height,
+              transaction.tx.token_details.ticker,
+              transaction.tx.token_details.token_name,
+              transaction.tx.token_details.creators_signature
             };
             m_token_outputs[out.amount].push_back(usage);
 
@@ -745,11 +745,11 @@ namespace cn
         fee += txFee;
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b);
 
-        if (transaction.tx.token_id > 0 && transaction.tx.token_id > m_known_token_ids.size())
+        if (transaction.tx.token_details.token_id > 0 && transaction.tx.token_details.token_id > m_known_token_ids.size())
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
-          m_known_token_ids.push_back(transaction.tx.token_id);
-          m_tokens_map.insert(std::make_pair(transaction.tx.token_id, convert_to_summary(transaction.tx)));
+          m_known_token_ids.push_back(transaction.tx.token_details.token_id);
+          m_tokens_map.insert(std::make_pair(transaction.tx.token_details.token_id, convert_to_summary(transaction.tx)));
         }
       }
 
@@ -783,13 +783,13 @@ namespace cn
   TokenSummary Blockchain::convert_to_summary(const cn::Transaction &transaction)
   {
     TokenSummary tk_details;
-    tk_details.token_id = transaction.token_id;
-    tk_details.token_supply = transaction.token_supply;
-    tk_details.decimals = transaction.decimals;
-    tk_details.created_height = transaction.created_height;
-    tk_details.ticker = transaction.ticker;
-    tk_details.token_name = transaction.token_name;
-    tk_details.creators_signature = transaction.creators_signature;
+    tk_details.token_id = transaction.token_details.token_id;
+    tk_details.token_supply = transaction.token_details.token_supply;
+    tk_details.decimals = transaction.token_details.decimals;
+    tk_details.created_height = transaction.token_details.created_height;
+    tk_details.ticker = transaction.token_details.ticker;
+    tk_details.token_name = transaction.token_details.token_name;
+    tk_details.creators_signature = transaction.token_details.creators_signature;
     return tk_details;
   }
 
@@ -2658,7 +2658,7 @@ namespace cn
         return false;
       }
 
-      uint64_t token_id = transactions[i].token_id;
+      uint64_t token_id = transactions[i].token_details.token_id;
       if (token_id > 0 && token_id > known_tk_ids.size())
       {
         m_tokens_map.insert(std::make_pair(token_id, convert_to_summary(transactions[i])));
@@ -2958,13 +2958,13 @@ namespace cn
           transactionIndex,
           static_cast<uint16_t>(output),
           true,
-          transaction.tx.token_id,
-          transaction.tx.token_supply,
-          transaction.tx.decimals,
-          transaction.tx.created_height,
-          transaction.tx.ticker,
-          transaction.tx.token_name,
-          transaction.tx.creators_signature
+          transaction.tx.token_details.token_id,
+          transaction.tx.token_details.token_supply,
+          transaction.tx.token_details.decimals,
+          transaction.tx.token_details.created_height,
+          transaction.tx.token_details.ticker,
+          transaction.tx.token_details.token_name,
+          transaction.tx.token_details.creators_signature
         };
         amountOutputs.push_back(outputUsage);
       }

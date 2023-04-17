@@ -767,35 +767,63 @@ namespace cn
 
   /* ---------------------------------------------------------------------------------------------------- */
 
-  std::string Currency::formatAmount(uint64_t amount) const
+  std::string Currency::formatAmount(uint64_t amount, bool is_token, uint64_t token_decimals) const
   {
-    std::string s = std::to_string(amount);
-    if (s.size() < m_numberOfDecimalPlaces + 1)
+    if (is_token == true)
     {
-      s.insert(0, m_numberOfDecimalPlaces + 1 - s.size(), '0');
-    }
+      std::string s = std::to_string(amount);
+      if (s.size() < token_decimals + 1)
+      {
+        s.insert(0, token_decimals + 1 - s.size(), '0');
+      }
 
-    s.insert(s.size() - m_numberOfDecimalPlaces, ".");
-    return s;
+      s.insert(s.size() - token_decimals, ".");
+      return s;
+    }
+    else
+    {
+      std::string s = std::to_string(amount);
+      if (s.size() < m_numberOfDecimalPlaces + 1)
+      {
+        s.insert(0, m_numberOfDecimalPlaces + 1 - s.size(), '0');
+      }
+
+      s.insert(s.size() - m_numberOfDecimalPlaces, ".");
+      return s;
+    }
   }
 
   /* ---------------------------------------------------------------------------------------------------- */
 
-  std::string Currency::formatAmount(int64_t amount) const
+  std::string Currency::formatAmount(int64_t amount, bool is_token, uint64_t token_decimals) const
   {
-    std::string s = formatAmount(static_cast<uint64_t>(std::abs(amount)));
-
-    if (amount < 0)
+    if (is_token == true)
     {
-      s.insert(0, "-");
-    }
+      std::string s = formatAmount(static_cast<uint64_t>(std::abs(amount)), true, token_decimals);
 
-    return s;
+      if (amount < 0)
+      {
+        s.insert(0, "-");
+      }
+
+      return s;
+    }
+    else
+    {
+      std::string s = formatAmount(static_cast<uint64_t>(std::abs(amount)));
+
+      if (amount < 0)
+      {
+        s.insert(0, "-");
+      }
+
+      return s;
+    }
   }
 
   /* ---------------------------------------------------------------------------------------------------- */
 
-  bool Currency::parseAmount(const std::string &str, uint64_t &amount) const
+  bool Currency::parseAmount(const std::string &str, uint64_t &amount, bool is_token, uint64_t token_decimals) const
   {
     std::string strAmount = str;
     boost::algorithm::trim(strAmount);
@@ -803,7 +831,7 @@ namespace cn
     size_t pointIndex = strAmount.find_first_of('.');
     size_t fractionSize;
 
-    if (std::string::npos != pointIndex)
+    if (std::string::npos != pointIndex && is_token == false)
     {
       fractionSize = strAmount.size() - pointIndex - 1;
       while (m_numberOfDecimalPlaces < fractionSize && '0' == strAmount.back())
@@ -813,6 +841,22 @@ namespace cn
       }
 
       if (m_numberOfDecimalPlaces < fractionSize)
+      {
+        return false;
+      }
+
+      strAmount.erase(pointIndex, 1);
+    }
+    else if (std::string::npos != pointIndex && is_token == true)
+    {
+      fractionSize = strAmount.size() - pointIndex - 1;
+      while (token_decimals < fractionSize && '0' == strAmount.back())
+      {
+        strAmount.erase(strAmount.size() - 1, 1);
+        --fractionSize;
+      }
+
+      if (token_decimals < fractionSize)
       {
         return false;
       }

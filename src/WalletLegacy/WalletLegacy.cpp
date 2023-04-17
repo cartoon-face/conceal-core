@@ -606,7 +606,8 @@ TransactionId WalletLegacy::token_transaction(TokenSummary& token_details)
     m_asyncContextCounter.addAsyncContext();
     request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
   }
-
+  
+  return txId;
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,

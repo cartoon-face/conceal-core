@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "CryptoTypes.h"
+#include "CryptoNote.h"
 
 #include <boost/variant.hpp>
 
@@ -105,9 +106,7 @@ struct TransactionDetails {
   bool inBlockchain;
   crypto::Hash blockHash;
   uint32_t blockHeight;
-
-  uint64_t token_amount;
-  uint64_t token_id;
+  TokenSummary token_details;
 
   TransactionExtraDetails extra;
   std::vector<std::vector<crypto::Signature>> signatures;

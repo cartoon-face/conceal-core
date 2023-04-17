@@ -112,13 +112,13 @@ uint64_t TransactionPrefixImpl::getUnlockTime() const {
 TokenSummary TransactionPrefixImpl::get_token_details() const
 {
   TokenSummary tk_details;
-  tk_details.token_id = m_txPrefix.token_id;
-  tk_details.token_supply = m_txPrefix.token_supply;
-  tk_details.decimals = m_txPrefix.decimals;
-  tk_details.created_height = m_txPrefix.created_height;
-  tk_details.ticker = m_txPrefix.ticker;
-  tk_details.token_name = m_txPrefix.token_name;
-  tk_details.creators_signature = m_txPrefix.creators_signature;
+  tk_details.token_id = m_txPrefix.token_details.token_id;
+  tk_details.token_supply = m_txPrefix.token_details.token_supply;
+  tk_details.decimals = m_txPrefix.token_details.decimals;
+  tk_details.created_height = m_txPrefix.token_details.created_height;
+  tk_details.ticker = m_txPrefix.token_details.ticker;
+  tk_details.token_name = m_txPrefix.token_details.token_name;
+  tk_details.creators_signature = m_txPrefix.token_details.creators_signature;
   return tk_details;
 }
 

@@ -205,7 +205,7 @@ size_t core::addChain(const std::vector<const IBlock*>& chain) {
       getObjectHash(tx, txHash, blobSize);
       tx_verification_context tvc = boost::value_initialized<tx_verification_context>();
 
-      if (tx.token_id > 0 && tx.token_amount > 0)
+      if (tx.token_details.token_id > 0 && tx.token_details.token_amount > 0)
       {
         logger(INFO) << "Token transaction found:" << txHash;
       }

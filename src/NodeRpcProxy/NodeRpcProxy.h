@@ -75,6 +75,7 @@ public:
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
 
   std::vector<uint64_t> m_known_token_ids;
+  std::map<uint64_t, TokenSummary> m_tokens_map;
 
 private:
   void resetInternalState();

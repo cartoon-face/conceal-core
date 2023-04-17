@@ -184,9 +184,9 @@ namespace cn
     std::string accountAddressAsString(const AccountPublicAddress &accountPublicAddress) const;
     bool parseAccountAddressString(const std::string &str, AccountPublicAddress &addr) const;
 
-    std::string formatAmount(uint64_t amount) const;
-    std::string formatAmount(int64_t amount) const;
-    bool parseAmount(const std::string &str, uint64_t &amount) const;
+    std::string formatAmount(uint64_t amount, bool is_token = false, uint64_t token_decimals = 0) const;
+    std::string formatAmount(int64_t amount, bool is_token = false, uint64_t token_decimals = 0) const;
+    bool parseAmount(const std::string &str, uint64_t &amount, bool is_token = false, uint64_t token_decimals = 0) const;
 
     difficulty_type nextDifficulty(std::vector<uint64_t> timestamps, std::vector<difficulty_type> cumulativeDifficulties) const;
     difficulty_type nextDifficulty(uint8_t version, uint32_t blockIndex, std::vector<uint64_t> timestamps, std::vector<difficulty_type> cumulativeDifficulties) const;

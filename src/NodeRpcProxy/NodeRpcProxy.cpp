@@ -427,11 +427,21 @@ void NodeRpcProxy::getTransactions(const std::vector<crypto::Hash>& transactionH
     callback(make_error_code(error::NOT_INITIALIZED));
     return;
   }
-  
+
   for (auto& tx : transactions) {
-    if (tx.token_id > 0 && tx.token_id > m_known_token_ids.size())
+    if (tx.token_details.token_id > 0 && tx.token_details.token_id > m_known_token_ids.size())
     {
-      m_known_token_ids.push_back(tx.token_id);
+      TokenSummary tk_details;
+      tk_details.token_id = tx.token_details.token_id;
+      tk_details.token_amount = tx.token_details.token_amount;
+      tk_details.decimals = tx.token_details.decimals;
+      tk_details.created_height = tx.token_details.created_height;
+      tk_details.ticker = tx.token_details.ticker;
+      tk_details.token_name = tx.token_details.token_name;
+      tk_details.creators_signature = tx.token_details.creators_signature;
+
+      m_tokens_map.insert(std::make_pair(tx.token_details.token_id, tk_details));
+      m_known_token_ids.push_back(tx.token_details.token_id);
     }
   }
 

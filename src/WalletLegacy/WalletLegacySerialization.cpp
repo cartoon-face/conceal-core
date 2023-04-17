@@ -131,15 +131,4 @@ void serialize(TokenTransactionDetails& token_details, cn::ISerializer& serializ
   serializer(token_details.address, "address");
 }
 
-void serialize(TokenSummary& token_summary, cn::ISerializer& serializer) {
-  serializer(token_summary.token_id, "token_id");
-  serializer(token_summary.token_supply, "token_supply");
-  serializer(token_summary.decimals, "decimals");
-  serializer(token_summary.created_height, "created_height");
-  serializer(token_summary.ticker, "ticker");
-  serializer(token_summary.token_name, "token_name");
-  serializer(token_summary.token_amount, "token_amount");
-  serializer(token_summary.is_creation, "is_creation");
-}
-
 } //namespace cn

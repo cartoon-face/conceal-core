@@ -10,9 +10,43 @@
 #include <vector>
 #include <boost/variant.hpp>
 #include "CryptoTypes.h"
-#include "IToken.h"
+#include <IToken.h>
 
 namespace cn {
+
+class TokenSummary
+{
+public:
+// Store for information / needed generation information
+  uint64_t token_id = 0;
+  uint64_t token_supply = 0;
+  uint8_t decimals = 0;
+  uint64_t created_height = 0;
+  std::string ticker = "";
+  std::string token_name = "";
+  crypto::Signature creators_signature{};
+//
+
+// Use for moving tokens
+  uint64_t token_amount = 0;
+  bool is_creation{false};
+//
+
+// for mining tokens
+  uint64_t token_block_reward = 0;
+  bool is_mineable{false};
+//
+};
+
+struct TokenTransfer
+{
+  // standard with every tx
+  int64_t amount;
+  std::string address;
+
+  // token details
+  TokenSummary token_details;
+};
 
 struct BaseInput {
   uint32_t blockIndex;
@@ -69,14 +103,14 @@ struct TransactionOutput {
 };
 
 using TransactionInputs = std::vector<TransactionInput>;
-typedef cn::TokenSummary TokenSummaryBase;
 
-struct TransactionPrefix : public TokenSummaryBase {
+struct TransactionPrefix {
   uint8_t version;
   uint64_t unlockTime;
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
+  TokenSummary token_details;
 };
 
 struct Transaction : public TransactionPrefix {

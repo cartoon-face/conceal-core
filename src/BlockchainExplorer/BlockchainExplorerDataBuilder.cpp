@@ -184,9 +184,9 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     blockDetails.totalFeeAmount += transactionDetails.fee;
 
     // TODO this isnt right but its the basic idea to get known ids
-    if (transactionDetails.token_id > 0 && transactionDetails.token_id > token_ids.size())
+    if (transactionDetails.token_details.token_id > 0 && transactionDetails.token_details.token_id > token_ids.size())
     {
-      token_ids.push_back(transactionDetails.token_id);
+      token_ids.push_back(transactionDetails.token_details.token_id);
     }
   }
   blockDetails.known_token_ids = token_ids;

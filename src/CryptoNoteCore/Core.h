@@ -25,7 +25,7 @@
 #include "CryptoNoteCore/MessageQueue.h"
 #include "CryptoNoteCore/BlockchainMessages.h"
 
-#include "IToken.h"
+#include "CryptoNote.h"
 
 #include <Logging/LoggerMessage.h>
 
