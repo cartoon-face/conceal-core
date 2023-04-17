@@ -197,6 +197,7 @@ namespace cn
     }
   }
 
+  // If creating a token, we should have all the details already known about the token before we get here
   std::unique_ptr<WalletRequest> WalletTransactionSender::make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
     std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<TokenTransfer>& token_transfers)
   {
@@ -215,7 +216,6 @@ namespace cn
     // vars
     std::shared_ptr<SendTransactionContext> context = std::make_shared<SendTransactionContext>();
 
-    uint64_t neededMoney = 0;
     uint64_t mixIn = cn::parameters::MINIMUM_MIXIN;
     uint64_t fee = cn::parameters::MINIMUM_FEE_V2;
     uint64_t ttl = 0;
@@ -250,14 +250,14 @@ namespace cn
     }
     else
     {
-      context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
+      context->foundMoney = selectTransfersToSend(needed_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
       context->found_token_money = selectTransfersToSend(needed_token_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
     }
 
-    throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
+    throwIf(context->foundMoney < needed_money, error::WRONG_AMOUNT);
     throwIf(context->found_token_money < needed_token_money, error::WRONG_AMOUNT);
 
-    transactionId = m_transactionsCache.add_new_token_transaction(neededMoney, fee, token_transfers);
+    transactionId = m_transactionsCache.add_new_token_transaction(needed_money, fee, token_transfers);
     context->transactionId = transactionId;
     context->mixIn = mixIn;
     context->ttl = ttl;
@@ -339,6 +339,53 @@ namespace cn
     }
 
     return doSendTransaction(std::move(context), events, transactionSK);
+  }
+
+  std::unique_ptr<WalletRequest> WalletTransactionSender::token_send_request(TransactionId& transactionId, std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
+    TokenSummary& token_details)
+  {
+    // TODO throwIfs first
+
+    uint64_t ccx_amt = cn::parameters::MINIMUM_FEE_V2;
+    uint64_t fee = ccx_amt;
+
+    uint64_t neededMoney = getSumWithOverflowCheck(ccx_amt, fee);
+    uint64_t needed_token_money = getSumWithOverflowCheck(token_details.token_amount, fee);
+
+    std::shared_ptr<SendTransactionContext> context = std::make_shared<SendTransactionContext>();
+
+    context->dustPolicy.dustThreshold = m_currency.defaultDustThreshold();
+
+    if (context->is_creation == true)
+    {
+      std::tie(neededMoney, needed_token_money) = select_token_transfer(transactionId, context->selectedTransfers);
+      context->foundMoney = neededMoney;
+      context->found_token_money = needed_token_money;
+    }
+    else
+    {
+      context->foundMoney = selectTransfersToSend(neededMoney, false, context->dustPolicy.dustThreshold, context->selectedTransfers);
+      context->found_token_money = selectTransfersToSend(needed_token_money, false, context->dustPolicy.dustThreshold, context->selectedTransfers, true);
+    }
+
+    throwIf(context->foundMoney < neededMoney, error::WRONG_AMOUNT);
+    throwIf(context->found_token_money < needed_token_money, error::WRONG_AMOUNT);
+
+    std::vector<TokenTransfer> token_transfers;
+    token_transfers.push_back({0, "", token_details});
+
+    transactionId = m_transactionsCache.add_new_token_transaction(neededMoney, fee, token_transfers);
+    context->transactionId = transactionId;
+    context->token_amount = needed_token_money;
+    context->token_id = token_details.token_id;
+
+    if (context->mixIn != 0)
+    {
+      crypto::SecretKey transactionSK;
+      return makeGetRandomOutsRequest(std::move(context), false, transactionSK);
+    }
+
+    return do_send_token_transaction(std::move(context), events);
   }
 
   std::unique_ptr<WalletRequest> WalletTransactionSender::makeDepositRequest(
@@ -1237,14 +1284,14 @@ namespace cn
     crypto::Hash tx_hash;
     uint32_t output_in_tx;
 
-    throwIf(m_transactionsCache.get_token_in_tx_info(token_tx_id, tx_hash, output_in_tx) == false, error::DEPOSIT_DOESNOT_EXIST);
+    throwIf(m_transactionsCache.get_token_in_tx_info(token_tx_id, tx_hash, output_in_tx) == false, error::TOKEN_DOES_NOT_EXISTS);
 
     {
       TransactionOutputInformation transfer;
       ITransfersContainer::TransferState state;
 
-      throwIf(m_transferDetails.getTransfer(tx_hash, output_in_tx, transfer, state) == false, error::DEPOSIT_DOESNOT_EXIST);
-      throwIf(state != ITransfersContainer::TransferState::TransferAvailable, error::DEPOSIT_LOCKED);
+      throwIf(m_transferDetails.getTransfer(tx_hash, output_in_tx, transfer, state) == false, error::TOKEN_DOES_NOT_EXISTS);
+      throwIf(state != ITransfersContainer::TransferState::TransferAvailable, error::TOKEN_LOCKED);
 
       selectedTransfers.push_back(std::move(transfer));
     }

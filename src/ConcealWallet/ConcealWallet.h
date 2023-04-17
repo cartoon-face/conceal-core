@@ -107,6 +107,8 @@ namespace cn
     bool list_deposits(const std::vector<std::string> &args);
     bool deposit_info(const std::vector<std::string> &args);
     bool check_address(const std::vector<std::string> &args);
+    bool transfer_token(const std::vector<std::string> &args);
+    bool create_token(const std::vector<std::string> &args);
     /* End of Commands */
 
     std::string resolveAlias(const std::string& aliasUrl);
@@ -196,5 +198,6 @@ namespace cn
     std::mutex m_walletSynchronizedMutex;
     std::condition_variable m_walletSynchronizedCV;
     bool m_testnet;
+    cn::TokenSummary m_token_details;
   };
 }

@@ -82,11 +82,14 @@ public:
   virtual bool get_tx_key(crypto::Hash& txid, crypto::SecretKey& txSecretKey) override;
   virtual bool getTransaction(TransactionId transactionId, WalletLegacyTransaction& transaction) override;
   virtual bool getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) override;
+  virtual bool getTransfer(TransferId transferId, TokenTransfer& transfer) override;
   virtual bool getDeposit(DepositId depositId, Deposit& deposit) override;
   virtual std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const override;
 
   virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer) override;
   virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers) override;
+
+  virtual TransactionId token_transaction(TokenSummary& token_details) override;
 
   virtual TransactionId sendTransaction(crypto::SecretKey& transactionSK,
                                         const WalletLegacyTransfer& transfer,

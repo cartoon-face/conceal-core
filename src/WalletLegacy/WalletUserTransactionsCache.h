@@ -96,6 +96,7 @@ public:
   bool getTransaction(TransactionId transactionId, WalletLegacyTransaction& transaction) const;
   WalletLegacyTransaction& getTransaction(TransactionId transactionId);
   bool getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) const;
+  bool getTransfer(TransferId transferId, TokenTransfer& transfer) const;
   WalletLegacyTransfer& getTransfer(TransferId transferId);
   bool getDeposit(DepositId depositId, Deposit& deposit) const;
   Deposit& getDeposit(DepositId depositId);

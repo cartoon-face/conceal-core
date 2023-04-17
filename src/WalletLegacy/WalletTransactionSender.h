@@ -28,9 +28,12 @@ public:
   WalletTransactionSender(const Currency& currency, WalletUserTransactionsCache& transactionsCache, AccountKeys keys, ITransfersContainer& transfersContainer, INode& node, bool testnet);
 
   void stop();
-  
+
   std::unique_ptr<WalletRequest> make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
     std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<TokenTransfer>& token_transfers);
+
+  std::unique_ptr<WalletRequest> token_send_request(TransactionId& transactionId, std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
+    TokenSummary& token_details);
 
   std::unique_ptr<WalletRequest> makeSendRequest(crypto::SecretKey& transactionSK,
                                                  bool optimize,

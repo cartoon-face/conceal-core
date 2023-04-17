@@ -521,7 +521,12 @@ bool WalletLegacy::getTransaction(TransactionId transactionId, WalletLegacyTrans
 bool WalletLegacy::getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) {
   std::unique_lock<std::mutex> lock(m_cacheMutex);
   throwIfNotInitialised();
+  return m_transactionsCache.getTransfer(transferId, transfer);
+}
 
+bool WalletLegacy::getTransfer(TransferId transferId, TokenTransfer& transfer) {
+  std::unique_lock<std::mutex> lock(m_cacheMutex);
+  throwIfNotInitialised();
   return m_transactionsCache.getTransfer(transferId, transfer);
 }
 
@@ -577,6 +582,31 @@ TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactio
   }
 
   return txId;
+}
+
+TransactionId WalletLegacy::token_transaction(TokenSummary& token_details)
+{
+  TransactionId txId = 0;
+  std::unique_ptr<WalletRequest> request;
+  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
+  throwIfNotInitialised();
+
+  {
+    std::unique_lock<std::mutex> lock(m_cacheMutex);
+    request = m_sender->token_send_request(txId, events, token_details);
+
+    if (request != nullptr) {
+      pushBalanceUpdatedEvents(events);
+    }
+  }
+
+  notifyClients(events);
+
+  if (request) {
+    m_asyncContextCounter.addAsyncContext();
+    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
+  }
+
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,

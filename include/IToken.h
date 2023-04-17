@@ -18,7 +18,7 @@ namespace cn
   class TokenSummary
   {
   public:
-// Store for information
+// Store for information / needed generation information
     uint64_t token_id = 0;
     uint64_t token_supply = 0;
     uint64_t decimals = 0;
@@ -70,6 +70,7 @@ namespace cn
     uint32_t outputInTransaction;
     crypto::Hash transactionHash;
     std::string address;
+    uint64_t sent_time;
   };
 
   struct TokenTransfer

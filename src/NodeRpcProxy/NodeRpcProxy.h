@@ -74,6 +74,8 @@ public:
   unsigned int rpcTimeout() const { return m_rpcTimeout; }
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
 
+  std::vector<uint64_t> m_known_token_ids;
+
 private:
   void resetInternalState();
   void workerThread(const Callback& initialized_callback);
@@ -115,7 +117,6 @@ template <typename Request, typename Response>
     STATE_INITIALIZED
   };
 
-private:
   State m_state = STATE_NOT_INITIALIZED;
   std::mutex m_mutex;
   std::condition_variable m_cv_initialized;
@@ -144,7 +145,6 @@ private:
   std::atomic<uint64_t> m_lastLocalBlockTimestamp;
   std::unordered_set<crypto::Hash> m_knownTxs;
 
-  std::vector<uint64_t> m_known_token_ids;
 
   bool m_connected;
 };

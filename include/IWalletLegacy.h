@@ -154,6 +154,7 @@ public:
   virtual void getAccountKeys(AccountKeys& keys) = 0;
   virtual bool getTransaction(TransactionId transactionId, WalletLegacyTransaction& transaction) = 0;
   virtual bool getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) = 0;
+  virtual bool getTransfer(TransferId transferId, TokenTransfer& transfer) = 0;
   virtual bool getDeposit(DepositId depositId, Deposit& deposit) = 0;
   virtual std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const = 0;
   virtual bool getTxProof(crypto::Hash& txid, cn::AccountPublicAddress& address, crypto::SecretKey& tx_key, std::string& sig_str) = 0;
@@ -174,6 +175,7 @@ public:
   virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer) = 0;
   virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers) = 0;
 
+  virtual TransactionId token_transaction(TokenSummary& token_details) = 0;
 };
 
 }

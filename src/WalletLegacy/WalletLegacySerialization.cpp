@@ -85,6 +85,12 @@ void serialize(WalletLegacyTransfer& tr, cn::ISerializer& serializer) {
   serializer(tr.amount, "amount");
 }
 
+void serialize(TokenTransfer& tr, cn::ISerializer& serializer) {
+  serializer(tr.address, "address");
+  serializer(tr.amount, "amount");
+  serializer(tr.token_details, "token_details");
+}
+
 void serialize(Deposit& deposit, cn::ISerializer& serializer) {
   uint64_t creatingTxId = static_cast<uint64_t>(deposit.creatingTransactionId);
   serializer(creatingTxId, "creating_transaction_id");

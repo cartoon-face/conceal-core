@@ -333,6 +333,7 @@ conceal_wallet::conceal_wallet(platform_system::Dispatcher& dispatcher, const cn
   m_consoleHandler.setHandler("deposit_info", boost::bind(&conceal_wallet::deposit_info, this, boost::arg<1>()), "deposit_info <id> - Get infomation for deposit <id>");
   m_consoleHandler.setHandler("save_txs_to_file", boost::bind(&conceal_wallet::save_all_txs_to_file, this, boost::arg<1>()), "save_txs_to_file - Saves all known transactions to <wallet_name>_conceal_transactions.txt");
   m_consoleHandler.setHandler("check_address", boost::bind(&conceal_wallet::check_address, this, boost::arg<1>()), "check_address <address> - Checks to see if given wallet is valid.");
+  m_consoleHandler.setHandler("transfer_token", boost::bind(&conceal_wallet::transfer_token, this, boost::arg<1>()), "transfer_token <address> <amount> -id<id> -p<payment_id> - Send token transaction.");
 }
 
 std::string conceal_wallet::wallet_menu(bool do_ext)
@@ -374,6 +375,7 @@ std::string conceal_wallet::wallet_menu(bool do_ext)
     menu_item += "\"list_transfers\"              - Show all known transfers, optionally from a certain height. | <block_height>\n";
     menu_item += "\"reset\"                       - Reset cached blockchain data and starts synchronizing from block 0.\n";
     menu_item += "\"transfer <address> <amount>\" - Transfers <amount> to <address>. | [-p<payment_id>] [<amount_2>]...[<amount_N>] [<address_2>]...[<address_n>]\n";
+    menu_item += "\"transfer_token <address> <amount> <id> - Send token transaction.\ns";
     menu_item += "\"save\"                        - Save wallet synchronized blockchain data.\n";
     menu_item += "\"save_keys\"                   - Saves wallet private keys to \"<wallet_name>_conceal_backup.txt\".\n";
     menu_item += "\"withdraw <id>\"               - Withdraw a deposit from the blockchain.\n";
@@ -1983,6 +1985,208 @@ bool conceal_wallet::check_address(const std::vector<std::string> &args)
   }
 
   logger(INFO) << "The wallet " << addr << " seems to be valid, please still be cautious still.";
+
+  return true;
+}
+
+bool conceal_wallet::transfer_token(const std::vector<std::string> &args)
+{
+  try
+  {
+    transfer_cmd cmd(m_currency, m_remote_node_address);
+
+    if (!cmd.parse_token_tx(logger, args))
+      return true;
+
+    for (auto& kv: cmd.t_aliases) {
+      std::string address;
+
+      try {
+        address = resolveAlias(kv.first);
+
+        AccountPublicAddress ignore;
+        if (!m_currency.parseAccountAddressString(address, ignore)) {
+          throw std::runtime_error("Address \"" + address + "\" is invalid");
+        }
+      } catch (std::exception& e) {
+        fail_msg_writer() << "Couldn't resolve alias: " << e.what() << ", alias: " << kv.first;
+        return true;
+      }
+
+      for (auto& transfer: kv.second) {
+        transfer.address = address;
+      }
+    }
+
+    if (!cmd.t_aliases.empty()) {
+      std::cout << "Would you like to send money to the following addresses?" << std::endl;
+      
+      for (const auto& kv : cmd.t_aliases) {
+        for (const auto& transfer: kv.second) {
+          std::cout << transfer.address << " " << std::setw(21) << m_currency.formatAmount(transfer.amount) << "  " << kv.first << std::endl;
+        }
+      }
+
+      std::string answer;
+
+      do {
+        std::cout << "y/n: ";
+        std::getline(std::cin, answer);
+      } while (answer != "y" && answer != "Y" && answer != "n" && answer != "N");
+      
+      if (answer == "n" || answer == "N") { return true; }
+
+      for (auto& kv: cmd.t_aliases) {
+        std::copy(std::move_iterator<std::vector<TokenTransfer>::iterator>(kv.second.begin()),
+                  std::move_iterator<std::vector<TokenTransfer>::iterator>(kv.second.end()),
+                  std::back_inserter(cmd.t_dsts));
+      }
+    }
+
+    uint64_t known_token_id = m_node->m_known_token_ids.size();
+    if (cmd.token_details.token_id == 0 || cmd.token_details.token_id > known_token_id)
+    {
+      logger(ERROR) << "Can't use an ID that is 0 or higher than the blockchain known IDs.";
+      return true;
+    }
+
+    cn::WalletHelper::SendCompleteResultObserver sent;
+    WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
+
+    crypto::SecretKey transactionSK;
+    cn::TransactionId tx = m_wallet->send_token_transaction(transactionSK, cmd.t_dsts);
+    if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
+      fail_msg_writer() << "Can't send money";
+      return true;
+    }
+
+    std::error_code sendError = sent.wait(tx);
+    removeGuard.removeObserver();
+
+    if (sendError) {
+      fail_msg_writer() << sendError.message();
+      return true;
+    }
+
+    cn::WalletLegacyTransaction txInfo;
+    m_wallet->getTransaction(tx, txInfo);
+    success_msg_writer(true) << "Token Money successfully sent, transaction hash: " << common::podToHex(txInfo.hash);
+    success_msg_writer(true) << "Transaction secret key " << common::podToHex(transactionSK); 
+
+    m_chelper.save_wallet(*m_wallet, m_wallet_file, logger);
+  } catch (const std::system_error& e) {
+    fail_msg_writer() << e.what();
+  } catch (const std::exception& e) {
+    fail_msg_writer() << e.what();
+  } catch (...) {
+    fail_msg_writer() << "unknown error";
+  }
+
+  return true;
+}
+
+bool conceal_wallet::create_token(const std::vector<std::string> &args)
+{
+  if (args.size() != 5)
+  {
+    logger(ERROR) << "Usage: create_token <token_id> <token_supply> <decimals> <ticker> <token_name>";
+    return true;
+  }
+
+  try
+  {
+    uint64_t token_id = boost::lexical_cast<uint64_t>(args[0]);
+    bool id_ok = token_id > 0 && token_id <= m_node->m_known_token_ids.size();
+
+    if (!id_ok)
+    {
+      // TODO I dont think we should let the user touch the id, let it be given to them.
+      logger(ERROR, BRIGHT_RED) << "Cannot use token ID 0 or higher than the known token ids.";
+      return true;
+    }
+
+    uint64_t token_supply = boost::lexical_cast<uint64_t>(args[1]);
+    bool amt_ok = m_currency.parseAmount(args[1], token_supply);
+
+    if (!amt_ok || 0 == token_supply)
+    {
+      logger(ERROR, BRIGHT_RED) << "amount is wrong: " << token_supply <<
+        ", expected number from 1 to " << m_currency.formatAmount(cn::parameters::MONEY_SUPPLY);
+      return true;
+    }
+
+    uint8_t decimals = boost::lexical_cast<uint64_t>(args[2]);
+    if (decimals > 16)
+    {
+      // Don't have too many decimals
+      logger(ERROR, BRIGHT_RED) << "Max decimals is 16.";
+      return true;
+    }
+
+    std::string ticker = args[3];
+    if (ticker.size() > 5)
+    {
+      // Tickers are short
+      logger(ERROR, BRIGHT_RED) << "Max ticker size is 5.";
+      return true;
+    }
+
+    std::string name = args[4];
+    if (name.size() > 20)
+    {
+      // Don't go mad with the name
+      logger(ERROR, BRIGHT_RED) << "Max name size is 20.";
+      return true;
+    }
+
+    logger(INFO) << "Creating token...";
+
+    cn::WalletHelper::SendCompleteResultObserver sent;
+    WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
+
+    TokenSummary token_details;
+    token_details.token_id = token_id;
+    token_details.token_supply = token_supply;
+    token_details.decimals = decimals;
+    token_details.ticker = ticker;
+    token_details.token_name = name;
+
+    cn::TransactionId tx = m_wallet->token_transaction(token_details);
+
+    if (tx == WALLET_LEGACY_INVALID_DEPOSIT_ID)
+    {
+      fail_msg_writer() << "Can't deposit money";
+      return true;
+    }
+
+    std::error_code sendError = sent.wait(tx);
+    removeGuard.removeObserver();
+
+    if (sendError)
+    {
+      fail_msg_writer() << sendError.message();
+      return true;
+    }
+
+    cn::WalletLegacyTransaction d_info;
+    m_wallet->getTransaction(tx, d_info);
+    success_msg_writer(true) << "Money successfully sent, transaction hash: " << common::podToHex(d_info.hash)
+      << "\n\tID: " << d_info.firstDepositId;
+
+    m_chelper.save_wallet(*m_wallet, m_wallet_file, logger);
+  }
+  catch (const std::system_error& e)
+  {
+    fail_msg_writer() << e.what();
+  }
+  catch (const std::exception& e)
+  {
+    fail_msg_writer() << e.what();
+  }
+  catch (...)
+  {
+    fail_msg_writer() << "unknown error";
+  }
 
   return true;
 }
