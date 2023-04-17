@@ -42,10 +42,6 @@ namespace cn
             logger(ERROR, BRIGHT_RED) << "payment ID has invalid format: \"" << value << "\", expected 64-character string";
             return false;
           }
-          else if (arg == "-id")
-          {
-            token_details.token_id = common::fromString(value, id);
-          }
         }
         else
         {
@@ -100,6 +96,9 @@ namespace cn
               ", expected number from 0 to " << m_currency.formatAmount(cn::parameters::MONEY_SUPPLY);
             return false;
           }
+          
+          auto value1 = ar.next();
+          token_details.token_id = common::fromString(value1, id);
 
           if (aliasUrl.empty())
           {
