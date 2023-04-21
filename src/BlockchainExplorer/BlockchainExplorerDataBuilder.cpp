@@ -173,7 +173,6 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
   }
 
   blockDetails.totalFeeAmount = 0;
-  std::vector<uint64_t> token_ids = {};
 
   for (const Transaction& tx : found) {
     TransactionDetails transactionDetails;
@@ -182,14 +181,7 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
     }
     blockDetails.transactions.push_back(std::move(transactionDetails));
     blockDetails.totalFeeAmount += transactionDetails.fee;
-
-    // TODO this isnt right but its the basic idea to get known ids
-    if (transactionDetails.token_details.token_id > 0 && transactionDetails.token_details.token_id > token_ids.size())
-    {
-      token_ids.push_back(transactionDetails.token_details.token_id);
-    }
   }
-  blockDetails.known_token_ids = token_ids;
   return true;
 }
 
@@ -301,11 +293,18 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       const TokenInput& txInToken = boost::get<TokenInput>(txIn);
       txInDetails.amount = txInToken.amount;
       txInTokenDetails.signatures = txInToken.signatureCount;
+
+      // Token info from the input to tx details
+      txInTokenDetails.token_details.token_amount = txInToken.token_details.token_amount;
+      txInTokenDetails.token_details.token_id = txInToken.token_details.token_id;
+      txInTokenDetails.token_details.decimals = txInToken.token_details.decimals;
+      txInTokenDetails.token_details.token_name = txInToken.token_details.token_name;
+      txInTokenDetails.token_details.ticker = txInToken.token_details.ticker;
+
       std::pair<crypto::Hash, size_t> outputReference;
-      if (!core.getTokenOutputReference(txInToken, outputReference)) {
-        return false;
-      }
-      txInTokenDetails.token_id = txInToken.token_id;
+      //if (!core.getMultisigOutputReference(txInToken, outputReference)) {
+      //  return false;
+      //}
       txInTokenDetails.output.number = outputReference.second;
       txInTokenDetails.output.transactionHash = outputReference.first;
       txInDetails.input = txInTokenDetails;
@@ -345,15 +344,14 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       txOutMultisigDetails.requiredSignatures = txOutMultisig.requiredSignatureCount;
       txOutDetails.output = txOutMultisigDetails;
     } else if (txOutput.get<0>().target.type() == typeid(TokenOutput)) {
-      TransactionOutputTokenDetails txOutTokensDetails;
+      TransactionOutputTokenDetails txOutTokenDetails;
       TokenOutput txOutToken = boost::get<TokenOutput>(txOutput.get<0>().target);
-      txOutTokensDetails.keys.reserve(txOutToken.keys.size());
+      txOutTokenDetails.keys.reserve(txOutToken.keys.size());
       for (const crypto::PublicKey& key : txOutToken.keys) {
-        txOutTokensDetails.keys.push_back(std::move(key));
+        txOutTokenDetails.keys.push_back(std::move(key));
       }
-      txOutTokensDetails.requiredSignatures = txOutToken.requiredSignatureCount;
-      txOutTokensDetails.token_id = txOutToken.token_id;
-      txOutDetails.output = txOutTokensDetails;
+      txOutTokenDetails.requiredSignatures = txOutToken.requiredSignatureCount;
+      txOutDetails.output = txOutTokenDetails;
     } else {
       return false;
     }

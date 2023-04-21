@@ -13,6 +13,7 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
+#include <map>
 
 #include "Common/ObserverManager.h"
 #include "INode.h"
@@ -54,6 +55,9 @@ public:
   virtual uint32_t getKnownBlockCount() const override;
   virtual uint64_t getLastLocalBlockTimestamp() const override;
 
+  virtual std::vector<uint64_t> get_known_token_ids() const override;
+  virtual std::map<uint64_t, TokenBase> get_token_map() const override;
+
   virtual void relayTransaction(const cn::Transaction& transaction, const Callback& callback) override;
   virtual void getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount, std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& result, const Callback& callback) override;
   virtual void getNewBlocks(std::vector<crypto::Hash>&& knownBlockIds, std::vector<cn::block_complete_entry>& newBlocks, uint32_t& startHeight, const Callback& callback) override;
@@ -73,9 +77,6 @@ public:
 
   unsigned int rpcTimeout() const { return m_rpcTimeout; }
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
-
-  std::vector<uint64_t> m_known_token_ids;
-  std::map<uint64_t, TokenSummary> m_tokens_map;
 
 private:
   void resetInternalState();
@@ -118,6 +119,7 @@ template <typename Request, typename Response>
     STATE_INITIALIZED
   };
 
+private:
   State m_state = STATE_NOT_INITIALIZED;
   std::mutex m_mutex;
   std::condition_variable m_cv_initialized;
@@ -146,8 +148,9 @@ template <typename Request, typename Response>
   std::atomic<uint64_t> m_lastLocalBlockTimestamp;
   std::unordered_set<crypto::Hash> m_knownTxs;
 
-
   bool m_connected;
+  std::vector<uint64_t> m_known_token_ids;
+  std::map<uint64_t, TokenBase> m_tokens_map;
 };
 
 }

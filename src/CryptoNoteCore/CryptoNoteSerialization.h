@@ -34,8 +34,7 @@ void serialize(TransactionPrefix& txP, ISerializer& serializer);
 void serialize(Transaction& tx, ISerializer& serializer);
 void serialize(TransactionInput& in, ISerializer& serializer);
 void serialize(TransactionOutput& in, ISerializer& serializer);
-
-void serialize(TokenSummary& token_details, ISerializer& serializer);
+void serialize(TokenBase& token_details, ISerializer& serializer);
 
 void serialize(BaseInput& gen, ISerializer& serializer);
 void serialize(KeyInput& key, ISerializer& serializer);

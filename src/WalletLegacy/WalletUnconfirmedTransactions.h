@@ -50,25 +50,19 @@ struct UnconfirmedTransferDetails {
   time_t sentTime;
   TransactionId transactionId;
   std::vector<TransactionOutputId> usedOutputs;
-  uint64_t token_amount;
-  uint64_t token_id;
-};
-
-struct unconfirmed_token_tx_details {
-  unconfirmed_token_tx_details() :
-    amount(0), sentTime(0), transactionId(WALLET_LEGACY_INVALID_TRANSACTION_ID) {}
-
-  TransactionId transactionId;
-  time_t sentTime;
-  uint64_t amount;
-  uint64_t token_amount;
-  uint64_t token_id;
 };
 
 struct UnconfirmedSpentDepositDetails {
   TransactionId transactionId;
   uint64_t depositsSum;
   uint64_t fee;
+};
+
+struct UnconfirmedSpentTokenDetails {
+  TransactionId transactionId;
+  uint64_t ccxSum;
+  uint64_t fee;
+  TokenBase token_details;
 };
 
 class WalletUnconfirmedTransactions
@@ -87,9 +81,10 @@ public:
   void updateTransactionId(const crypto::Hash& hash, TransactionId id);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);
+  void addCreatedTokenTx(uint64_t id, uint64_t totalAmount);
   void addDepositSpendingTransaction(const crypto::Hash& transactionHash, const UnconfirmedSpentDepositDetails& details);
 
-  void add_created_token_tx(TokenTxId id, uint64_t totalAmount);
+  void addTokenSpendingTransaction(const crypto::Hash& transactionHash, const UnconfirmedSpentTokenDetails& details);
 
   void eraseCreatedDeposit(DepositId id);
 
@@ -115,6 +110,8 @@ private:
   bool findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id);
   bool findUnconfirmedDepositSpendingTransactionId(const crypto::Hash& hash, TransactionId& id);
 
+  bool findUnconfirmeTokenSpendingTransactionId(const crypto::Hash& hash, TransactionId& id);
+
   typedef std::unordered_map<crypto::Hash, UnconfirmedTransferDetails, boost::hash<crypto::Hash>> UnconfirmedTxsContainer;
   typedef std::unordered_set<TransactionOutputId> UsedOutputsContainer;
 
@@ -124,8 +121,8 @@ private:
 
   std::unordered_map<DepositId, uint64_t> m_createdDeposits;
   std::unordered_map<crypto::Hash, UnconfirmedSpentDepositDetails> m_spentDeposits;
-
-  std::unordered_map<TokenTxId, uint64_t> m_created_token_txs;
+  std::unordered_map<crypto::Hash, UnconfirmedSpentTokenDetails> m_spentCreatedTokens;//m_spentCreatedTokens?
+  std::unordered_map<uint64_t, uint64_t> m_createdTokens;
 };
 
 } // namespace cn

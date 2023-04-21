@@ -7,7 +7,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "IWallet.h"
-#include "IToken.h"
 
 namespace cn {
 
@@ -16,10 +15,9 @@ struct DepositInfo {
   uint32_t outputInTransaction;
 };
 
-struct TokenTxInfo
-{
-  TokenTransactionDetails token;
-  uint32_t output_in_transaction;
+struct TokenInfo {
+  Token token;
+  uint32_t outputInTransaction;
 };
 
 }

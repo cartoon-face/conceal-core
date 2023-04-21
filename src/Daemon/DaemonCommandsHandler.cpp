@@ -16,7 +16,6 @@
 #include "CryptoNoteProtocol/CryptoNoteProtocolHandler.h"
 #include "Serialization/SerializationTools.h"
 #include "version.h"
-#include "IToken.h"
 
 namespace
 {
@@ -40,7 +39,6 @@ DaemonCommandsHandler::DaemonCommandsHandler(cn::core &core, cn::NodeServer &srv
   m_consoleHandler.setHandler("print_bc", boost::bind(&DaemonCommandsHandler::print_bc, this, boost::arg<1>()), "Print blockchain info in a given blocks range, print_bc <begin_height> [<end_height>]");
   m_consoleHandler.setHandler("print_block", boost::bind(&DaemonCommandsHandler::print_block, this, boost::arg<1>()), "Print block, print_block <block_hash> | <block_height>");
   m_consoleHandler.setHandler("print_stat", boost::bind(&DaemonCommandsHandler::print_stat, this, boost::arg<1>()), "Print statistics, print_stat <nothing=last> | <block_hash> | <block_height>");
-  m_consoleHandler.setHandler("print_token_stat", boost::bind(&DaemonCommandsHandler::print_token_stat, this, boost::arg<1>()), "Print token statistics, print_stat <token_id>");
   m_consoleHandler.setHandler("print_tx", boost::bind(&DaemonCommandsHandler::print_tx, this, boost::arg<1>()), "Print transaction, print_tx <transaction_hash>");
   m_consoleHandler.setHandler("start_mining", boost::bind(&DaemonCommandsHandler::start_mining, this, boost::arg<1>()), "Start mining for specified address, start_mining <addr> [threads=1]");
   m_consoleHandler.setHandler("stop_mining", boost::bind(&DaemonCommandsHandler::stop_mining, this, boost::arg<1>()), "Stop mining");
@@ -49,9 +47,6 @@ DaemonCommandsHandler::DaemonCommandsHandler(cn::core &core, cn::NodeServer &srv
   m_consoleHandler.setHandler("show_hr", boost::bind(&DaemonCommandsHandler::show_hr, this, boost::arg<1>()), "Start showing hash rate");
   m_consoleHandler.setHandler("hide_hr", boost::bind(&DaemonCommandsHandler::hide_hr, this, boost::arg<1>()), "Stop showing hash rate");
   m_consoleHandler.setHandler("set_log", boost::bind(&DaemonCommandsHandler::set_log, this, boost::arg<1>()), "set_log <level> - Change current log level, <level> is a number 0-4");
-  m_consoleHandler.setHandler("print_bc_token_map", boost::bind(&DaemonCommandsHandler::print_bc_token_map, this, boost::arg<1>()), "Print entire known token map");
-  m_consoleHandler.setHandler("print_bc_token_ids", boost::bind(&DaemonCommandsHandler::print_bc_token_ids, this, boost::arg<1>()), "Print known amount of token ids");
-  m_consoleHandler.setHandler("print_token_stat", boost::bind(&DaemonCommandsHandler::print_token_stat, this, boost::arg<1>()), "Print stats about a token");
 }
 
 const std::string DaemonCommandsHandler::get_commands_str()
@@ -397,7 +392,6 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
   uint64_t totalCoinsOnDeposits = m_core.depositAmountAtHeight(height);
   uint64_t amountOfActiveCoins = totalCoinsInNetwork - totalCoinsOnDeposits;
   const auto &currency = m_core.currency();
-  uint64_t known_token_ids = m_core.known_token_ids_amount();
 
   std::string print_status = "\n";
   print_status += "Block Height: " + std::to_string(height) + "\n";
@@ -406,7 +400,6 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string> &args)
   print_status += "Deposits (Locked Coins): " + currency.formatAmount(totalCoinsOnDeposits) + " (" + currency.formatAmount(calculatePercent(currency, totalCoinsOnDeposits, totalCoinsInNetwork)) + "%)\n";
   print_status += "Active Coins (Circulation Supply):  " + currency.formatAmount(amountOfActiveCoins) + " (" + currency.formatAmount(calculatePercent(currency, amountOfActiveCoins, totalCoinsInNetwork)) + "%)\n";
   print_status += "Rewards (Paid Interest): " + currency.formatAmount(m_core.depositInterestAtHeight(height)) + "\n";
-  print_status += "Known Token IDs: " + std::to_string(known_token_ids) + "\n";
 
   logger(logging::INFO) << print_status;
 
@@ -539,90 +532,5 @@ bool DaemonCommandsHandler::stop_mining(const std::vector<std::string> &args)
   m_core.get_miner().stop();
 
   logger(logging::DEBUGGING) << "Finished: stop_mining";
-  return true;
-}
-
-bool DaemonCommandsHandler::print_token_stat(const std::vector<std::string> &args)
-{
-  logger(logging::DEBUGGING) << "Attempting: print_token_stat";
-
-  if (args.size() != 1)
-  {
-    logger(logging::ERROR) << "Usage: \"print_token_stat <token_id>\"";
-    return false;
-  }
-
-  uint64_t token_id = boost::lexical_cast<uint32_t>(args.front());
-  std::map<uint64_t, cn::TokenSummary> token_details = m_core.get_token_map();
-  std::string str;
-
-  auto it = token_details.find(token_id);
-  if (it != token_details.end()) {
-    str += "ID: " + std::to_string(token_id);
-    str += "\n\tToken Name: " + it->second.token_name + "\n";
-    str += "\n\tToken Supply: " + std::to_string(it->second.token_supply) + "\n";
-    str += "\n\tDecimals: " + std::to_string(it->second.decimals) + "\n";
-    str += "\n\tCreated Height: " + std::to_string(it->second.created_height) + "\n";
-    str += "\n\tTicker: " + it->second.ticker + "\n";
-  } else {
-    str = "Token ID " + std::to_string(token_id) + " not found!";
-  }
-
-  logger(logging::INFO) << str;
-
-  logger(logging::DEBUGGING) << "Finished: print_token_stat";
-
-  return true;
-}
-
-bool DaemonCommandsHandler::print_bc_token_ids(const std::vector<std::string> &args)
-{
-  logger(logging::DEBUGGING) << "Attempting: print_bc_token_size";
-
-  if (!args.empty())
-  {
-    logger(logging::ERROR) << "Usage: \"print_bc_token_size\"";
-    return false;
-  }
-
-  std::vector<uint64_t> known_token_ids = m_core.known_token_ids();
-
-  logger(logging::INFO) << "Known Token IDs:" << known_token_ids.size();
-
-  return true;
-}
-
-// Will be a debug function as this could get very big
-bool DaemonCommandsHandler::print_bc_token_map(const std::vector<std::string> &args)
-{
-  logger(logging::DEBUGGING) << "Attempting: print_bc_token_map";
-
-  if (!args.empty())
-  {
-    logger(logging::ERROR) << "Usage: \"print_bc_token_map\"";
-    return false;
-  }
-
-  std::map<uint64_t, cn::TokenSummary> token_map = m_core.get_token_map();
-  std::string str;
-
-  if (token_map.empty())
-  {
-    logger(logging::ERROR) << "No known token map";
-  }
-  else
-  {
-    for (auto const& pair : token_map) {
-      str += "ID: " + std::to_string(pair.first);
-      str += "\n\tToken Name: " + pair.second.token_name + "\n";
-      str += "\n\tToken Supply: " + std::to_string(pair.second.token_supply) + "\n";
-      str += "\n\tDecimals: " + std::to_string(pair.second.decimals) + "\n";
-      str += "\n\tCreated Height: " + std::to_string(pair.second.created_height) + "\n";
-      str += "\n\tTicker: " + pair.second.ticker + "\n";
-    }
-
-    logger(logging::INFO) << "Blockchain Token Map: \n" << str;
-  }
-
   return true;
 }

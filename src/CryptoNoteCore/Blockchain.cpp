@@ -7,7 +7,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "Blockchain.h"
-#include "CryptoNote.h"
 
 #include <algorithm>
 #include <numeric>
@@ -223,8 +222,8 @@ namespace cn
       logger(INFO) << operation << "deposit index";
       s(m_bs.m_depositIndex, "deposit_index");
 
-      logger(INFO) << operation << "token index";
-      s(m_bs.m_token_outputs, "token_outputs");
+      logger(INFO) << operation << "token outputs";
+      s(m_bs.m_tokenOutputs, "token_outputs");
 
       auto dur = std::chrono::steady_clock::now() - start;
 
@@ -628,8 +627,7 @@ namespace cn
     m_spent_keys.clear();
     m_outputs.clear();
     m_multisignatureOutputs.clear();
-    m_token_outputs.clear();
-
+    m_tokenOutputs.clear();
     for (uint32_t b = 0; b < m_blocks.size(); ++b)
     {
       if (b % 1000 == 0)
@@ -660,10 +658,10 @@ namespace cn
             const auto &out = boost::get<MultisignatureInput>(i);
             m_multisignatureOutputs[out.amount][out.outputIndex].isUsed = true;
           }
-          else if (i.type() == typeid(TokenInput))
+          if (i.type() == typeid(TokenInput))
           {
             const auto &out = boost::get<TokenInput>(i);
-            m_token_outputs[out.amount][out.outputIndex].isUsed = true;
+            m_tokenOutputs[out.amount][out.outputIndex].isUsed = true;
           }
         }
 
@@ -682,30 +680,8 @@ namespace cn
           }
           else if (out.target.type() == typeid(TokenOutput))
           {
-            TokenOutputUsage usage = {
-              transactionIndex,
-              static_cast<uint16_t>(o),
-              true,
-              transaction.tx.token_details.token_id,
-              transaction.tx.token_details.token_supply,
-              transaction.tx.token_details.decimals,
-              transaction.tx.token_details.created_height,
-              transaction.tx.token_details.ticker,
-              transaction.tx.token_details.token_name,
-              transaction.tx.token_details.creators_signature
-            };
-            m_token_outputs[out.amount].push_back(usage);
-
-            uint64_t id = m_token_outputs[out.amount][o].token_id;
-
-            if (id > 0 && id > m_known_token_ids.size())
-            {
-              m_known_token_ids.push_back(id);
-              auto it = m_tokens_map.find(id);
-              if (!(it != m_tokens_map.end())) {
-                m_tokens_map.insert(std::make_pair(id, convert_to_summary(usage)));
-              }
-            }
+            TokenOutputUsage usage = {transactionIndex, static_cast<uint16_t>(o), false};
+            m_tokenOutputs[out.amount].push_back(usage);
           }
         }
 
@@ -713,7 +689,6 @@ namespace cn
       }
 
       pushToDepositIndex(block, interest);
-      pushToDepositIndex(block, m_known_token_ids.size(), true);
     }
 
     std::chrono::duration<double> duration = std::chrono::steady_clock::now() - timePoint;
@@ -735,7 +710,6 @@ namespace cn
       auto block = BlockEntry(m_blocks[b]);
       uint64_t interest = 0;
       uint64_t fee = 0;
-
       for (const auto &transaction : block.transactions)
       {
         uint64_t inAmount = m_currency.getTransactionAllInputsAmount(transaction.tx, block.height);
@@ -745,11 +719,16 @@ namespace cn
         fee += txFee;
         interest += m_currency.calculateTotalTransactionInterest(transaction.tx, b);
 
+        /* 
+        * From here, while checking ever already known transaction, we look for its contained token id.
+        * 0 would always be known as $CCX. This is where we also build up our known token ids
+        * and our token map.
+        */
         if (transaction.tx.token_details.token_id > 0 && transaction.tx.token_details.token_id > m_known_token_ids.size())
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
           m_known_token_ids.push_back(transaction.tx.token_details.token_id);
-          m_tokens_map.insert(std::make_pair(transaction.tx.token_details.token_id, convert_to_summary(transaction.tx)));
+          m_tokens_map.insert(std::make_pair(transaction.tx.token_details.token_id, transaction.tx.token_details));
         }
       }
 
@@ -759,16 +738,13 @@ namespace cn
 
       uint64_t reward;
       int64_t emissionChange;
-
       if (!m_currency.getBlockReward(blocksSizeMedian, block.block_cumulative_size, alreadyGeneratedCoinsPrev, fee, b, reward, emissionChange))
       {
         logger(ERROR, BRIGHT_RED) << "An error occurred while getting the block reward";
         return false;
       }
-
       uint64_t alreadyGeneratedCoins = alreadyGeneratedCoinsPrev + emissionChange + interest;
       block.already_generated_coins = alreadyGeneratedCoins;
-
       m_blocks.replace(b, block);
       alreadyGeneratedCoinsPrev = alreadyGeneratedCoins;
     }
@@ -778,32 +754,6 @@ namespace cn
     storeCache();
     m_blocks.close();
     return m_blocks.open(appendPath(m_config_folder, m_currency.blocksFileName()), appendPath(m_config_folder, m_currency.blockIndexesFileName()), 1024);
-  }
-
-  TokenSummary Blockchain::convert_to_summary(const cn::Transaction &transaction)
-  {
-    TokenSummary tk_details;
-    tk_details.token_id = transaction.token_details.token_id;
-    tk_details.token_supply = transaction.token_details.token_supply;
-    tk_details.decimals = transaction.token_details.decimals;
-    tk_details.created_height = transaction.token_details.created_height;
-    tk_details.ticker = transaction.token_details.ticker;
-    tk_details.token_name = transaction.token_details.token_name;
-    tk_details.creators_signature = transaction.token_details.creators_signature;
-    return tk_details;
-  }
-
-  TokenSummary Blockchain::convert_to_summary(const TokenOutputUsage &out)
-  {
-    TokenSummary tk_details;
-    tk_details.token_id = out.token_id;
-    tk_details.token_supply = out.token_supply;
-    tk_details.decimals = out.decimals;
-    tk_details.created_height = out.created_height;
-    tk_details.ticker = out.ticker;
-    tk_details.token_name = out.token_name;
-    tk_details.creators_signature = out.creators_signature;
-    return tk_details;
   }
 
   bool Blockchain::storeCache()
@@ -842,7 +792,6 @@ namespace cn
     m_spent_keys.clear();
     m_alternative_chains.clear();
     m_outputs.clear();
-    m_token_outputs.clear();
 
     m_paymentIdIndex.clear();
     m_timestampIndex.clear();
@@ -997,12 +946,6 @@ namespace cn
   {
     assert(height < m_blocks.size());
     return m_blocks[height].bl.timestamp;
-  }
-
-  uint64_t Blockchain::circulation_for_token_id(uint64_t token_id)
-  {
-    auto it = m_tokens_map.find(token_id);
-    return it->second.token_supply;
   }
 
   uint64_t Blockchain::getCoinsInCirculation()
@@ -2618,8 +2561,6 @@ namespace cn
     uint64_t fee_summary = 0;
     uint64_t interestSummary = 0;
 
-    std::vector<uint64_t> known_tk_ids = known_token_ids();
-
     for (size_t i = 0; i < transactions.size(); ++i)
     {
       const crypto::Hash &tx_id = blockData.transactionHashes[i];
@@ -2648,6 +2589,18 @@ namespace cn
         logger(INFO, BRIGHT_WHITE) << "Transaction " << tx_id << " has at least one invalid output";
       }
 
+      /* 
+      * From here, while checking the current pushed transaction, we look for its contained token id.
+      * 0 would always be known as $CCX. This is where we also build upon our currently known token ids
+      * and our token map found from syncing.
+      */
+      uint64_t token_id = transactions[i].token_details.token_id;
+      if (token_id > 0 && token_id > m_known_token_ids.size())
+      {
+        m_tokens_map.insert(std::make_pair(token_id, transactions[i].token_details));
+        m_known_token_ids.push_back(token_id);
+      }
+
       if (!isTransactionValid)
       {
         logger(INFO, BRIGHT_WHITE) << "Block " << blockHash << " has at least one invalid transaction: " << tx_id;
@@ -2658,13 +2611,6 @@ namespace cn
         return false;
       }
 
-      uint64_t token_id = transactions[i].token_details.token_id;
-      if (token_id > 0 && token_id > known_tk_ids.size())
-      {
-        m_tokens_map.insert(std::make_pair(token_id, convert_to_summary(transactions[i])));
-        known_tk_ids.push_back(token_id);
-      }
-
       ++transactionIndex.transaction;
       pushTransaction(block, tx_id, transactionIndex);
 
@@ -2672,8 +2618,6 @@ namespace cn
       fee_summary += fee;
       interestSummary += m_currency.calculateTotalTransactionInterest(transactions[i], block.height);
     }
-
-    m_known_token_ids = known_tk_ids;
 
     if (!checkCumulativeBlockSize(blockHash, cumulative_block_size, block.height))
     {
@@ -2703,7 +2647,6 @@ namespace cn
 
     pushBlock(block);
     pushToDepositIndex(block, interestSummary);
-    pushToDepositIndex(block, known_tk_ids.size(), true);
 
     auto block_processing_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - blockProcessingStart).count();
 
@@ -2732,38 +2675,6 @@ namespace cn
     return m_depositIndex.fullDepositAmount();
   }
 
-  uint64_t Blockchain::known_token_ids_amount() const
-  {
-    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
-    return m_token_index.known_token_ids();
-  }
-
-  bool Blockchain::is_within_token_id_range(uint64_t token_id) const
-  {
-    // rather than checking if the id given is larger than the currently known
-    // on chain, it is probably safer to find it
-    auto it = m_token_outputs.find(token_id);
-    if (it == m_token_outputs.end())
-    {
-      logger(WARNING, YELLOW) << "token id cannot be found = " << token_id;
-      return false;
-    }
-
-    return true;
-  }
-
-  std::vector<uint64_t> Blockchain::known_token_ids() const
-  {
-    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
-    return m_known_token_ids;
-  }
-  
-  std::map<uint64_t, TokenSummary> Blockchain::get_token_map() const
-  {
-    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
-    return m_tokens_map;
-  }
-
   uint64_t Blockchain::depositAmountAtHeight(size_t height) const
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
@@ -2776,12 +2687,9 @@ namespace cn
     return m_depositIndex.depositInterestAtHeight(static_cast<DepositIndex::DepositHeight>(height));
   }
 
-  // TODO rename to "pushToIndexes"
-  void Blockchain::pushToDepositIndex(const BlockEntry &block, uint64_t interest_or_id, bool is_token)
+  void Blockchain::pushToDepositIndex(const BlockEntry &block, uint64_t interest)
   {
     int64_t deposit = 0;
-    uint64_t token = 0;
-
     for (const auto &tx : block.transactions)
     {
       for (const auto &in : tx.tx.inputs)
@@ -2792,13 +2700,6 @@ namespace cn
           if (multisign.term > 0)
           {
             deposit -= multisign.amount;
-          }
-        } else if (in.type() == typeid(TokenInput))
-        {
-          auto &token_in = boost::get<TokenInput>(in);
-          if (token_in.token_id > 0)
-          {
-            token -= token_in.amount;
           }
         }
       }
@@ -2811,20 +2712,10 @@ namespace cn
           {
             deposit += out.amount;
           }
-        } else if (out.target.type() == typeid(TokenOutput))
-        {
-          auto &token_out = boost::get<TokenOutput>(out.target);
-          if (token_out.token_id > 0)
-          {
-            token += out.amount;
-          }
         }
       }
     }
-    if (is_token)
-      m_token_index.pushBlock(token, interest_or_id);
-    else
-      m_depositIndex.pushBlock(deposit, interest_or_id);
+    m_depositIndex.pushBlock(deposit, interest);
   }
 
   bool Blockchain::pushBlock(const BlockEntry &block)
@@ -2926,10 +2817,11 @@ namespace cn
         auto &amountOutputs = m_multisignatureOutputs[in.amount];
         amountOutputs[in.outputIndex].isUsed = true;
       }
-      else if (inv.type() == typeid(TokenInput))
+
+      if (inv.type() == typeid(TokenInput))
       {
         const TokenInput &in = ::boost::get<TokenInput>(inv);
-        auto &amountOutputs = m_token_outputs[in.amount];
+        auto &amountOutputs = m_tokenOutputs[in.amount];
         amountOutputs[in.outputIndex].isUsed = true;
       }
     }
@@ -2952,20 +2844,9 @@ namespace cn
       }
       else if (transaction.tx.outputs[output].target.type() == typeid(TokenOutput))
       {
-        auto &amountOutputs = m_token_outputs[transaction.tx.outputs[output].amount];
+        auto &amountOutputs = m_tokenOutputs[transaction.tx.outputs[output].amount];
         transaction.m_global_output_indexes[output] = static_cast<uint32_t>(amountOutputs.size());
-        TokenOutputUsage outputUsage = {
-          transactionIndex,
-          static_cast<uint16_t>(output),
-          true,
-          transaction.tx.token_details.token_id,
-          transaction.tx.token_details.token_supply,
-          transaction.tx.token_details.decimals,
-          transaction.tx.token_details.created_height,
-          transaction.tx.token_details.ticker,
-          transaction.tx.token_details.token_name,
-          transaction.tx.token_details.creators_signature
-        };
+        TokenOutputUsage outputUsage = {transactionIndex, static_cast<uint16_t>(output), false};
         amountOutputs.push_back(outputUsage);
       }
     }
@@ -3064,8 +2945,8 @@ namespace cn
       }
       else if (output.target.type() == typeid(TokenOutput))
       {
-        auto amountOutputs = m_token_outputs.find(output.amount);
-        if (amountOutputs == m_token_outputs.end())
+        auto amountOutputs = m_tokenOutputs.find(output.amount);
+        if (amountOutputs == m_tokenOutputs.end())
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - cannot find specific amount in outputs map.";
 
@@ -3100,17 +2981,10 @@ namespace cn
           continue;
         }
 
-        if (amountOutputs->second.back().token_id == 0)
-        {
-          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - attempting to remove invalid token id output.";
-
-          continue;
-        }
-
         amountOutputs->second.pop_back();
         if (amountOutputs->second.empty())
         {
-          m_token_outputs.erase(amountOutputs);
+          m_tokenOutputs.erase(amountOutputs);
         }
       }
     }
@@ -3139,15 +3013,10 @@ namespace cn
       else if (input.type() == typeid(TokenInput))
       {
         const TokenInput &in = ::boost::get<TokenInput>(input);
-        auto &amountOutputs = m_token_outputs[in.amount];
+        auto &amountOutputs = m_tokenOutputs[in.amount];
         if (!amountOutputs[in.outputIndex].isUsed)
         {
           logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output not marked as used.";
-        }
-
-        if (!amountOutputs[in.outputIndex].token_id == 0)
-        {
-          logger(ERROR, BRIGHT_RED) << "Blockchain consistency broken - token output id is invalid.";
         }
 
         amountOutputs[in.outputIndex].isUsed = false;
@@ -3393,27 +3262,6 @@ namespace cn
     return true;
   }
 
-  bool Blockchain::getTokenOutputReference(const TokenInput &txInToken, std::pair<crypto::Hash, size_t> &outputReference)
-  {
-    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
-    TokenOutputsContainer::const_iterator amountIter = m_token_outputs.find(txInToken.amount);
-    if (amountIter == m_token_outputs.end())
-    {
-      logger(DEBUGGING) << "Transaction contains token input with invalid amount.";
-      return false;
-    }
-    if (amountIter->second.size() <= txInToken.outputIndex)
-    {
-      logger(DEBUGGING) << "Transaction contains token input with invalid outputIndex.";
-      return false;
-    }
-    const TokenOutputUsage &outputIndex = amountIter->second[txInToken.outputIndex];
-    const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
-    outputReference.first = getObjectHash(outputTransaction);
-    outputReference.second = outputIndex.outputIndex;
-    return true;
-  }
-
   bool Blockchain::storeBlockchainIndices()
   {
     std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
@@ -3556,6 +3404,18 @@ namespace cn
   bool Blockchain::isInCheckpointZone(const uint32_t height) const
   {
     return m_checkpoints.is_in_checkpoint_zone(height);
+  }
+
+  std::vector<uint64_t> Blockchain::known_token_ids() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_known_token_ids;
+  }
+
+  std::map<uint64_t, TokenBase> Blockchain::get_token_map() const
+  {
+    std::lock_guard<decltype(m_blockchain_lock)> lk(m_blockchain_lock);
+    return m_tokens_map;
   }
 
 } // namespace cn

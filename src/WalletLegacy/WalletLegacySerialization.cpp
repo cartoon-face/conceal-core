@@ -10,7 +10,6 @@
 #include "WalletLegacy/WalletDepositInfo.h"
 #include "WalletLegacy/WalletUnconfirmedTransactions.h"
 #include "IWalletLegacy.h"
-#include "IToken.h"
 
 #include "CryptoNoteCore/CryptoNoteSerialization.h"
 #include "Serialization/ISerializer.h"
@@ -37,6 +36,16 @@ void serialize(UnconfirmedSpentDepositDetails& details, ISerializer& serializer)
 
   serializer(details.depositsSum, "depositsSum");
   serializer(details.fee, "fee");
+}
+
+void serialize(UnconfirmedSpentTokenDetails& details, ISerializer& serializer) {
+  uint64_t txId = details.transactionId;
+  serializer(txId, "spendingTransactionId");
+  details.transactionId = txId;
+
+  serializer(details.ccxSum, "ccxSum");
+  serializer(details.fee, "fee");
+  serializer(details.token_details, "token_details");
 }
 
 void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
@@ -85,12 +94,6 @@ void serialize(WalletLegacyTransfer& tr, cn::ISerializer& serializer) {
   serializer(tr.amount, "amount");
 }
 
-void serialize(TokenTransfer& tr, cn::ISerializer& serializer) {
-  serializer(tr.address, "address");
-  serializer(tr.amount, "amount");
-  serializer(tr.token_details, "token_details");
-}
-
 void serialize(Deposit& deposit, cn::ISerializer& serializer) {
   uint64_t creatingTxId = static_cast<uint64_t>(deposit.creatingTransactionId);
   serializer(creatingTxId, "creating_transaction_id");
@@ -111,24 +114,23 @@ void serialize(DepositInfo& depositInfo, cn::ISerializer& serializer) {
   serializer(depositInfo.outputInTransaction, "output_in_transaction");
 }
 
-void serialize(TokenTxInfo& token_info, cn::ISerializer& serializer) {
-  serializer(token_info.token, "token");
-  serializer(token_info.output_in_transaction, "output_in_transaction");
-}
+void serialize(Token& token, cn::ISerializer& serializer) {
+  uint64_t token_generate_tx_id = static_cast<uint64_t>(token.token_generate_tx_id);
+  serializer(token_generate_tx_id, "creating_transaction_id");
+  token.token_generate_tx_id = static_cast<size_t>(token_generate_tx_id);
 
-void serialize(TokenTransactionDetails& token_details, cn::ISerializer& serializer) {
-  serializer(token_details.transaction_id, "token");
-  serializer(token_details.ccx_amount, "ccx_amount");
-  serializer(token_details.height_sent, "height_sent");
-  serializer(token_details.token_amount, "token_amount");
-  serializer(token_details.token_id, "token_id");
-  serializer(token_details.decimals, "decimals");
-  serializer(token_details.is_creation, "is_creation");
-  serializer(token_details.ticker, "ticker");
-  serializer(token_details.token_name, "token_name");
-  serializer(token_details.outputInTransaction, "outputInTransaction");
-  serializer(token_details.transactionHash, "transactionHash");
-  serializer(token_details.address, "address");
+  uint64_t spendingTxIx = static_cast<uint64_t>(token.spending_tx_id);
+  serializer(spendingTxIx, "spending_transaction_id");
+  token.spending_tx_id = static_cast<size_t>(spendingTxIx);
+
+  serializer(token.ccx_amount, "ccx_amount");
+  serializer(token.height, "height");
+  serializer(token.unlockHeight, "unlockHeight");
+  serializer(token.locked, "locked");
+  serializer(token.outputInTransaction, "outputInTransaction");
+  serializer(token.transactionHash, "transactionHash");
+  serializer(token.address, "address");
+  serializer(token.token_details, "token_details");
 }
 
 } //namespace cn

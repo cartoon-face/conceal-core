@@ -504,6 +504,13 @@ size_t WalletLegacy::getDepositCount() {
   return m_transactionsCache.getDepositCount();
 }
 
+size_t WalletLegacy::getTokenTxCount() {
+  std::unique_lock<std::mutex> lock(m_cacheMutex);
+  throwIfNotInitialised();
+
+  return m_transactionsCache.getTokenTxCount();
+}
+
 TransactionId WalletLegacy::findTransactionByTransferId(TransferId transferId) {
   std::unique_lock<std::mutex> lock(m_cacheMutex);
   throwIfNotInitialised();
@@ -521,12 +528,7 @@ bool WalletLegacy::getTransaction(TransactionId transactionId, WalletLegacyTrans
 bool WalletLegacy::getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) {
   std::unique_lock<std::mutex> lock(m_cacheMutex);
   throwIfNotInitialised();
-  return m_transactionsCache.getTransfer(transferId, transfer);
-}
 
-bool WalletLegacy::getTransfer(TransferId transferId, TokenTransfer& transfer) {
-  std::unique_lock<std::mutex> lock(m_cacheMutex);
-  throwIfNotInitialised();
   return m_transactionsCache.getTransfer(transferId, transfer);
 }
 
@@ -547,67 +549,6 @@ std::vector<TransactionOutputInformation> WalletLegacy::getUnspentOutputs() {
   std::vector<TransactionOutputInformation> outputs;
   m_transferDetails->getOutputs(outputs, ITransfersContainer::IncludeKeyUnlocked);
   return outputs;
-}
-
-TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer)
-{
-  std::vector<TokenTransfer> token_transfers;
-  token_transfers.push_back(token_transfer);
-  throwIfNotInitialised();
-
-  return send_token_transaction(transactionSK, token_transfers);
-}
-
-TransactionId WalletLegacy::send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers)
-{
-  TransactionId txId = 0;
-  std::unique_ptr<WalletRequest> request;
-  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
-  throwIfNotInitialised();
-
-  { 
-    std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->make_token_send_request(transactionSK, txId, events, token_transfers);
-
-    if (request != nullptr) {
-      pushBalanceUpdatedEvents(events);
-    }
-  }
-
-  notifyClients(events);
-
-  if (request) {
-    m_asyncContextCounter.addAsyncContext();
-    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
-  }
-
-  return txId;
-}
-
-TransactionId WalletLegacy::token_transaction(TokenSummary& token_details)
-{
-  TransactionId txId = 0;
-  std::unique_ptr<WalletRequest> request;
-  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
-  throwIfNotInitialised();
-
-  {
-    std::unique_lock<std::mutex> lock(m_cacheMutex);
-    request = m_sender->token_send_request(txId, events, token_details);
-
-    if (request != nullptr) {
-      pushBalanceUpdatedEvents(events);
-    }
-  }
-
-  notifyClients(events);
-
-  if (request) {
-    m_asyncContextCounter.addAsyncContext();
-    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
-  }
-  
-  return txId;
 }
 
 TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
@@ -663,6 +604,38 @@ TransactionId WalletLegacy::sendTransaction(crypto::SecretKey& transactionSK,
   {
     std::unique_lock<std::mutex> lock(m_cacheMutex);
     request = m_sender->makeSendRequest(transactionSK, optimize, txId, events, transfers, fee, extra, mixIn, unlockTimestamp, messages, ttl);
+  }
+
+  notifyClients(events);
+
+  if (request) {
+    m_asyncContextCounter.addAsyncContext();
+    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
+  }
+  return txId;
+}
+
+TransactionId WalletLegacy::transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+  const WalletLegacyTransfer& transfer)
+{
+  std::vector<WalletLegacyTransfer> transfers;
+  transfers.push_back(transfer);
+  throwIfNotInitialised();
+
+  return transfer_token(token_id, token_amount, transactionSK, transfer);
+}
+
+TransactionId WalletLegacy::transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+  const std::vector<WalletLegacyTransfer>& transfers) 
+{
+  TransactionId txId = 0;
+  std::unique_ptr<WalletRequest> request;
+  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
+  throwIfNotInitialised();
+
+  {
+    std::unique_lock<std::mutex> lock(m_cacheMutex);
+    request = m_sender->make_send_token_request(transactionSK, txId, events, transfers, token_id, token_amount);
   }
 
   notifyClients(events);
@@ -841,6 +814,58 @@ TransactionId WalletLegacy::sendFusionTransaction(const std::list<TransactionOut
   notifyClients(events);
 
   if (request) {
+    m_asyncContextCounter.addAsyncContext();
+    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
+  }
+
+  return txId;
+}
+
+TransactionId WalletLegacy::create_token(TokenBase token_details) {
+  throwIfNotInitialised();
+
+  TransactionId txId = 0;
+  std::unique_ptr<WalletRequest> request;
+  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
+
+  {
+    std::unique_lock<std::mutex> lock(m_cacheMutex);
+    request = m_sender->make_create_token_request(txId, events, token_details);
+
+    if (request != nullptr) {
+      pushBalanceUpdatedEvents(events, token_details.token_id);
+    }
+  }
+
+  notifyClients(events);
+
+  if (request) {
+    m_asyncContextCounter.addAsyncContext();
+    request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
+  }
+
+  return txId;
+}
+
+TransactionId WalletLegacy::withdraw_created_token(const uint64_t& token_id) {
+  throwIfNotInitialised();
+
+  TransactionId txId = 0;
+  std::unique_ptr<WalletRequest> request;
+  std::deque<std::unique_ptr<WalletLegacyEvent>> events;
+
+  {
+    std::unique_lock<std::mutex> lock(m_cacheMutex);
+    request = m_sender->make_withdraw_created_token_request(txId, events, token_id);
+
+    if (request != nullptr) {
+      pushBalanceUpdatedEvents(events, token_id);
+    }
+  }
+
+  notifyClients(events);
+
+  if (request != nullptr) {
     m_asyncContextCounter.addAsyncContext();
     request->perform(m_node, std::bind(&WalletLegacy::sendTransactionCallback, this, std::placeholders::_1, std::placeholders::_2));
   }
@@ -1233,34 +1258,11 @@ std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingInvestmentBalanceChan
 
 
 
-std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualTokenBalanceChangedEvent(uint64_t token_id) {
+
+
+
+std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualBalanceChangedEvent(uint64_t token_id) {
   auto actual = calculateActualBalance(token_id);
-  auto prevActual = m_lastNotifiedActualTokenBalance.exchange(actual);
-
-  std::unique_ptr<WalletLegacyEvent> event;
-
-  if (actual != prevActual) {
-    event = std::unique_ptr<WalletLegacyEvent>(new wallet_actual_token_balance_updated_event(actual, token_id));
-  }
-
-  return event;
-}
-
-std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingTokenBalanceChangedEvent(uint64_t token_id) {
-  auto pending = calculatePendingBalance(token_id);
-  auto prevPending = m_lastNotifiedActualTokenBalance.exchange(pending);
-
-  std::unique_ptr<WalletLegacyEvent> event;
-
-  if (pending != prevPending) {
-    event = std::unique_ptr<WalletLegacyEvent>(new wallet_pending_token_balance_updated_event(pending, token_id));
-  }
-
-  return event;
-}
-
-std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualBalanceChangedEvent() {
-  auto actual = calculateActualBalance();
   auto prevActual = m_lastNotifiedActualBalance.exchange(actual);
 
   std::unique_ptr<WalletLegacyEvent> event;
@@ -1272,8 +1274,8 @@ std::unique_ptr<WalletLegacyEvent> WalletLegacy::getActualBalanceChangedEvent() 
   return event;
 }
 
-std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingBalanceChangedEvent() {
-  auto pending = calculatePendingBalance();
+std::unique_ptr<WalletLegacyEvent> WalletLegacy::getPendingBalanceChangedEvent(uint64_t token_id) {
+  auto pending = calculatePendingBalance(token_id);
   auto prevPending = m_lastNotifiedPendingBalance.exchange(pending);
 
   std::unique_ptr<WalletLegacyEvent> event;
@@ -1351,38 +1353,25 @@ uint64_t WalletLegacy::calculatePendingInvestmentBalance() {
 }
 
 uint64_t WalletLegacy::calculateActualBalance(uint64_t token_id) {
-  if (token_id > 0)
-  {
-    return m_transferDetails->balance(ITransfersContainer::IncludeTokenUnlocked) -
-      m_transactionsCache.unconfrimedOutsAmount(token_id);
-  }
-  else
-  {
-    return m_transferDetails->balance(ITransfersContainer::IncludeKeyUnlocked) -
-      m_transactionsCache.unconfrimedOutsAmount();
-  }
+  return m_transferDetails->balance(ITransfersContainer::IncludeKeyUnlocked, token_id) -
+    m_transactionsCache.unconfrimedOutsAmount(token_id);
 }
 
 uint64_t WalletLegacy::calculatePendingBalance(uint64_t token_id) {
-  uint64_t change;
-  uint64_t container;
-
-  if (token_id > 0)
+  uint64_t change = m_transactionsCache.unconfrimedOutsAmount() - m_transactionsCache.unconfirmedTransactionsAmount(token_id);
+  uint64_t container = m_transferDetails->balance(ITransfersContainer::IncludeKeyNotUnlocked, token_id);
+  if (token_id == 0)
   {
-    change = m_transactionsCache.unconfrimedOutsAmount(token_id) - m_transactionsCache.unconfirmedTransactionsAmount(token_id);
-    container = m_transferDetails->balance(ITransfersContainer::IncludeTokenNotUnlocked);
-    return container + change;
+    uint64_t spentDeposits = m_transactionsCache.countUnconfirmedSpentDepositsProfit();
+    return container + change + spentDeposits;
   }
   else
   {
-    change = m_transactionsCache.unconfrimedOutsAmount() - m_transactionsCache.unconfirmedTransactionsAmount();
-    uint64_t spentDeposits = m_transactionsCache.countUnconfirmedSpentDepositsProfit();
-    container = m_transferDetails->balance(ITransfersContainer::IncludeKeyNotUnlocked);
-    return container + change + spentDeposits;
+    return container + change;
   }
 }
 
-void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue) {
+void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue, uint64_t token_id) {
   auto actualDepositBalanceUpdated = getActualDepositBalanceChangedEvent();
   if (actualDepositBalanceUpdated != nullptr) {
     eventsQueue.push_back(std::move(actualDepositBalanceUpdated));
@@ -1413,18 +1402,14 @@ void WalletLegacy::pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLeg
     eventsQueue.push_back(std::move(pendingBalanceUpdated));
   }
 
-  m_known_token_ids = m_transactionsCache.get_known_token_ids();
-  for (auto known_tids : m_known_token_ids)
-  {
-    auto actualTokenBalanceUpdated = getActualTokenBalanceChangedEvent(known_tids);
-    if (actualTokenBalanceUpdated != nullptr) {
-      eventsQueue.push_back(std::move(actualTokenBalanceUpdated));
-    }
+  auto actualTokenBalanceUpdated = getActualBalanceChangedEvent(token_id);
+  if (actualTokenBalanceUpdated != nullptr) {
+    eventsQueue.push_back(std::move(actualTokenBalanceUpdated));
+  }
 
-    auto pendingTokenBalanceUpdated = getPendingTokenBalanceChangedEvent(known_tids);
-    if (pendingTokenBalanceUpdated != nullptr) {
-      eventsQueue.push_back(std::move(pendingTokenBalanceUpdated));
-    }
+  auto pendingTokenBalanceUpdated = getPendingBalanceChangedEvent(token_id);
+  if (pendingTokenBalanceUpdated != nullptr) {
+    eventsQueue.push_back(std::move(pendingTokenBalanceUpdated));
   }
 }
 

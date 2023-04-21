@@ -54,7 +54,7 @@ public:
   }
 
 private:
-  cn::Block block;
+  Block block;
   std::vector<Transaction> transactions;
 
   friend class core;
@@ -204,11 +204,6 @@ size_t core::addChain(const std::vector<const IBlock*>& chain) {
       size_t blobSize = 0;
       getObjectHash(tx, txHash, blobSize);
       tx_verification_context tvc = boost::value_initialized<tx_verification_context>();
-
-      if (tx.token_details.token_id > 0 && tx.token_details.token_amount > 0)
-      {
-        logger(INFO) << "Token transaction found:" << txHash;
-      }
 
       if (!handleIncomingTransaction(tx, txHash, blobSize, tvc, true, get_block_height(block->getBlock()))) {
         logger(ERROR, BRIGHT_RED) << "core::addChain() failed to handle transaction " << txHash << " from block " << blocksCounter << "/" << chain.size();
@@ -380,15 +375,15 @@ bool core::get_block_template(Block& b, const AccountPublicAddress& adr, difficu
     b = boost::value_initialized<Block>();
     b.majorVersion = m_blockchain.get_block_major_version_for_height(height);
 
-    if (b.majorVersion < BLOCK_MAJOR_VERSION_7) {
+	if (b.majorVersion < BLOCK_MAJOR_VERSION_7) {
       if (b.majorVersion == BLOCK_MAJOR_VERSION_1) {
         b.minorVersion = m_currency.upgradeHeight(BLOCK_MAJOR_VERSION_2) == UpgradeDetectorBase::UNDEF_HEIGHT ? BLOCK_MINOR_VERSION_1 : BLOCK_MINOR_VERSION_0;
       } else {
         b.minorVersion = m_currency.upgradeHeight(BLOCK_MAJOR_VERSION_3) == UpgradeDetectorBase::UNDEF_HEIGHT ? BLOCK_MINOR_VERSION_1 : BLOCK_MINOR_VERSION_0;
       }
     } else {
-      b.minorVersion = BLOCK_MINOR_VERSION_0;
-    }
+		b.minorVersion = BLOCK_MINOR_VERSION_0;
+	}
 
     b.previousBlockHash = get_tail_id();
     b.timestamp = time(NULL);
@@ -969,10 +964,6 @@ bool core::getMultisigOutputReference(const MultisignatureInput& txInMultisig, s
   return m_blockchain.getMultisigOutputReference(txInMultisig, outputReference);
 }
 
-bool core::getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference) {
-  return m_blockchain.getTokenOutputReference(txInToken, outputReference);
-}
-
 bool core::getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) {
   return m_blockchain.getGeneratedTransactionsNumber(height, generatedTransactions);
 }
@@ -1065,21 +1056,12 @@ uint64_t core::getTotalGeneratedAmount() {
   return m_blockchain.getCoinsInCirculation();
 }
 
-uint64_t core::circulation_for_token_id(uint64_t token_id)
-{
-  return m_blockchain.circulation_for_token_id(token_id);
-}
-
 uint64_t core::fullDepositAmount() const {
   return m_blockchain.fullDepositAmount();
 }
 
 uint64_t core::depositAmountAtHeight(size_t height) const {
   return m_blockchain.depositAmountAtHeight(height);
-}
-
-uint64_t core::known_token_ids_amount() const {
-  return m_blockchain.known_token_ids_amount();
 }
 
 uint64_t core::depositInterestAtHeight(size_t height) const {
@@ -1157,7 +1139,7 @@ std::vector<uint64_t> core::known_token_ids() {
   return m_blockchain.known_token_ids();
 }
 
-std::map<uint64_t, TokenSummary> core::get_token_map() const {
+std::map<uint64_t, TokenBase> core::get_token_map() {
   return m_blockchain.get_token_map();
 }
 

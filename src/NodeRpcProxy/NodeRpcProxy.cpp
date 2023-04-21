@@ -303,11 +303,27 @@ uint64_t NodeRpcProxy::getLastLocalBlockTimestamp() const {
   return m_lastLocalBlockTimestamp;
 }
 
+std::vector<uint64_t> NodeRpcProxy::get_known_token_ids() const {
+  return m_known_token_ids;
+}
+
+std::map<uint64_t, TokenBase> NodeRpcProxy::get_token_map() const {
+  return m_tokens_map;
+}
+
 void NodeRpcProxy::relayTransaction(const cn::Transaction& transaction, const Callback& callback) {
   std::lock_guard<std::mutex> lock(m_mutex);
   if (m_state != STATE_INITIALIZED) {
     callback(make_error_code(error::NOT_INITIALIZED));
     return;
+  }
+
+  // TODO I dont think getTransaction is implemented correctly so we can get token data from relayed txs.
+  // We should verify new on-chain data in the frontend
+  if (transaction.token_details.token_id > 0 && transaction.token_details.token_id > m_known_token_ids.size())
+  {
+    m_known_token_ids.push_back(transaction.token_details.token_id);
+    m_tokens_map.insert(std::make_pair(transaction.token_details.token_id, transaction.token_details));
   }
 
   scheduleRequest(std::bind(&NodeRpcProxy::doRelayTransaction, this, transaction), callback);
@@ -426,23 +442,6 @@ void NodeRpcProxy::getTransactions(const std::vector<crypto::Hash>& transactionH
   if (m_state != STATE_INITIALIZED) {
     callback(make_error_code(error::NOT_INITIALIZED));
     return;
-  }
-
-  for (auto& tx : transactions) {
-    if (tx.token_details.token_id > 0 && tx.token_details.token_id > m_known_token_ids.size())
-    {
-      TokenSummary tk_details;
-      tk_details.token_id = tx.token_details.token_id;
-      tk_details.token_amount = tx.token_details.token_amount;
-      tk_details.decimals = tx.token_details.decimals;
-      tk_details.created_height = tx.token_details.created_height;
-      tk_details.ticker = tx.token_details.ticker;
-      tk_details.token_name = tx.token_details.token_name;
-      tk_details.creators_signature = tx.token_details.creators_signature;
-
-      m_tokens_map.insert(std::make_pair(tx.token_details.token_id, tk_details));
-      m_known_token_ids.push_back(tx.token_details.token_id);
-    }
   }
 
   // TODO NOT IMPLEMENTED

@@ -351,18 +351,14 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
       const TokenOutput& tokenOutput = ::boost::get<TokenOutput>(out.target);
       if (tokenOutput.requiredSignatureCount > tokenOutput.keys.size()) {
         if (error) {
-          *error = "Token output with invalid required signature count";
+          *error = "token output with invalid required signature count";
         }
-        return false;
-      }
-      if (tokenOutput.token_amount == 0 || tokenOutput.token_id == 0) {
-        *error = "Transaction contains token output but its token id or amount is 0";
         return false;
       }
       for (const PublicKey& key : tokenOutput.keys) {
         if (!check_key(key)) {
           if (error) {
-            *error = "Token output with invalid public key";
+            *error = "token output with invalid public key";
           }
           return false;
         }
@@ -386,9 +382,7 @@ bool checkMultisignatureInputsDiff(const TransactionPrefix& tx) {
       if (!inputsUsage.insert(std::make_pair(in.amount, in.outputIndex)).second) {
         return false;
       }
-    }
-    else if (inv.type() == typeid(TokenInput))
-    {
+    } else if (inv.type() == typeid(TokenInput)) {
       const TokenInput& in = ::boost::get<TokenInput>(inv);
       if (!inputsUsage.insert(std::make_pair(in.amount, in.outputIndex)).second) {
         return false;
@@ -410,6 +404,9 @@ bool check_inputs_overflow(const TransactionPrefix &tx) {
 
     if (in.type() == typeid(KeyInput)) {
       amount = boost::get<KeyInput>(in).amount;
+    }
+    else if (in.type() == typeid(TokenInput)) {
+      amount = boost::get<TokenInput>(in).amount;
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
       if (boost::get<MultisignatureInput>(in).term != 0) {

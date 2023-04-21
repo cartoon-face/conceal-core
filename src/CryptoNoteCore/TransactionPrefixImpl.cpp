@@ -6,7 +6,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "ITransaction.h"
-#include "IToken.h"
 
 #include <numeric>
 #include <system_error>
@@ -32,7 +31,6 @@ public:
   virtual Hash getTransactionInputsHash() const override;
   virtual PublicKey getTransactionPublicKey() const override;
   virtual uint64_t getUnlockTime() const override;
-  virtual TokenSummary get_token_details() const override;
 
   // extra
   virtual bool getPaymentId(Hash& paymentId) const override;
@@ -45,7 +43,7 @@ public:
   virtual transaction_types::InputType getInputType(size_t index) const override;
   virtual void getInput(size_t index, KeyInput& input) const override;
   virtual void getInput(size_t index, MultisignatureInput& input) const override;
-  virtual void getInput(size_t index, TokenInput& input, TokenSummary& token_details) const override;
+  virtual void getInput(size_t index, TokenInput& input) const override;
   virtual std::vector<TransactionInput> getInputs() const override;
 
   // outputs
@@ -54,7 +52,7 @@ public:
   virtual transaction_types::OutputType getOutputType(size_t index) const override;
   virtual void getOutput(size_t index, KeyOutput& output, uint64_t& amount) const override;
   virtual void getOutput(size_t index, MultisignatureOutput& output, uint64_t& amount) const override;
-  virtual void getOutput(size_t index, TokenOutput& output, uint64_t& amount, TokenSummary& token_details) const override;
+  virtual void getOutput(size_t index, TokenOutput& output, TokenBase& token) const override;
 
   // signatures
   virtual size_t getRequiredSignaturesCount(size_t inputIndex) const override;
@@ -109,19 +107,6 @@ uint64_t TransactionPrefixImpl::getUnlockTime() const {
   return m_txPrefix.unlockTime;
 }
 
-TokenSummary TransactionPrefixImpl::get_token_details() const
-{
-  TokenSummary tk_details;
-  tk_details.token_id = m_txPrefix.token_details.token_id;
-  tk_details.token_supply = m_txPrefix.token_details.token_supply;
-  tk_details.decimals = m_txPrefix.token_details.decimals;
-  tk_details.created_height = m_txPrefix.token_details.created_height;
-  tk_details.ticker = m_txPrefix.token_details.ticker;
-  tk_details.token_name = m_txPrefix.token_details.token_name;
-  tk_details.creators_signature = m_txPrefix.token_details.creators_signature;
-  return tk_details;
-}
-
 bool TransactionPrefixImpl::getPaymentId(Hash& hash) const {
   BinaryArray nonce;
 
@@ -172,8 +157,8 @@ void TransactionPrefixImpl::getInput(size_t index, MultisignatureInput& input) c
   input = boost::get<MultisignatureInput>(getInputChecked(m_txPrefix, index, transaction_types::InputType::Multisignature));
 }
 
-void TransactionPrefixImpl::getInput(size_t index, TokenInput& input, TokenSummary& token_details) const {
-  input = boost::get<TokenInput>(getInputChecked(m_txPrefix, index, transaction_types::InputType::Token, token_details));
+void TransactionPrefixImpl::getInput(size_t index, TokenInput& input) const {
+  input = boost::get<TokenInput>(getInputChecked(m_txPrefix, index, transaction_types::InputType::Token));
 }
 
 size_t TransactionPrefixImpl::getOutputCount() const {
@@ -206,11 +191,10 @@ void TransactionPrefixImpl::getOutput(size_t index, MultisignatureOutput& output
   amount = out.amount;
 }
 
-void TransactionPrefixImpl::getOutput(size_t index, TokenOutput& output, uint64_t& amount, TokenSummary& token_details) const {
-  const auto& out = getOutputChecked(m_txPrefix, index, transaction_types::OutputType::Token, token_details);
+void TransactionPrefixImpl::getOutput(size_t index, TokenOutput& output, TokenBase& token) const {
+  const auto& out = getOutputChecked(m_txPrefix, index, transaction_types::OutputType::Token, token);
   output = boost::get<TokenOutput>(out.target);
-  amount = out.amount;
-  token_details = get_token_details();
+  //amount = out.amount;
 }
 
 size_t TransactionPrefixImpl::getRequiredSignaturesCount(size_t inputIndex) const {
@@ -225,7 +209,6 @@ bool TransactionPrefixImpl::validateInputs() const {
   return check_inputs_types_supported(m_txPrefix) &&
           check_inputs_overflow(m_txPrefix) &&
           checkInputsKeyimagesDiff(m_txPrefix) &&
-          // we check for token inputs in this func
           checkMultisignatureInputsDiff(m_txPrefix);
 }
 

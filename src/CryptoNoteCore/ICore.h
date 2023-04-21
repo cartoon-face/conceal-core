@@ -13,6 +13,7 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include <CryptoNote.h>
 #include "CryptoNoteCore/Difficulty.h"
@@ -37,8 +38,8 @@ struct BlockShortInfo;
 struct core_stat_info;
 struct i_cryptonote_protocol;
 struct Transaction;
-struct TokenInput;
 struct MultisignatureInput;
+struct TokenInput;
 struct KeyInput;
 struct TransactionPrefixInfo;
 struct tx_verification_context;
@@ -52,8 +53,6 @@ public:
   virtual bool addObserver(ICoreObserver* observer) = 0;
   virtual bool removeObserver(ICoreObserver* observer) = 0;
   virtual bool saveBlockchain() = 0;
-
-  virtual std::vector<uint64_t> known_token_ids() = 0;
 
   virtual bool have_block(const crypto::Hash& id) = 0;
   virtual std::vector<crypto::Hash> buildSparseChain() = 0;
@@ -104,7 +103,6 @@ public:
   virtual bool getBlockTimestamp(uint32_t height, uint64_t &timestamp) = 0;
   virtual bool getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId, uint32_t& blockHeight) = 0;
   virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& outputReference) = 0;
-  virtual bool getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& outputReference) = 0;
   virtual bool getTransaction(const crypto::Hash &id, Transaction &tx, bool checkTxPool = false) = 0;
   virtual bool getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) = 0;
   virtual bool getOrphanBlocksByHeight(uint32_t height, std::vector<Block>& blocks) = 0;
@@ -118,6 +116,9 @@ public:
 
   virtual bool addMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) = 0;
   virtual bool removeMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) = 0;
+
+  virtual std::vector<uint64_t> known_token_ids() = 0;
+  virtual std::map<uint64_t, TokenBase> get_token_map() = 0;
 };
 
 } //namespace cn

@@ -19,7 +19,6 @@
 #include "CryptoNoteCore/TransactionExtra.h"
 
 #include "IWallet.h"
-#include "IToken.h"
 #include "INode.h"
 
 
@@ -90,11 +89,9 @@ void findMyOutputs(
         ++keyIndex;
      }
     } else if (outType == transaction_types::OutputType::Token) {
-
-      uint64_t amount;
-      TokenSummary token_details;
+      TokenBase token;
       TokenOutput out;
-      tx.getOutput(idx, out, amount, token_details);
+      tx.getOutput(idx, out, token);
       for (const auto& key : out.keys) {
         checkOutputKey(derivation, key, idx, idx, spendKeys, outputs);
         ++keyIndex;
@@ -442,14 +439,15 @@ std::error_code createTransfers(
       assert(out.key == reinterpret_cast<const PublicKey&>(in_ephemeral.publicKey));
 
       std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(tx.getTransactionHash());
-      if (it == transactions_hash_seen.end()) {
+	  if (it == transactions_hash_seen.end()) {
         std::unordered_set<crypto::PublicKey>::iterator key_it = public_keys_seen.find(out.key);
         if (key_it != public_keys_seen.end()) {
           throw std::runtime_error("duplicate transaction output key is found");
           return std::error_code();
         }
-        temp_keys.push_back(out.key);
-      }
+        temp_keys.push_back(out.key);		
+	  }   
+	     
 
       info.amount = amount;
       info.outputKey = out.key;
@@ -458,7 +456,7 @@ std::error_code createTransfers(
       uint64_t amount;
       MultisignatureOutput out;
       tx.getOutput(idx, out, amount);
-
+	    
 		  for (const auto& key : out.keys) {
         std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(txHash);
         if (it == transactions_hash_seen.end()) {
@@ -478,10 +476,10 @@ std::error_code createTransfers(
       info.requiredSignatures = out.requiredSignatureCount;
       info.term = out.term;
     } else if (outType == transaction_types::OutputType::Token) {
-      uint64_t amount;
-      TokenSummary token_details;
+      TokenBase token;
       TokenOutput out;
-      tx.getOutput(idx, out, amount, token_details);
+      uint64_t amount = tx.getOutputTotalAmount();
+      tx.getOutput(idx, out, token);
 
 		  for (const auto& key : out.keys) {
         std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(txHash);
@@ -500,8 +498,7 @@ std::error_code createTransfers(
       }
       info.amount = amount;
       info.requiredSignatures = out.requiredSignatureCount;
-      info.token_details.token_amount = out.token_amount;
-      info.token_details.token_id = out.token_id;
+      info.token_details = out.token_details;
     }
     
    transfers.push_back(info);

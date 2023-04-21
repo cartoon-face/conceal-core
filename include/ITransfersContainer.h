@@ -15,7 +15,6 @@
 #include "ITransaction.h"
 #include "IObservable.h"
 #include "IStreamSerializable.h"
-#include "IToken.h"
 
 namespace cn
 {
@@ -37,8 +36,7 @@ namespace cn
     std::vector<uint8_t> extra;
     crypto::Hash paymentId;
     std::vector<std::string> messages;
-
-    TokenSummary token_details;
+    TokenBase token_details;
   };
 
   struct TransactionOutputInformation
@@ -48,8 +46,7 @@ namespace cn
     uint64_t amount;
     uint32_t globalOutputIndex;
     uint32_t outputInTransaction;
-    
-    TokenSummary token_details;
+    TokenBase token_details;
 
     // transaction info
     crypto::Hash transactionHash;
@@ -97,9 +94,6 @@ namespace cn
       IncludeKeyUnlocked = IncludeTypeKey | IncludeStateUnlocked,
       IncludeKeyNotUnlocked = IncludeTypeKey | IncludeStateLocked | IncludeStateSoftLocked,
 
-      IncludeTokenUnlocked = IncludeTypeToken | IncludeStateUnlocked,
-      IncludeTokenNotUnlocked = IncludeTypeToken | IncludeStateLocked | IncludeStateSoftLocked,
-
       IncludeAllLocked = IncludeTypeAll | IncludeStateLocked | IncludeStateSoftLocked,
       IncludeAllUnlocked = IncludeTypeAll | IncludeStateUnlocked,
       IncludeAll = IncludeTypeAll | IncludeStateAll,
@@ -119,7 +113,7 @@ namespace cn
 
     virtual size_t transfersCount() const = 0;
     virtual size_t transactionsCount() const = 0;
-    virtual uint64_t balance(uint32_t flags = IncludeDefault) const = 0;
+    virtual uint64_t balance(uint32_t flags = IncludeDefault, uint64_t token_id = 0) const = 0;
     virtual void getOutputs(std::vector<TransactionOutputInformation> &transfers, uint32_t flags = IncludeDefault) const = 0;
     virtual bool getTransactionInformation(const crypto::Hash &transactionHash, TransactionInformation &info,
                                            uint64_t *amountIn = nullptr, uint64_t *amountOut = nullptr) const = 0;

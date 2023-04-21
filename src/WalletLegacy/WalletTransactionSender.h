@@ -29,12 +29,6 @@ public:
 
   void stop();
 
-  std::unique_ptr<WalletRequest> make_token_send_request(crypto::SecretKey& transactionSK, TransactionId& transactionId,
-    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, std::vector<TokenTransfer>& token_transfers);
-
-  std::unique_ptr<WalletRequest> token_send_request(TransactionId& transactionId, std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
-    TokenSummary& token_details);
-
   std::unique_ptr<WalletRequest> makeSendRequest(crypto::SecretKey& transactionSK,
                                                  bool optimize,
                                                  TransactionId& transactionId,
@@ -54,6 +48,16 @@ public:
                                                     uint64_t fee,
                                                     uint64_t mixIn = 0);
 
+  std::unique_ptr<WalletRequest> make_create_token_request(TransactionId& transactionId,
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, TokenBase token_details);
+
+  std::unique_ptr<WalletRequest> make_withdraw_created_token_request(TransactionId& transactionId,
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, const uint64_t& token_id);
+
+  std::unique_ptr<WalletRequest> make_send_token_request( crypto::SecretKey &transactionSK,
+    TransactionId &transactionId, std::deque<std::unique_ptr<WalletLegacyEvent>> &events, const std::vector<WalletLegacyTransfer> &transfers,
+    const uint64_t& token_id, uint64_t token_amount);
+
   std::unique_ptr<WalletRequest> makeWithdrawDepositRequest(TransactionId& transactionId,
                                                             std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                                             const DepositId& depositId,
@@ -69,13 +73,16 @@ std::shared_ptr<WalletRequest> makeSendFusionRequest(TransactionId& transactionI
                                                      uint64_t fee, const std::string& extra = "", uint64_t mixIn = 0, uint64_t unlockTimestamp = 0);
 
 private:
-  std::unique_ptr<WalletRequest> makeGetRandomOutsRequest(std::shared_ptr<SendTransactionContext>&& context, bool isMultisigTransaction, crypto::SecretKey& transactionSK);
-  std::unique_ptr<WalletRequest> do_send_token_transaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  std::unique_ptr<WalletRequest> makeGetRandomOutsRequest(std::shared_ptr<SendTransactionContext>&& context, bool isMultisigTransaction, crypto::SecretKey& transactionSK, bool is_token_create);
   std::unique_ptr<WalletRequest> doSendTransaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events, crypto::SecretKey& transactionSK);
   std::unique_ptr<WalletRequest> doSendMultisigTransaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  std::unique_ptr<WalletRequest> do_send_create_token_tx(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
+  std::unique_ptr<WalletRequest> do_send_token_transaction(std::shared_ptr<SendTransactionContext>&& context, std::deque<std::unique_ptr<WalletLegacyEvent>>& events);
   std::unique_ptr<WalletRequest> doSendDepositWithdrawTransaction(std::shared_ptr<SendTransactionContext>&& context,
                                                                   std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                                                   const DepositId& depositId);
+  std::unique_ptr<WalletRequest> do_send_withdraw_create_token_tx(std::shared_ptr<SendTransactionContext>&& context,
+    std::deque<std::unique_ptr<WalletLegacyEvent>>& events, const uint64_t& token_id);
   std::unique_ptr<WalletRequest> doSendDepositsWithdrawTransaction(std::shared_ptr<SendTransactionContext>&& context,
                                                                   std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                                                   const std::vector<DepositId>& depositIds);
@@ -85,7 +92,7 @@ private:
                                          crypto::SecretKey& transactionSK,
                                          std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                          std::unique_ptr<WalletRequest>& nextRequest,
-                                         std::error_code ec);
+                                         std::error_code ec, bool is_token_create);
 
   void prepareKeyInputs(const std::vector<TransactionOutputInformation>& selectedTransfers,
                         std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount>& outs,
@@ -115,8 +122,8 @@ private:
                                        std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                        std::unique_ptr<WalletRequest>& nextRequest,
                                        std::error_code ec);
-  void relay_token_transaction_callback(std::shared_ptr<SendTransactionContext> context,
-                                       std::vector<TokenTxId> tokens,
+  void relayTokenTxsTransactionCallback(std::shared_ptr<SendTransactionContext> context,
+                                       std::vector<uint64_t> token_txs,
                                        std::deque<std::unique_ptr<WalletLegacyEvent>>& events,
                                        std::unique_ptr<WalletRequest>& nextRequest,
                                        std::error_code ec);
@@ -126,12 +133,10 @@ private:
   bool validateDestinationAddress(const std::string& address);
 
   uint64_t selectNTransfersToSend(std::vector<TransactionOutputInformation>& selectedTransfers);
-  uint64_t selectTransfersToSend(uint64_t neededMoney, bool addDust, uint64_t dust, std::vector<TransactionOutputInformation>& selectedTransfers, bool is_token_tx = false);
+  uint64_t selectTransfersToSend(uint64_t neededMoney, bool addDust, uint64_t dust, std::vector<TransactionOutputInformation>& selectedTransfers);
   uint64_t selectDepositTransfers(const DepositId& depositId, std::vector<TransactionOutputInformation>& selectedTransfers);
   uint64_t selectDepositsTransfers(const std::vector<DepositId>& depositIds, std::vector<TransactionOutputInformation>& selectedTransfers);
 
-  std::pair<uint64_t, uint64_t> select_token_transfer(const TokenTxId& token_tx_id, std::vector<TransactionOutputInformation>& selectedTransfers);
-  
   void setSpendingTransactionToDeposit(TransactionId transactionId, const DepositId& depositId);
   void setSpendingTransactionToDeposits(TransactionId transactionId, const std::vector<DepositId>& depositIds);
 

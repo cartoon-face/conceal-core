@@ -67,7 +67,7 @@ namespace cn
         else if (in.type() == typeid(TokenInput))
         {
           const auto &tk = boost::get<TokenInput>(in);
-          auto r = m_token_outputs.insert(std::make_pair(tk.amount, tk.outputIndex));
+          auto r = m_usedTokenOutputs.insert(std::make_pair(tk.amount, tk.outputIndex));
           (void)r; //just to make compiler to shut up
           assert(r.second);
         }
@@ -105,7 +105,7 @@ namespace cn
         else if (in.type() == typeid(TokenInput))
         {
           const auto &tk = boost::get<TokenInput>(in);
-          if (m_token_outputs.count(std::make_pair(tk.amount, tk.outputIndex)))
+          if (m_usedTokenOutputs.count(std::make_pair(tk.amount, tk.outputIndex)))
           {
             return false;
           }
@@ -116,7 +116,7 @@ namespace cn
 
     std::unordered_set<crypto::KeyImage> m_keyImages;
     std::set<std::pair<uint64_t, uint64_t>> m_usedOutputs;
-    std::set<std::pair<uint64_t, uint64_t>> m_token_outputs;
+    std::set<std::pair<uint64_t, uint64_t>> m_usedTokenOutputs;
     std::vector<crypto::Hash> m_txHashes;
   };
 
@@ -149,7 +149,7 @@ namespace cn
     for (const auto &in : tx.inputs)
     {
       const auto &inputType = in.type();
-      if (inputType == typeid(MultisignatureInput))
+      if (inputType == typeid(MultisignatureInput) || inputType == typeid(TokenInput))
       {
         isWithdrawalTransaction = true;
       }
@@ -591,6 +591,7 @@ namespace cn
       m_transactions.clear();
       m_spent_key_images.clear();
       m_spentOutputs.clear();
+      m_spentTokenOutputs.clear();
 
       m_paymentIdIndex.clear();
       m_timestampIndex.clear();
@@ -671,6 +672,7 @@ namespace cn
 
     KV_MEMBER(m_spent_key_images);
     KV_MEMBER(m_spentOutputs);
+    KV_MEMBER(m_spentTokenOutputs);
     KV_MEMBER(m_recentlyDeletedTransactions);
   }
 
@@ -801,8 +803,8 @@ namespace cn
         {
           const auto &tk = boost::get<TokenInput>(in);
           auto output = GlobalOutput(tk.amount, tk.outputIndex);
-          assert(m_spentOutputs.count(output));
-          m_spentOutputs.erase(output);
+          assert(m_spentTokenOutputs.count(output));
+          m_spentTokenOutputs.erase(output);
         }
       }
     }
@@ -850,7 +852,7 @@ namespace cn
         if (!keptByBlock)
         {
           const auto &tk = boost::get<TokenInput>(in);
-          auto r = m_spentOutputs.insert(GlobalOutput(tk.amount, tk.outputIndex));
+          auto r = m_spentTokenOutputs.insert(GlobalOutput(tk.amount, tk.outputIndex));
           (void)r;
           assert(r.second);
         }
@@ -884,7 +886,7 @@ namespace cn
       else if (in.type() == typeid(TokenInput))
       {
         const auto &tk = boost::get<TokenInput>(in);
-        if (m_spentOutputs.count(GlobalOutput(tk.amount, tk.outputIndex)))
+        if (m_spentTokenOutputs.count(GlobalOutput(tk.amount, tk.outputIndex)))
         {
           return true;
         }

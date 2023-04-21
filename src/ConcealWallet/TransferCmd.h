@@ -8,7 +8,6 @@
 #include "CryptoNoteCore/Currency.h"
 #include "WalletLegacy/WalletLegacy.h"
 #include "Common/StringTools.h"
-#include "IToken.h"
 
 #include <Logging/LoggerRef.h>
 
@@ -22,21 +21,15 @@ namespace cn
       const cn::Currency& m_currency;
       size_t fake_outs_count;
       std::vector<cn::WalletLegacyTransfer> dsts;
-      std::vector<cn::TokenTransfer> t_dsts;
       std::vector<uint8_t> extra;
       uint64_t fee;
       std::map<std::string, std::vector<WalletLegacyTransfer>> aliases;
-      std::map<std::string, std::vector<TokenTransfer>> t_aliases;
       std::vector<std::string> messages;
       uint64_t ttl = 0;
       std::string m_remote_address;
 
-      uint64_t id = 0;
-      cn::TokenSummary token_details;
-
       transfer_cmd(const cn::Currency& currency, std::string remote_fee_address);
 
-      bool parse_token_tx(LoggerRef& logger, const std::vector<std::string> &args);
       bool parseTx(LoggerRef& logger, const std::vector<std::string> &args);
   };
 

@@ -404,6 +404,24 @@ uint32_t InProcessNode::getLastKnownBlockHeight() const {
   return protocol.getObservedHeight() - 1;
 }
 
+std::vector<uint64_t> InProcessNode::get_known_token_ids() const {
+  std::unique_lock<std::mutex> lock(mutex);
+  if (state != INITIALIZED) {
+    throw std::system_error(make_error_code(cn::error::NOT_INITIALIZED));
+  }
+  lock.unlock();
+  return core.known_token_ids();
+}
+
+std::map<uint64_t, TokenBase> InProcessNode::get_token_map() const {
+  std::unique_lock<std::mutex> lock(mutex);
+  if (state != INITIALIZED) {
+    throw std::system_error(make_error_code(cn::error::NOT_INITIALIZED));
+  }
+  lock.unlock();
+  return core.get_token_map();
+}
+
 uint64_t InProcessNode::getLastLocalBlockTimestamp() const {
   std::unique_lock<std::mutex> lock(mutex);
   if (state != INITIALIZED) {

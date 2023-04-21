@@ -14,41 +14,6 @@
 namespace cn {
 class ISerializer;
 
-class TokenTxIndex
-{
-private:
-  struct TokenTxIndexEntry {
-    uint64_t height;
-    int64_t amount;
-    uint64_t id;
-
-    void serialize(ISerializer& s);
-  };
-
-  using IndexType = std::vector<TokenTxIndexEntry>;
-  IndexType::const_iterator upperBound(uint64_t height) const;
-  IndexType index;
-  uint64_t blockCount;
-
-public:
-  TokenTxIndex();
-  explicit TokenTxIndex(uint64_t expectedHeight);
-
-  void pushBlock(int64_t amount, uint64_t id); 
-  void popBlock(); 
-  void reserve(uint64_t expectedHeight);
-
-  uint64_t known_token_ids() const;
-
-  size_t popBlocks(uint64_t from); 
-  int64_t depositAmountAtHeight(uint64_t height) const;
-  int64_t fullDepositAmount() const; 
-  uint64_t depositInterestAtHeight(uint64_t height) const;
-  uint64_t fullInterestAmount() const; 
-  uint64_t size() const;
-  void serialize(ISerializer& s);
-};
-
 class DepositIndex {
 public:
   using DepositAmount = int64_t;

@@ -333,8 +333,7 @@ conceal_wallet::conceal_wallet(platform_system::Dispatcher& dispatcher, const cn
   m_consoleHandler.setHandler("deposit_info", boost::bind(&conceal_wallet::deposit_info, this, boost::arg<1>()), "deposit_info <id> - Get infomation for deposit <id>");
   m_consoleHandler.setHandler("save_txs_to_file", boost::bind(&conceal_wallet::save_all_txs_to_file, this, boost::arg<1>()), "save_txs_to_file - Saves all known transactions to <wallet_name>_conceal_transactions.txt");
   m_consoleHandler.setHandler("check_address", boost::bind(&conceal_wallet::check_address, this, boost::arg<1>()), "check_address <address> - Checks to see if given wallet is valid.");
-  m_consoleHandler.setHandler("transfer_token", boost::bind(&conceal_wallet::transfer_token, this, boost::arg<1>()), "transfer_token <address> <amount> -id<id> -p<payment_id> - Send token transaction.");
-  m_consoleHandler.setHandler("create_token", boost::bind(&conceal_wallet::create_token, this, boost::arg<1>()), "transfer_token <address> <amount> -id<id> -p<payment_id> - Send token transaction.");
+  m_consoleHandler.setHandler("create_token", boost::bind(&conceal_wallet::create_token, this, boost::arg<1>()), "check_address <address> - Checks to see if given wallet is valid.");
 }
 
 std::string conceal_wallet::wallet_menu(bool do_ext)
@@ -376,7 +375,6 @@ std::string conceal_wallet::wallet_menu(bool do_ext)
     menu_item += "\"list_transfers\"              - Show all known transfers, optionally from a certain height. | <block_height>\n";
     menu_item += "\"reset\"                       - Reset cached blockchain data and starts synchronizing from block 0.\n";
     menu_item += "\"transfer <address> <amount>\" - Transfers <amount> to <address>. | [-p<payment_id>] [<amount_2>]...[<amount_N>] [<address_2>]...[<address_n>]\n";
-    menu_item += "\"transfer_token <address> <amount> <id> - Send token transaction.\ns";
     menu_item += "\"save\"                        - Save wallet synchronized blockchain data.\n";
     menu_item += "\"save_keys\"                   - Saves wallet private keys to \"<wallet_name>_conceal_backup.txt\".\n";
     menu_item += "\"withdraw <id>\"               - Withdraw a deposit from the blockchain.\n";
@@ -1990,113 +1988,11 @@ bool conceal_wallet::check_address(const std::vector<std::string> &args)
   return true;
 }
 
-bool conceal_wallet::transfer_token(const std::vector<std::string> &args)
-{
-  try
-  {
-    transfer_cmd cmd(m_currency, m_remote_node_address);
-
-    if (!cmd.parse_token_tx(logger, args))
-      return true;
-
-    std::map<uint64_t, TokenSummary> tk_details = m_node->m_tokens_map;
-    auto it = tk_details.find(cmd.token_details.token_id);
-    if (it != tk_details.end())
-    {
-      logger(ERROR) << "Token ID could not be found";
-      return true;
-    }
-
-    uint64_t known_token_id = m_node->m_known_token_ids.size();
-    if (cmd.token_details.token_id == 0 || cmd.token_details.token_id > known_token_id)
-    {
-      logger(ERROR) << "Can't use an ID that is 0 or higher than the blockchain known IDs.";
-      return true;
-    }
-
-    for (auto& kv: cmd.t_aliases) {
-      std::string address;
-
-      try {
-        address = resolveAlias(kv.first);
-
-        AccountPublicAddress ignore;
-        if (!m_currency.parseAccountAddressString(address, ignore)) {
-          throw std::runtime_error("Address \"" + address + "\" is invalid");
-        }
-      } catch (std::exception& e) {
-        fail_msg_writer() << "Couldn't resolve alias: " << e.what() << ", alias: " << kv.first;
-        return true;
-      }
-
-      for (auto& transfer: kv.second) {
-        transfer.address = address;
-      }
-    }
-
-    if (!cmd.t_aliases.empty()) {
-      std::cout << "Would you like to send money to the following addresses?" << std::endl;
-      
-      for (const auto& kv : cmd.t_aliases) {
-        for (const auto& transfer: kv.second) {
-          std::cout << transfer.address << " " << std::setw(21) << m_currency.formatAmount(transfer.token_details.token_amount, true, it->second.decimals) << "  " << kv.first << std::endl;
-        }
-      }
-
-      std::string answer;
-
-      do {
-        std::cout << "y/n: ";
-        std::getline(std::cin, answer);
-      } while (answer != "y" && answer != "Y" && answer != "n" && answer != "N");
-      
-      if (answer == "n" || answer == "N") { return true; }
-
-      for (auto& kv: cmd.t_aliases) {
-        std::copy(std::move_iterator<std::vector<TokenTransfer>::iterator>(kv.second.begin()),
-                  std::move_iterator<std::vector<TokenTransfer>::iterator>(kv.second.end()),
-                  std::back_inserter(cmd.t_dsts));
-      }
-    }
-
-    cn::WalletHelper::SendCompleteResultObserver sent;
-    WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
-
-    crypto::SecretKey transactionSK;
-    cn::TransactionId tx = m_wallet->send_token_transaction(transactionSK, cmd.t_dsts);
-    if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
-      fail_msg_writer() << "Can't send money";
-      return true;
-    }
-
-    std::error_code sendError = sent.wait(tx);
-    removeGuard.removeObserver();
-
-    if (sendError) {
-      fail_msg_writer() << sendError.message();
-      return true;
-    }
-
-    cn::WalletLegacyTransaction txInfo;
-    m_wallet->getTransaction(tx, txInfo);
-    success_msg_writer(true) << "Token Money successfully sent, transaction hash: " << common::podToHex(txInfo.hash);
-    success_msg_writer(true) << "Transaction secret key " << common::podToHex(transactionSK); 
-
-    m_chelper.save_wallet(*m_wallet, m_wallet_file, logger);
-  } catch (const std::system_error& e) {
-    fail_msg_writer() << e.what();
-  } catch (const std::exception& e) {
-    fail_msg_writer() << e.what();
-  } catch (...) {
-    fail_msg_writer() << "unknown error";
-  }
-
-  return true;
-}
-
+// Creating a token will build a HTLC tx, the user then has to unlock the new tokens
+// in a seperate tx.
 bool conceal_wallet::create_token(const std::vector<std::string> &args)
 {
-  if (args.size() != 5)
+  if (args.size() != 4)
   {
     logger(ERROR) << "Usage: create_token <token_supply> <decimals> <ticker> <token_name>";
     return true;
@@ -2109,6 +2005,7 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
     std::string ticker = args[2];
     std::string name = args[3];
 
+/*
     bool amt_ok = m_currency.parseAmount(args[0], token_supply, true, decimals);
 
     if (!amt_ok || 0 == token_supply)
@@ -2137,26 +2034,36 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
       logger(ERROR, BRIGHT_RED) << "Max name size is 20.";
       return true;
     }
+*/
+    std::transform(ticker.begin(), ticker.end(), ticker.begin(),
+      [](unsigned char c) { return std::toupper(c); });
+
+    std::string dec_str = decimals + "(." + std::string(decimals, '0') + ")";
+    std::uint64_t tmp_id = m_node->get_known_token_ids().size();
+
+    // should we prevent duplicated token names/tickers of known token map? they could
+    // always be defined from the "real" token using its ID 
 
     logger(INFO) << "Creating token with the following information"
       << "\nToken Name: " << name
-      << "\nToken Supply: " << token_supply
-      << "\nToken Decimals: " << decimals
-      << "\nTicker: " << ticker;
+      << "\nToken Supply: " << m_currency.formatAmount(token_supply, true, decimals)
+      << "\nToken Decimals: " << dec_str
+      << "\nTicker: " << ticker
+      << "\nID: " << tmp_id + 1;
 
     logger(INFO) << "Creating token...";
 
     cn::WalletHelper::SendCompleteResultObserver sent;
     WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
 
-    TokenSummary token_details;
-    token_details.token_id = m_node->m_known_token_ids.size() + 1;
-    token_details.token_supply = token_supply;
+    TokenBase token_details;
+    token_details.token_id = tmp_id + 1;
+    token_details.token_amount = token_supply;
     token_details.decimals = decimals;
     token_details.ticker = ticker;
     token_details.token_name = name;
 
-    cn::TransactionId tx = m_wallet->token_transaction(token_details);
+    cn::TransactionId tx = m_wallet->create_token(token_details);
 
     if (tx == WALLET_LEGACY_INVALID_DEPOSIT_ID)
     {
@@ -2192,6 +2099,238 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
   {
     fail_msg_writer() << "unknown error";
   }
+
+  return true;
+}
+
+bool conceal_wallet::withdraw_created_token(const std::vector<std::string> &args)
+{
+  if (args.size() != 1)
+  {
+    logger(ERROR) << "Usage: withdraw_created_token <id>";
+    return true;
+  }
+
+  try
+  {
+    if (m_wallet->getTokenTxCount() == 0)
+    {
+      logger(ERROR) << "No tokens have been made in this wallet.";
+      return true;
+    }
+
+    uint64_t token_id = boost::lexical_cast<uint64_t>(args[0]);
+    
+    cn::WalletHelper::SendCompleteResultObserver sent;
+    WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
+
+    cn::TransactionId tx = m_wallet->withdraw_created_token(token_id);
+  
+    if (tx == WALLET_LEGACY_INVALID_DEPOSIT_ID)
+    {
+      fail_msg_writer() << "Can't withdraw money";
+      return true;
+    }
+
+    std::error_code sendError = sent.wait(tx);
+    removeGuard.removeObserver();
+
+    if (sendError)
+    {
+      fail_msg_writer() << sendError.message();
+      return true;
+    }
+
+    cn::WalletLegacyTransaction d_info;
+    m_wallet->getTransaction(tx, d_info);
+    success_msg_writer(true) << "Money successfully sent, transaction hash: " << common::podToHex(d_info.hash);
+
+    m_chelper.save_wallet(*m_wallet, m_wallet_file, logger);
+  }
+  catch (std::exception &e)
+  {
+    fail_msg_writer() << "failed to withdraw deposit: " << e.what();
+  }
+
+  return true;
+}
+
+bool conceal_wallet::transfer_token(const std::vector<std::string> &args)
+{
+  if (args.size() != 3)
+  {
+    logger(ERROR) << "Usage: transfer_token <id> <amount> <address>";
+    return true;
+  }
+
+  try
+  {
+    uint64_t s_token_id = boost::lexical_cast<uint64_t>(args[0]);
+    std::map<uint64_t, TokenBase> token_map = m_node->get_token_map();
+    //std::vector<uint64_t> known_id = m_node->get_known_token_ids();
+    auto token_id = token_map.find(s_token_id);
+    TokenBase token_details;
+  
+    if (token_id != token_map.end()) {
+      // we apply the token information from the backend before we send this tx, less stress on the client itself
+      logger(INFO) << "ID " << s_token_id << " found in the token map, grabbing extra information now";
+    } else {
+      logger(ERROR) << "ID " << s_token_id << " not found in the token map";
+      return true;
+    }
+
+    uint64_t s_token_amount = boost::lexical_cast<uint64_t>(args[1]);
+    std::string str;
+    bool ok = m_currency.parseAmount(str, s_token_amount, true, token_details.decimals);
+
+    if (!ok || 0 == s_token_amount)
+    {
+      logger(ERROR, BRIGHT_RED) << "amount is wrong: " << s_token_amount;
+      return false;
+    }
+
+    std::string s_address = args[2];
+
+    // we take this logic from TransferCmd, maybe add this to that as we do for normal txs?
+    /* Integrated address check */
+    if (s_address.length() == 186)
+    {
+      std::string paymentID;
+      std::string spendPublicKey;
+      std::string viewPublicKey;
+      cn::BinaryArray extra;
+      const uint64_t paymentIDLen = 64;
+
+      /* Extract the payment id */
+      std::string decoded;
+      uint64_t prefix;
+      if (tools::base_58::decode_addr(s_address, prefix, decoded))
+        paymentID = decoded.substr(0, paymentIDLen);
+
+      /* Validate and add the payment ID to extra */
+      if (!createTxExtraWithPaymentId(paymentID, extra))
+      {
+        logger(ERROR, BRIGHT_RED) << "Integrated payment ID has invalid format: \"" << paymentID << "\", expected 64-character string";
+        return false;
+      }
+
+      /* create the address from the public keys */
+      std::string keys = decoded.substr(paymentIDLen, std::string::npos);
+      cn::AccountPublicAddress addr;
+      cn::BinaryArray ba = common::asBinaryArray(keys);
+
+      if (!cn::fromBinaryArray(addr, ba))
+        return true;
+
+      std::string address = cn::getAccountAddressAsStr(cn::parameters::CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX, addr);   
+
+      s_address = address;
+    }
+  
+    WalletLegacyTransfer destination;
+    WalletLegacyTransfer feeDestination;          
+    cn::TransactionDestinationEntry de;
+    std::string aliasUrl;
+
+    std::vector<cn::WalletLegacyTransfer> dsts;
+    std::map<std::string, std::vector<WalletLegacyTransfer>> aliases;
+
+    if (!m_currency.parseAccountAddressString(s_address, de.addr))
+      aliasUrl = s_address;
+    
+    if (aliasUrl.empty())
+    {
+      destination.address = s_address;
+      destination.amount = de.amount;
+      dsts.push_back(destination);
+    }
+    else
+    {
+      aliases[aliasUrl].emplace_back(WalletLegacyTransfer{"", static_cast<int64_t>(de.amount)});
+    }
+
+    /* Remote node transactions fees are 10000 X */
+    if (!m_remote_node_address.empty())
+    {
+      destination.address = m_remote_node_address;                   
+      destination.amount = 10000;
+      dsts.push_back(destination);
+    }
+
+    for (auto& kv: aliases) {
+      std::string address;
+
+      try {
+        address = resolveAlias(kv.first);
+
+        AccountPublicAddress ignore;
+        if (!m_currency.parseAccountAddressString(address, ignore)) {
+          throw std::runtime_error("Address \"" + address + "\" is invalid");
+        }
+      } catch (std::exception& e) {
+        fail_msg_writer() << "Couldn't resolve alias: " << e.what() << ", alias: " << kv.first;
+        return true;
+      }
+
+      for (auto& transfer: kv.second) {
+        transfer.address = address;
+      }
+    }
+
+    if (!aliases.empty()) {
+      if (!askAliasesTransfersConfirmation(aliases, m_currency)) {
+        return true;
+      }
+
+      for (auto& kv: aliases) {
+        std::copy(std::move_iterator<std::vector<WalletLegacyTransfer>::iterator>(kv.second.begin()),
+                  std::move_iterator<std::vector<WalletLegacyTransfer>::iterator>(kv.second.end()),
+                  std::back_inserter(dsts));
+      }
+    }
+
+    //
+
+    logger(INFO) << "Sending tokens with the following information"
+      << "\nToken Name: " << token_details.token_name
+      << "\nID: " << token_details.token_id
+      << "\nToken Amount: " << m_currency.formatAmount(s_token_amount, true, token_details.decimals)
+      //<< "\nToken Decimals: " << token_details.decimals
+      << "\nTicker: " << token_details.ticker;
+
+    cn::WalletHelper::SendCompleteResultObserver sent;
+
+    WalletHelper::IWalletRemoveObserverGuard removeGuard(*m_wallet, sent);
+
+    crypto::SecretKey transactionSK;
+    cn::TransactionId tx = m_wallet->transfer_token(s_token_id, s_token_amount, transactionSK, dsts);
+    if (tx == WALLET_LEGACY_INVALID_TRANSACTION_ID) {
+      fail_msg_writer() << "Can't send money";
+      return true;
+    }
+
+    std::error_code sendError = sent.wait(tx);
+    removeGuard.removeObserver();
+
+    if (sendError) {
+      fail_msg_writer() << sendError.message();
+      return true;
+    }
+
+    cn::WalletLegacyTransaction txInfo;
+    m_wallet->getTransaction(tx, txInfo);
+    success_msg_writer(true) << "Money successfully sent, transaction hash: " << common::podToHex(txInfo.hash);
+    success_msg_writer(true) << "Transaction secret key " << common::podToHex(transactionSK); 
+
+    m_chelper.save_wallet(*m_wallet, m_wallet_file, logger);
+  } catch (const std::system_error& e) {
+    fail_msg_writer() << e.what();
+  } catch (const std::exception& e) {
+    fail_msg_writer() << e.what();
+  } catch (...) {
+    fail_msg_writer() << "unknown error";
+  }
+
 
   return true;
 }

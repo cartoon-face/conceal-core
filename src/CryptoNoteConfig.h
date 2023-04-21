@@ -157,9 +157,9 @@ namespace cn
 
 	const uint64_t TESTNET_GENESIS_TIMESTAMP = 1632048808;
 
-	const uint8_t TRANSACTION_VERSION_1 = 1;
-	const uint8_t TRANSACTION_VERSION_2 = 2;
-	const uint8_t TRANSACTION_VERSION_3 = 3;
+	const uint8_t TRANSACTION_VERSION_1 = 1; // Base
+	const uint8_t TRANSACTION_VERSION_2 = 2; // Deposits
+	const uint8_t TRANSACTION_VERSION_3 = 3; // Tokens
 	const uint8_t BLOCK_MAJOR_VERSION_1 = 1; // (Consensus I)
 	const uint8_t BLOCK_MAJOR_VERSION_2 = 2; // (Consensus II)
 	const uint8_t BLOCK_MAJOR_VERSION_3 = 3; // (Consensus III)

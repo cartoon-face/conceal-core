@@ -13,7 +13,6 @@
 #include "CryptoNoteCore/Account.h"
 #include "CryptoNoteFormatUtils.h"
 #include "TransactionExtra.h"
-#include "IToken.h"
 
 using namespace crypto;
 
@@ -90,14 +89,6 @@ const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction
   return input;
 }
 
-const TransactionInput& getInputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::InputType type, TokenSummary& token_details) {
-  const auto& input = getInputChecked(transaction, index);
-  if (getTransactionInputType(input) != type) {
-    throw std::runtime_error("Unexpected transaction input type");
-  }
-  return input;
-}
-
 // TransactionOutput helper functions
 
 transaction_types::OutputType getTransactionOutputType(const TransactionOutputTarget& out) {
@@ -128,10 +119,14 @@ const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transacti
   return output;
 }
 
-const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type, TokenSummary& token_details) {
+const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type, TokenBase token_details) {
   const auto& output = getOutputChecked(transaction, index);
   if (getTransactionOutputType(output.target) != type) {
     throw std::runtime_error("Unexpected transaction output target type");
+  }
+  if (!(transaction.token_details.token_id == token_details.token_id))
+  {
+    throw std::runtime_error("Unexpected transaction output token ID");
   }
   return output;
 }

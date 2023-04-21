@@ -13,6 +13,7 @@
 #include "CryptoNoteCore/CryptoNoteBasic.h"
 #include "IWalletLegacy.h"
 #include "ITransfersContainer.h"
+#include "CryptoNote.h"
 
 namespace cn {
 
@@ -34,17 +35,10 @@ struct SendTransactionContext
   std::vector<TransactionOutputInformation> selectedTransfers;
   TxDustPolicy dustPolicy;
   uint64_t mixIn;
-
   std::vector<tx_message_entry> messages;
   uint64_t ttl;
-
   uint32_t depositTerm;
-
-  // add token details to basic send context to save duplicated code from above
-  uint64_t token_amount = 0;
-  uint64_t token_id = 0;
-  uint64_t found_token_money = 0;
-  bool     is_creation = false;
+  TokenBase token_details;
 };
 
 } //namespace cn

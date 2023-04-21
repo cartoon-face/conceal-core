@@ -82,11 +82,11 @@ private:
   Callback m_cb;
 };
 
-class wallet_relay_token_transaction_request final: public WalletRequest
+class WalletRelayTokenTransactionRequest final: public WalletRequest
 {
 public:
-  wallet_relay_token_transaction_request(const Transaction& tx, Callback cb) : m_tx(tx), m_cb(cb) {}
-  virtual ~wallet_relay_token_transaction_request() {}
+  WalletRelayTokenTransactionRequest(const Transaction& tx, Callback cb) : m_tx(tx), m_cb(cb) {}
+  virtual ~WalletRelayTokenTransactionRequest() {}
 
   virtual void perform(INode& node, std::function<void (WalletRequest::Callback, std::error_code)> cb)
   {

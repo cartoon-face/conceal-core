@@ -195,6 +195,7 @@ namespace cn {
     mutable std::recursive_mutex m_transactions_lock;
     key_images_container m_spent_key_images;
     GlobalOutputsContainer m_spentOutputs;
+    GlobalOutputsContainer m_spentTokenOutputs;
 
     std::string m_config_folder;
     cn::ITransactionValidator& m_validator;

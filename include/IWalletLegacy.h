@@ -22,24 +22,21 @@
 #include "Rpc/CoreRpcServerCommandsDefinitions.h"
 #include "ITransfersContainer.h"
 #include "IWallet.h"
-#include "IToken.h"
 
 namespace cn {
 
 typedef size_t TransactionId;
 typedef size_t TransferId;
 typedef size_t DepositId;
-typedef size_t TokenTxId;
 
 struct WalletLegacyTransfer {
   std::string address;
   int64_t amount;
 };
 
-const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID = std::numeric_limits<TransactionId>::max();
-const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID = std::numeric_limits<TransferId>::max();
-const DepositId WALLET_LEGACY_INVALID_DEPOSIT_ID = std::numeric_limits<DepositId>::max();
-const TokenTxId WALLET_LEGACY_INVALID_TOKEN_TX_ID = std::numeric_limits<TokenTxId>::max();
+const TransactionId WALLET_LEGACY_INVALID_TRANSACTION_ID    = std::numeric_limits<TransactionId>::max();
+const TransferId WALLET_LEGACY_INVALID_TRANSFER_ID          = std::numeric_limits<TransferId>::max();
+const DepositId WALLET_LEGACY_INVALID_DEPOSIT_ID            = std::numeric_limits<DepositId>::max();
 const uint32_t WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT = std::numeric_limits<uint32_t>::max();
 
 enum class WalletLegacyTransactionState : uint8_t {
@@ -75,31 +72,9 @@ struct WalletLegacyTransaction {
   WalletLegacyTransactionState state;
   std::vector<std::string> messages;
 
-  TokenTxId first_token_tx_id;
-  size_t token_txs_count;
-
-  TokenSummary token_details;
-};
-
-struct TokenTransactionDetails
-{
-  size_t transaction_id; // for every token tx
-  size_t creation_spending_transaction_id; // for token generation txs
-
-  uint64_t ccx_amount; // usually a fee
-  uint64_t height_sent;
-  uint64_t token_amount;
-  uint64_t token_id;
-  uint8_t decimals;
-  bool     is_creation;
-  std::string ticker;
-  std::string token_name;
-
-  uint32_t outputInTransaction;
-  crypto::Hash transactionHash;
-  std::string address;
-  uint64_t sent_time;
-  // need more parameters before it can be ported to walletgreen
+  DepositId        first_token_tx_id;
+  size_t           token_tx_count;
+  TokenBase        token_details;
 };
 
 using PaymentId = crypto::Hash;
@@ -120,10 +95,6 @@ public:
   virtual void synchronizationCompleted(std::error_code result) {}
   virtual void actualBalanceUpdated(uint64_t actualBalance) {}
   virtual void pendingBalanceUpdated(uint64_t pendingBalance) {}
-
-  virtual void actualTokenBalanceUpdated(uint64_t actualBalance, uint64_t token_id) {}
-  virtual void pendingTokenBalanceUpdated(uint64_t pendingBalance, uint64_t token_id) {}
-
   virtual void actualDepositBalanceUpdated(uint64_t actualDepositBalance) {}
   virtual void pendingDepositBalanceUpdated(uint64_t pendingDepositBalance) {}
   virtual void actualInvestmentBalanceUpdated(uint64_t actualInvestmentBalance) {}
@@ -132,8 +103,8 @@ public:
   virtual void sendTransactionCompleted(TransactionId transactionId, std::error_code result) {}
   virtual void transactionUpdated(TransactionId transactionId) {}
   virtual void depositUpdated(const DepositId& depositId) {}
-  virtual void tokensUpdated(const std::vector<uint64_t>& token_tx_id) {}
   virtual void depositsUpdated(const std::vector<DepositId>& depositIds) {}
+  virtual void tokenTxsUpdated(const std::vector<uint64_t>& tokenTxIds) {}
 };
 
 class IWalletLegacy {
@@ -168,6 +139,7 @@ public:
   virtual size_t getTransactionCount() = 0;
   virtual size_t getTransferCount() = 0;
   virtual size_t getDepositCount() = 0;
+  virtual size_t getTokenTxCount() = 0;
   virtual size_t getNumUnlockedOutputs() = 0;
   virtual std::vector<TransactionOutputInformation> getUnspentOutputs() = 0;
 
@@ -175,7 +147,6 @@ public:
   virtual void getAccountKeys(AccountKeys& keys) = 0;
   virtual bool getTransaction(TransactionId transactionId, WalletLegacyTransaction& transaction) = 0;
   virtual bool getTransfer(TransferId transferId, WalletLegacyTransfer& transfer) = 0;
-  virtual bool getTransfer(TransferId transferId, TokenTransfer& transfer) = 0;
   virtual bool getDeposit(DepositId depositId, Deposit& deposit) = 0;
   virtual std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const = 0;
   virtual bool getTxProof(crypto::Hash& txid, cn::AccountPublicAddress& address, crypto::SecretKey& tx_key, std::string& sig_str) = 0;
@@ -193,10 +164,12 @@ public:
   virtual std::error_code cancelTransaction(size_t transferId) = 0;
   virtual Deposit get_deposit(DepositId depositId) = 0;
 
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, const TokenTransfer& token_transfer) = 0;
-  virtual TransactionId send_token_transaction(crypto::SecretKey& transactionSK, std::vector<TokenTransfer>& token_transfers) = 0;
-
-  virtual TransactionId token_transaction(TokenSummary& token_details) = 0;
+  virtual TransactionId create_token(TokenBase token_details) = 0;
+  virtual TransactionId withdraw_created_token(const uint64_t& token_id) = 0;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const WalletLegacyTransfer& transfer) = 0;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const std::vector<WalletLegacyTransfer>& transfers) = 0;
 };
 
 }

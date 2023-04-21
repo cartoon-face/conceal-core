@@ -95,8 +95,7 @@ void getVariantValue(cn::ISerializer& serializer, uint8_t tag, cn::TransactionIn
     in = v;
     break;
   }
-  case 0x4:
-  {
+  case 0x4: {
     cn::TokenInput v;
     serializer(v, "value");
     in = v;
@@ -269,16 +268,12 @@ void serialize(TransactionInput& in, ISerializer& serializer) {
   }
 }
 
-void serialize(TokenSummary& token_details, ISerializer& serializer) {
+void serialize(TokenBase& token_details, ISerializer& serializer) {
   serializer(token_details.token_id, "token_id");
-  serializer(token_details.token_supply, "token_supply");
+  serializer(token_details.token_amount, "token_amount");
   serializer(token_details.decimals, "decimals");
-  serializer(token_details.created_height, "created_height");
   serializer(token_details.ticker, "ticker");
   serializer(token_details.token_name, "token_name");
-  serializer(token_details.creators_signature, "creators_signature");
-  serializer(token_details.token_amount, "token_amount");
-  serializer(token_details.is_creation, "is_creation");
 }
 
 void serialize(BaseInput& gen, ISerializer& serializer) {
@@ -302,8 +297,7 @@ void serialize(TokenInput& token, ISerializer& serializer) {
   serializer(token.amount, "amount");
   serializer(token.signatureCount, "signatures");
   serializer(token.outputIndex, "outputIndex");
-  serializer(token.token_amount, "token_amount");
-  serializer(token.token_id, "token_id");
+  serializer(token.token_details, "token_details");
 }
 
 void serialize(TransactionInputs & inputs, ISerializer & serializer) {
@@ -345,8 +339,7 @@ void serialize(MultisignatureOutput& multisignature, ISerializer& serializer) {
 void serialize(TokenOutput& token, ISerializer& serializer) {
   serializer(token.keys, "keys");
   serializer(token.requiredSignatureCount, "required_signatures");
-  serializer(token.token_amount, "token_amount");
-  serializer(token.token_id, "token_id");
+  serializer(token.token_details, "token_details");
 }
 
 void serializeBlockHeader(BlockHeader& header, ISerializer& serializer) {

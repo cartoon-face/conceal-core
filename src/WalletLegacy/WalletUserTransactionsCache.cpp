@@ -115,10 +115,8 @@ WalletUserTransactionsCache::WalletUserTransactionsCache(uint64_t mempoolTxLiveT
 bool WalletUserTransactionsCache::serialize(cn::ISerializer& s) {
   s(m_transactions, "transactions");
   s(m_transfers, "transfers");
-  s(m_token_transfers, "token_transfers");
   s(m_unconfirmedTransactions, "unconfirmed");
   s(m_deposits, "deposits");
-  s(m_token_txs, "token_txs");
 
   if (s.type() == cn::ISerializer::INPUT) {
     updateUnconfirmedTransactions();
@@ -133,13 +131,10 @@ bool WalletUserTransactionsCache::serialize(cn::ISerializer& s) {
 void WalletUserTransactionsCache::deserializeLegacyV1(cn::ISerializer& s) {
   s(m_transactions, "transactions");
   s(m_transfers, "transfers");
-  s(m_token_transfers, "token_transfers");
   m_unconfirmedTransactions.deserializeV1(s);
 
   std::vector<LegacyDepositInfo> legacyDeposits;
   s(legacyDeposits, "deposits");
-
-  s(m_token_txs, "token_txs");
 
   convertLegacyDeposits(legacyDeposits, m_deposits);
   restoreTransactionOutputToDepositIndex();
@@ -206,10 +201,6 @@ uint64_t WalletUserTransactionsCache::countUnconfirmedSpentDepositsTotalAmount()
   return m_unconfirmedTransactions.countSpentDepositsTotalAmount();
 }
 
-std::vector<uint64_t> WalletUserTransactionsCache::get_known_token_ids() const {
-  return m_known_token_ids;
-}
-
 size_t WalletUserTransactionsCache::getTransactionCount() const {
   return m_transactions.size();
 }
@@ -222,60 +213,8 @@ size_t WalletUserTransactionsCache::getDepositCount() const {
   return m_deposits.size();
 }
 
-size_t WalletUserTransactionsCache::getTokenTxsCount() const {
-  return m_token_transfers.size();
-}
-
-TransactionId WalletUserTransactionsCache::add_new_token_transaction(uint64_t amount, uint64_t fee,
-  const std::vector<TokenTransfer>& token_transfers)
-{
-  WalletLegacyTransaction transaction;
-
-  // Safe to be empty as we're doing a token tx
-  std::vector<TransactionMessage> messages = {};
-  std::string extra = "";
-
-  if (!token_transfers.empty()) {
-    transaction.firstTransferId = insertTransfers(token_transfers);
-  } else {
-    transaction.firstTransferId = WALLET_LEGACY_INVALID_TRANSFER_ID;
-  }
-
-  transaction.transferCount = token_transfers.size();
-  transaction.firstDepositId = WALLET_LEGACY_INVALID_DEPOSIT_ID;
-  transaction.depositCount = 0;
-  transaction.totalAmount = -static_cast<int64_t>(amount);
-  transaction.fee = fee;
-  transaction.sentTime = time(nullptr);
-  transaction.isCoinbase = false;
-  transaction.timestamp = 0;
-  transaction.extra = extra;
-  transaction.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
-  transaction.state = WalletLegacyTransactionState::Sending;
-  transaction.unlockTime = 0;
-
-  for (const TransactionMessage& message : messages) {
-    transaction.messages.push_back(message.message);
-  }
-
-  for (auto txs : token_transfers)
-  {
-    transaction.token_details.token_amount = -static_cast<int64_t>(txs.token_details.token_amount);
-    transaction.token_details.token_amount = txs.token_details.token_id;
-    transaction.token_details.is_creation = txs.token_details.is_creation;
-    transaction.token_details.decimals = txs.token_details.decimals;
-    transaction.token_details.ticker = txs.token_details.ticker;
-    transaction.token_details.token_name = txs.token_details.token_name;
-    transaction.token_details.creators_signature = txs.token_details.creators_signature;
-
-    if (transaction.token_details.token_id > m_known_token_ids.size())
-    {
-      m_known_token_ids.push_back(transaction.token_details.token_id);
-      transaction.token_details.token_supply == transaction.token_details.token_amount;
-    }
-  }
-
-  return insertTransaction(std::move(transaction));
+size_t WalletUserTransactionsCache::getTokenTxCount() const {
+  return m_token_txs.size();
 }
 
 TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
@@ -283,7 +222,8 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
                                                              const std::string& extra,
                                                              const std::vector<WalletLegacyTransfer>& transfers,
                                                              uint64_t unlockTime,
-                                                             const std::vector<TransactionMessage>& messages) {
+                                                             const std::vector<TransactionMessage>& messages,
+                                                             TokenBase token_details) {
   WalletLegacyTransaction transaction;
 
   if (!transfers.empty()) {
@@ -304,6 +244,7 @@ TransactionId WalletUserTransactionsCache::addNewTransaction(uint64_t amount,
   transaction.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
   transaction.state = WalletLegacyTransactionState::Sending;
   transaction.unlockTime = unlockTime;
+  transaction.token_details = token_details;
 
   for (const TransactionMessage& message : messages) {
     transaction.messages.push_back(message.message);
@@ -370,15 +311,6 @@ std::deque<std::unique_ptr<WalletLegacyEvent>> WalletUserTransactionsCache::onTr
     transaction.state = WalletLegacyTransactionState::Active;
     transaction.unlockTime = txInfo.unlockTime;
     transaction.messages = txInfo.messages;
-
-    transaction.first_token_tx_id = WALLET_LEGACY_INVALID_TOKEN_TX_ID;
-    transaction.token_txs_count = 0;
-    transaction.token_details.token_id = txInfo.token_details.token_id;
-    transaction.token_details.token_amount = txInfo.token_details.token_amount;
-    transaction.token_details.is_creation = txInfo.token_details.is_creation;
-    transaction.token_details.decimals = txInfo.token_details.decimals;
-    transaction.token_details.ticker = txInfo.token_details.ticker;
-    transaction.token_details.token_name = txInfo.token_details.token_name;
 
     id = insertTransaction(std::move(transaction));
 
@@ -558,16 +490,6 @@ bool WalletUserTransactionsCache::getTransfer(TransferId transferId, WalletLegac
   return true;
 }
 
-bool WalletUserTransactionsCache::getTransfer(TransferId transferId, TokenTransfer& transfer) const
-{
-  if (transferId >= m_token_transfers.size())
-    return false;
-
-  transfer = m_token_transfers[transferId];
-
-  return true;
-}
-
 bool WalletUserTransactionsCache::getDeposit(DepositId depositId, Deposit& deposit) const {
   if (depositId >= m_deposits.size()) {
     return false;
@@ -583,23 +505,8 @@ Deposit& WalletUserTransactionsCache::getDeposit(DepositId depositId) {
   return m_deposits[depositId].deposit;
 }
 
-bool WalletUserTransactionsCache::get_token_tx(TokenTxId token_tx_id, TokenTransactionDetails& token) const {
-  if (token_tx_id >= m_token_txs.size()) {
-    return false;
-  }
-
-  token = m_token_txs[token_tx_id].token;
-  return true;
-}
-
-TokenTransactionDetails& WalletUserTransactionsCache::get_token_tx(TokenTxId token_tx_id) {
-  assert(token_tx_id < m_token_txs.size());
-
-  return m_token_txs[token_tx_id].token;
-}
-
-TransactionId WalletUserTransactionsCache::insertTransaction(WalletLegacyTransaction&& transaction) {
-  m_transactions.emplace_back(std::move(transaction));
+TransactionId WalletUserTransactionsCache::insertTransaction(WalletLegacyTransaction&& Transaction) {
+  m_transactions.emplace_back(std::move(Transaction));
   return m_transactions.size() - 1;
 }
 
@@ -625,11 +532,6 @@ TransferId WalletUserTransactionsCache::insertTransfers(const std::vector<Wallet
   return m_transfers.size() - transfers.size();
 }
 
-TransferId WalletUserTransactionsCache::insertTransfers(const std::vector<TokenTransfer>& token_transfers) {
-  std::copy(token_transfers.begin(), token_transfers.end(), std::back_inserter(m_token_transfers));
-    return static_cast<TransferId>(m_token_transfers.size() - token_transfers.size());
-}
-
 void WalletUserTransactionsCache::updateUnconfirmedTransactions() {
   for (TransactionId id = 0; id < m_transactions.size(); ++id) {
     if (m_transactions[id].blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT) {
@@ -639,14 +541,12 @@ void WalletUserTransactionsCache::updateUnconfirmedTransactions() {
 }
 
 WalletLegacyTransfer& WalletUserTransactionsCache::getTransfer(TransferId transferId) {
-  // bool is_token return m_token_transfers.at(transferId);
   return m_transfers.at(transferId);
 }
   
 void WalletUserTransactionsCache::reset() {
   m_transactions.clear();
   m_transfers.clear();
-  m_token_transfers.clear();
   m_deposits.clear();
   m_unconfirmedTransactions.reset();
   m_transactionOutputToDepositIndex.clear();
@@ -675,36 +575,6 @@ void WalletUserTransactionsCache::restoreTransactionOutputToDepositIndex() {
   }
 }
 
-TokenTxId WalletUserTransactionsCache::insert_token_tx(const TokenTransactionDetails& token, size_t token_tx_index_in_transaction, const Hash& transaction_hash)
-{
-  TokenTxInfo info;
-  info.token = token;
-  info.output_in_transaction = static_cast<uint32_t>(token_tx_index_in_transaction);
-
-  TokenTxId id = m_token_txs.size();
-  m_token_txs.push_back(std::move(info));
-
-  assert(token.token_id != 0);
-
-  m_transactionOutputToTokenTxIndex.emplace(std::piecewise_construct, std::forward_as_tuple(transaction_hash, static_cast<uint32_t>(token_tx_index_in_transaction)),
-    std::forward_as_tuple(id));
-
-  return id;
-}
-
-bool WalletUserTransactionsCache::get_token_in_tx_info(TokenTxId token_tx_id, Hash& tx_hash, uint32_t& output_in_tx) {
-  if (token_tx_id >= m_token_txs.size()) {
-    return false;
-  }
-
-  assert(m_token_txs[token_tx_id].token.transaction_id < m_transactions.size());
-
-  output_in_tx = m_token_txs[token_tx_id].output_in_transaction;
-  tx_hash = m_transactions[m_token_txs[token_tx_id].token.transaction_id].hash;
-
-  return true;
-}
-
 DepositId WalletUserTransactionsCache::insertDeposit(const Deposit& deposit, size_t depositIndexInTransaction, const Hash& transactionHash) {
   DepositInfo info;
   info.deposit = deposit;
@@ -714,6 +584,20 @@ DepositId WalletUserTransactionsCache::insertDeposit(const Deposit& deposit, siz
   m_deposits.push_back(std::move(info));
 
   m_transactionOutputToDepositIndex.emplace(std::piecewise_construct, std::forward_as_tuple(transactionHash, static_cast<uint32_t>(depositIndexInTransaction)),
+    std::forward_as_tuple(id));
+
+  return id;
+}
+
+uint64_t WalletUserTransactionsCache::insertToken(const Token& token, size_t tokenIndexInTransaction, const Hash& transactionHash) {
+  TokenInfo info;
+  info.token = token;
+  info.outputInTransaction = static_cast<uint32_t>(tokenIndexInTransaction);
+
+  uint64_t id = m_token_txs.size();
+  m_token_txs.push_back(std::move(info));
+
+  m_transactionOutputToTokenIndex.emplace(std::piecewise_construct, std::forward_as_tuple(transactionHash, static_cast<uint32_t>(tokenIndexInTransaction)),
     std::forward_as_tuple(id));
 
   return id;
@@ -810,8 +694,12 @@ void WalletUserTransactionsCache::addCreatedDeposit(DepositId id, uint64_t total
   m_unconfirmedTransactions.addCreatedDeposit(id, totalAmount);
 }
 
-void WalletUserTransactionsCache::add_created_token_tx(TokenTxId id, uint64_t totalAmount) {
-  m_unconfirmedTransactions.add_created_token_tx(id, totalAmount);
+void WalletUserTransactionsCache::addCreatedTokenTx(uint64_t id, uint64_t totalAmount) {
+  m_unconfirmedTransactions.addCreatedTokenTx(id, totalAmount);
+}
+
+void WalletUserTransactionsCache::addTokenSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentTokenDetails& details) {
+  m_unconfirmedTransactions.addTokenSpendingTransaction(transactionHash, details);
 }
 
 void WalletUserTransactionsCache::addDepositSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentDepositDetails& details) {

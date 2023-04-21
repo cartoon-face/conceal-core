@@ -10,42 +10,16 @@
 #include <vector>
 #include <boost/variant.hpp>
 #include "CryptoTypes.h"
-#include <IToken.h>
 
 namespace cn {
 
-class TokenSummary
+struct TokenBase
 {
-public:
-// Store for information / needed generation information
   uint64_t token_id = 0;
-  uint64_t token_supply = 0;
+  uint64_t token_amount = 0;
   uint8_t decimals = 0;
-  uint64_t created_height = 0;
   std::string ticker = "";
   std::string token_name = "";
-  crypto::Signature creators_signature{};
-//
-
-// Use for moving tokens
-  uint64_t token_amount = 0;
-  bool is_creation{false};
-//
-
-// for mining tokens
-  uint64_t token_block_reward = 0;
-  bool is_mineable{false};
-//
-};
-
-struct TokenTransfer
-{
-  // standard with every tx
-  int64_t amount;
-  std::string address;
-
-  // token details
-  TokenSummary token_details;
 };
 
 struct BaseInput {
@@ -65,12 +39,12 @@ struct MultisignatureInput {
   uint32_t term;
 };
 
-struct TokenInput {
+struct TokenInput
+{
   uint64_t amount;
-  uint8_t signatureCount;
   uint32_t outputIndex;
-  uint64_t token_id;
-  uint64_t token_amount;
+  uint8_t signatureCount;
+  TokenBase token_details;
 };
 
 struct KeyOutput {
@@ -87,8 +61,7 @@ struct TokenOutput
 {
   std::vector<crypto::PublicKey> keys;
   uint8_t requiredSignatureCount;
-  uint64_t token_id;
-  uint64_t token_amount;
+  TokenBase token_details;
 };
 
 typedef boost::variant<BaseInput, KeyInput, MultisignatureInput, TokenInput> TransactionInput;
@@ -98,8 +71,6 @@ typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> Transaction
 struct TransactionOutput {
   uint64_t amount;
   TransactionOutputTarget target;
-  uint64_t token_id;
-  uint64_t token_amount;
 };
 
 using TransactionInputs = std::vector<TransactionInput>;
@@ -110,7 +81,7 @@ struct TransactionPrefix {
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
-  TokenSummary token_details;
+  TokenBase token_details;
 };
 
 struct Transaction : public TransactionPrefix {

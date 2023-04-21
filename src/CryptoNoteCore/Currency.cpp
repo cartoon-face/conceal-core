@@ -162,13 +162,6 @@ namespace cn
 
   /* ---------------------------------------------------------------------------------------------------- */
 
-  uint64_t Currency::base_token_reward(uint64_t supply) const
-  {
-    uint64_t reward = 0;
-    reward = std::min(reward, supply);
-    return reward;
-  }
-
   uint64_t Currency::baseRewardFunction(uint64_t alreadyGeneratedCoins, uint32_t height) const
   {
     if (height == 1)
@@ -227,18 +220,10 @@ namespace cn
 
   /* ---------------------------------------------------------------------------------------------------- */
 
-  bool Currency::get_block_token_reward(bool token_creation, uint64_t reward) const
-  {
-    uint64_t base_reward = base_token_reward(reward);
-
-    return true;
-  }
-
-  /* ---------------------------------------------------------------------------------------------------- */
-
   bool Currency::getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins,
                                 uint64_t fee, uint32_t height, uint64_t &reward, int64_t &emissionChange) const
   {
+
     assert(alreadyGeneratedCoins <= m_moneySupply);
     uint64_t baseReward = baseRewardFunction(alreadyGeneratedCoins, height);
 
@@ -545,8 +530,7 @@ namespace cn
 
   bool Currency::constructMinerTx(uint32_t height, size_t medianSize, uint64_t alreadyGeneratedCoins, size_t currentBlockSize,
                                   uint64_t fee, const AccountPublicAddress &minerAddress, Transaction &tx,
-                                  const BinaryArray &extraNonce /* = BinaryArray()*/,
-                                  size_t maxOuts /* = 1*/) const
+                                  const BinaryArray &extraNonce /* = BinaryArray()*/, size_t maxOuts /* = 1*/) const
   {
     tx.inputs.clear();
     tx.outputs.clear();
@@ -559,8 +543,8 @@ namespace cn
       return false;
     }
 
-    BaseInput bin;
-    bin.blockIndex = height;
+    BaseInput in;
+    in.blockIndex = height;
 
     uint64_t blockReward;
     int64_t emissionChange;
@@ -637,7 +621,7 @@ namespace cn
     tx.version = TRANSACTION_VERSION_1;
     // lock
     tx.unlockTime = height + m_minedMoneyUnlockWindow;
-    tx.inputs.emplace_back(bin);
+    tx.inputs.emplace_back(in);
     return true;
   }
 
@@ -776,7 +760,6 @@ namespace cn
       {
         s.insert(0, token_decimals + 1 - s.size(), '0');
       }
-
       s.insert(s.size() - token_decimals, ".");
       return s;
     }
@@ -787,7 +770,6 @@ namespace cn
       {
         s.insert(0, m_numberOfDecimalPlaces + 1 - s.size(), '0');
       }
-
       s.insert(s.size() - m_numberOfDecimalPlaces, ".");
       return s;
     }

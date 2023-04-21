@@ -49,7 +49,7 @@ namespace cn
   
     std::string getFeeAddress();
 
-    const cn::Currency& currency() const { return m_currency; } 
+    const cn::Currency& currency() const { return m_currency; }
 
     std::string m_remote_node_address;
 
@@ -107,8 +107,9 @@ namespace cn
     bool list_deposits(const std::vector<std::string> &args);
     bool deposit_info(const std::vector<std::string> &args);
     bool check_address(const std::vector<std::string> &args);
-    bool transfer_token(const std::vector<std::string> &args);
     bool create_token(const std::vector<std::string> &args);
+    bool withdraw_created_token(const std::vector<std::string> &args);
+    bool transfer_token(const std::vector<std::string> &args);
     /* End of Commands */
 
     std::string resolveAlias(const std::string& aliasUrl);
@@ -142,8 +143,10 @@ namespace cn
       {
         auto current_time = std::chrono::system_clock::now();
         if (std::chrono::seconds(m_conceal_wallet.currency().difficultyTarget() / 2) < current_time - m_blockchain_height_update_time ||
-            m_blockchain_height <= height) {
-          update_blockchain_height();
+          m_blockchain_height <= height)
+        {
+          std::thread thread(&refresh_progress_reporter_t::update_blockchain_height, this);
+          thread.join();
           m_blockchain_height = (std::max)(m_blockchain_height, height);
         }
 
@@ -161,7 +164,6 @@ namespace cn
         m_blockchain_height_update_time = std::chrono::system_clock::now();
       }
 
-    private:
       cn::conceal_wallet& m_conceal_wallet;
       uint64_t m_blockchain_height;
       std::chrono::system_clock::time_point m_blockchain_height_update_time;
@@ -198,6 +200,5 @@ namespace cn
     std::mutex m_walletSynchronizedMutex;
     std::condition_variable m_walletSynchronizedCV;
     bool m_testnet;
-    cn::TokenSummary m_token_details;
   };
 }

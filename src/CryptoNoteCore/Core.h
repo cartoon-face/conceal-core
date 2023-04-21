@@ -25,8 +25,6 @@
 #include "CryptoNoteCore/MessageQueue.h"
 #include "CryptoNoteCore/BlockchainMessages.h"
 
-#include "CryptoNote.h"
-
 #include <Logging/LoggerMessage.h>
 
 namespace cn {
@@ -73,7 +71,6 @@ namespace cn {
      virtual bool getBlockTimestamp(uint32_t height, uint64_t &timestamp) override;
      virtual bool getBlockContainingTx(const crypto::Hash& txId, crypto::Hash& blockId, uint32_t& blockHeight) override;
      virtual bool getMultisigOutputReference(const MultisignatureInput& txInMultisig, std::pair<crypto::Hash, size_t>& output_reference) override;
-     virtual bool getTokenOutputReference(const TokenInput& txInToken, std::pair<crypto::Hash, size_t>& output_reference) override;
      virtual bool getGeneratedTransactionsNumber(uint32_t height, uint64_t& generatedTransactions) override;
      virtual bool getOrphanBlocksByHeight(uint32_t height, std::vector<Block>& blocks) override;
      virtual bool getBlocksByTimestamp(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t blocksNumberLimit, std::vector<Block>& blocks, uint32_t& blocksNumberWithinTimestamps) override;
@@ -153,16 +150,14 @@ namespace cn {
     uint64_t getNextBlockDifficulty();
     uint64_t getTotalGeneratedAmount();
     uint64_t fullDepositAmount() const;
-    uint64_t circulation_for_token_id(uint64_t token_id);
     uint64_t depositAmountAtHeight(size_t height) const;
-    uint64_t known_token_ids_amount() const;
     uint64_t investmentAmountAtHeight(size_t height) const;
     uint64_t depositInterestAtHeight(size_t height) const;
 
-    std::vector<uint64_t> known_token_ids() override;
-    std::map<uint64_t, TokenSummary> get_token_map() const;
-
     bool is_key_image_spent(const crypto::KeyImage &key_im);
+
+    virtual std::vector<uint64_t> known_token_ids() override;
+    virtual std::map<uint64_t, TokenBase> get_token_map() override;
 
   private:
     bool add_new_tx(const Transaction &tx, const crypto::Hash &tx_hash, size_t blob_size, tx_verification_context &tvc, bool keeped_by_block, uint32_t height);

@@ -66,11 +66,10 @@ public:
   SpentOutputDescriptor(const TransactionOutputInformationIn& transactionInfo);
   SpentOutputDescriptor(const crypto::KeyImage* keyImage);
   SpentOutputDescriptor(uint64_t amount, uint32_t globalOutputIndex);
-  SpentOutputDescriptor(uint64_t amount, uint32_t globalOutputIndex, uint64_t token_amount, uint64_t token_id);
+  SpentOutputDescriptor(uint64_t amount, uint32_t globalOutputIndex, bool is_token);
 
   void assign(const crypto::KeyImage* keyImage);
-  void assign(uint64_t amount, uint32_t globalOutputIndex);
-  void assign(uint64_t amount, uint32_t globalOutputIndex, uint64_t token_amount, uint64_t token_id);
+  void assign(uint64_t amount, uint32_t globalOutputIndex, bool is_token = false);
 
   bool isValid() const;
 
@@ -84,8 +83,6 @@ private:
     struct {
       uint64_t m_amount;
       uint32_t m_globalOutputIndex;
-      uint64_t m_token_amount;
-      uint64_t m_token_id;
     };
   };
 };
@@ -129,13 +126,12 @@ struct TransactionOutputInformationEx : public TransactionOutputInformationIn {
     } else if (type == transaction_types::OutputType::Multisignature) {
       s(requiredSignatures, "");
       s(term, "");
-    }
-    else if (type == transaction_types::OutputType::Token)
-    {
+    } else if (type == transaction_types::OutputType::Token) {
       s(requiredSignatures, "");
       s(token_details, "");
     }
   }
+
 };
 
 struct TransactionBlockInfo {
@@ -209,7 +205,7 @@ public:
   // ITransfersContainer
   virtual size_t transfersCount() const override;
   virtual size_t transactionsCount() const override;
-  virtual uint64_t balance(uint32_t flags) const override;
+  virtual uint64_t balance(uint32_t flags, uint64_t token_id = 0) const override;
   virtual void getOutputs(std::vector<TransactionOutputInformation>& transfers, uint32_t flags) const override;
   virtual bool getTransactionInformation(const crypto::Hash& transactionHash, TransactionInformation& info,
     uint64_t* amountIn = nullptr, uint64_t* amountOut = nullptr) const override;

@@ -29,6 +29,8 @@ bool WalletUnconfirmedTransactions::serialize(ISerializer& s) {
   s(m_unconfirmedTxs, "transactions");
   s(m_createdDeposits, "unconfirmedCreatedDeposits");
   s(m_spentDeposits, "unconfirmedSpentDeposits");
+  s(m_spentCreatedTokens, "spentCreatedTokens");
+  s(m_createdTokens, "createdTokens");
 
   if (s.type() == ISerializer::INPUT) {
     collectUsedOutputs();
@@ -48,7 +50,7 @@ bool WalletUnconfirmedTransactions::deserializeV1(ISerializer& s) {
 }
 
 bool WalletUnconfirmedTransactions::findTransactionId(const Hash& hash, TransactionId& id) {
-  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id);
+  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id)  || findUnconfirmeTokenSpendingTransactionId(hash, id);
 }
 
 bool WalletUnconfirmedTransactions::findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id) {
@@ -64,6 +66,16 @@ bool WalletUnconfirmedTransactions::findUnconfirmedTransactionId(const crypto::H
 bool WalletUnconfirmedTransactions::findUnconfirmedDepositSpendingTransactionId(const crypto::Hash& hash, TransactionId& id) {
   auto it = m_spentDeposits.find(hash);
   if (it == m_spentDeposits.end()) {
+    return false;
+  }
+
+  id = it->second.transactionId;
+  return true;
+}
+
+bool WalletUnconfirmedTransactions::findUnconfirmeTokenSpendingTransactionId(const crypto::Hash& hash, TransactionId& id) {
+  auto it = m_spentCreatedTokens.find(hash);
+  if (it == m_spentCreatedTokens.end()) {
     return false;
   }
 
@@ -116,9 +128,6 @@ void WalletUnconfirmedTransactions::add(const Transaction& tx, TransactionId tra
     utd.usedOutputs.push_back(id);
     m_usedOutputs.insert(id);
     outsAmount += out.amount;
-    utd.token_amount = out.token_details.token_amount;
-    // TODO should we vector this?
-    utd.token_id = out.token_details.token_id;
   }
 
   utd.outsAmount = outsAmount;
@@ -131,17 +140,22 @@ void WalletUnconfirmedTransactions::updateTransactionId(const Hash& hash, Transa
   }
 }
 
-void WalletUnconfirmedTransactions::add_created_token_tx(TokenTxId id, uint64_t totalAmount) {
-  m_created_token_txs[id] = totalAmount;
-}
-
 void WalletUnconfirmedTransactions::addCreatedDeposit(DepositId id, uint64_t totalAmount) {
   m_createdDeposits[id] = totalAmount;
+}
+
+void WalletUnconfirmedTransactions::addCreatedTokenTx(uint64_t id, uint64_t totalAmount) {
+  m_createdTokens[id] = totalAmount;
 }
 
 void WalletUnconfirmedTransactions::addDepositSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentDepositDetails& details) {
   assert(m_spentDeposits.count(transactionHash) == 0);
   m_spentDeposits.emplace(transactionHash, details);
+}
+
+void WalletUnconfirmedTransactions::addTokenSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentTokenDetails& details) {
+  assert(m_spentCreatedTokens.count(transactionHash) == 0);
+  m_spentCreatedTokens.emplace(transactionHash, details);
 }
 
 void WalletUnconfirmedTransactions::eraseCreatedDeposit(DepositId id) {
@@ -184,7 +198,12 @@ uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount(uint64_t toke
   if (token_id > 0)
   {
     for (auto& utx: m_unconfirmedTxs)
-      amount+= utx.second.token_amount;
+    {
+      if (token_id == utx.second.tx.token_details.token_id)
+      {
+        amount += utx.second.tx.token_details.token_amount;
+      }
+    }
   }
   else
   {
@@ -201,7 +220,12 @@ uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount(uint6
   if (token_id > 0)
   {
     for (auto& utx: m_unconfirmedTxs)
-      amount+= utx.second.token_amount;
+    {
+      if (token_id == utx.second.tx.token_details.token_id)
+      {
+        amount += utx.second.tx.token_details.token_amount;
+      }
+    }
   }
   else
   {

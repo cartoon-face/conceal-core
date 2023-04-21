@@ -10,6 +10,7 @@
 #include "NodeRpcProxy/NodeRpcProxy.h"
 #include <memory>
 #include <future>
+#include <map>
 
 namespace payment_service {
 
@@ -28,6 +29,9 @@ public:
   uint32_t getLocalBlockCount() const override { return 0; }
   uint32_t getKnownBlockCount() const override { return 0; }
   uint64_t getLastLocalBlockTimestamp() const override { return 0; }
+
+  std::vector<uint64_t> get_known_token_ids() const override { return {}; }
+  std::map<uint64_t, cn::TokenBase> get_token_map() const override { return std::map<uint64_t, cn::TokenBase>(); };
 
   void relayTransaction(const cn::Transaction& transaction, const Callback& callback) override { callback(std::error_code()); }
   void getRandomOutsByAmounts(std::vector<uint64_t>&& amounts, uint64_t outsCount,

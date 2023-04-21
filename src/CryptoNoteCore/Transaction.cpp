@@ -8,7 +8,6 @@
 #include "ITransaction.h"
 #include "TransactionApiExtra.h"
 #include "TransactionUtils.h"
-#include "IToken.h"
 
 #include "Account.h"
 #include "CryptoNoteCore/CryptoNoteTools.h"
@@ -52,7 +51,6 @@ namespace cn {
     virtual Hash getTransactionInputsHash() const override;
     virtual PublicKey getTransactionPublicKey() const override;
     virtual uint64_t getUnlockTime() const override;
-    virtual TokenSummary get_token_details() const override;
     virtual bool getPaymentId(Hash& hash) const override;
     virtual bool getExtraNonce(BinaryArray& nonce) const override;
     virtual BinaryArray getExtra() const override;
@@ -63,7 +61,7 @@ namespace cn {
     virtual transaction_types::InputType getInputType(size_t index) const override;
     virtual void getInput(size_t index, KeyInput& input) const override;
     virtual void getInput(size_t index, MultisignatureInput& input) const override;
-    virtual void getInput(size_t index, TokenInput& input, TokenSummary& token_details) const override;
+    virtual void getInput(size_t index, TokenInput& input) const override;
     virtual std::vector<TransactionInput> getInputs() const override;
 
     // outputs
@@ -72,7 +70,7 @@ namespace cn {
     virtual transaction_types::OutputType getOutputType(size_t index) const override;
     virtual void getOutput(size_t index, KeyOutput& output, uint64_t& amount) const override;
     virtual void getOutput(size_t index, MultisignatureOutput& output, uint64_t& amount) const override;
-    virtual void getOutput(size_t index, TokenOutput& output, uint64_t& amount, TokenSummary& token_details) const override;
+    virtual void getOutput(size_t index, TokenOutput& output, TokenBase& token) const override;
 
     virtual size_t getRequiredSignaturesCount(size_t index) const override;
     virtual bool findOutputsToAccount(const AccountPublicAddress& addr, const SecretKey& viewSecretKey, std::vector<uint32_t>& outs, uint64_t& outputAmount) const override;
@@ -100,10 +98,10 @@ namespace cn {
 
     virtual size_t addOutput(uint64_t amount, const AccountPublicAddress& to) override;
     virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, uint32_t term = 0) override;
-    virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint64_t& token_id, uint64_t& token_amount) override;
+    virtual size_t addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, TokenBase token_details) override;
     virtual size_t addOutput(uint64_t amount, const KeyOutput& out) override;
     virtual size_t addOutput(uint64_t amount, const MultisignatureOutput& out) override;
-    virtual size_t addOutput(uint64_t amount, const TokenOutput& out, uint64_t& token_id, uint64_t& token_amount) override;
+    virtual size_t addOutput(uint64_t amount, const TokenOutput& out, TokenBase& token) override;
 
     virtual void signInputKey(size_t input, const transaction_types::InputKeyInfo& info, const KeyPair& ephKeys) override;
     virtual void signInputMultisignature(size_t input, const PublicKey& sourceTransactionKey, size_t outputIndex, const AccountKeys& accountKeys) override;
@@ -211,19 +209,6 @@ namespace cn {
     return transaction.unlockTime;
   }
 
-  TokenSummary TransactionImpl::get_token_details() const
-  {
-    TokenSummary tk_details;
-    tk_details.token_id = transaction.token_details.token_id;
-    tk_details.token_supply = transaction.token_details.token_supply;
-    tk_details.decimals = transaction.token_details.decimals;
-    tk_details.created_height = transaction.token_details.created_height;
-    tk_details.ticker = transaction.token_details.ticker;
-    tk_details.token_name = transaction.token_details.token_name;
-    tk_details.creators_signature = transaction.token_details.creators_signature;
-    return tk_details;
-  }
-
   void TransactionImpl::setUnlockTime(uint64_t unlockTime) {
     checkIfSigning();
     transaction.unlockTime = unlockTime;
@@ -321,7 +306,7 @@ namespace cn {
 
     KeyOutput outKey;
     derivePublicKey(to, txSecretKey(), transaction.outputs.size(), outKey.key);
-    TransactionOutput out = { amount, outKey, 0, 0 };
+    TransactionOutput out = { amount, outKey };
     transaction.outputs.emplace_back(out);
     invalidateHash();
 
@@ -342,7 +327,7 @@ namespace cn {
       derivePublicKey(to[i], txKey, outputIndex, outMsig.keys[i]);
     }
 
-    TransactionOutput out = { amount, outMsig, 0, 0 };
+    TransactionOutput out = { amount, outMsig };
     transaction.outputs.emplace_back(out);
     transaction.version = TRANSACTION_VERSION_2;
     invalidateHash();
@@ -350,23 +335,23 @@ namespace cn {
     return outputIndex;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint64_t& token_id, uint64_t& token_amount) {
+  size_t TransactionImpl::addOutput(uint64_t amount, const std::vector<AccountPublicAddress>& to, uint32_t requiredSignatures, TokenBase token_details) {
     checkIfSigning();
 
     const auto& txKey = txSecretKey();
     size_t outputIndex = transaction.outputs.size();
-    TokenOutput outTk;
-    outTk.keys.resize(to.size());
-    outTk.token_amount = token_amount;
-    outTk.token_id = token_id;
-    
+    TokenOutput outToken;
+    outToken.requiredSignatureCount = requiredSignatures;
+    outToken.keys.resize(to.size());
+    outToken.token_details = token_details;
+
     for (size_t i = 0; i < to.size(); ++i) {
-      derivePublicKey(to[i], txKey, outputIndex, outTk.keys[i]);
+      derivePublicKey(to[i], txKey, outputIndex, outToken.keys[i]);
     }
 
-    TransactionOutput out = { amount, outTk, outTk.token_id, outTk.token_amount };
+    TransactionOutput out = { amount, outToken };
     transaction.outputs.emplace_back(out);
-    transaction.version = TRANSACTION_VERSION_3;
+    transaction.version = TRANSACTION_VERSION_2;
     invalidateHash();
 
     return outputIndex;
@@ -375,7 +360,7 @@ namespace cn {
   size_t TransactionImpl::addOutput(uint64_t amount, const KeyOutput& out) {
     checkIfSigning();
     size_t outputIndex = transaction.outputs.size();
-    TransactionOutput realOut = { amount, out, 0, 0 };
+    TransactionOutput realOut = { amount, out };
     transaction.outputs.emplace_back(realOut);
     invalidateHash();
     return outputIndex;
@@ -384,16 +369,16 @@ namespace cn {
   size_t TransactionImpl::addOutput(uint64_t amount, const MultisignatureOutput& out) {
     checkIfSigning();
     size_t outputIndex = transaction.outputs.size();
-    TransactionOutput realOut = { amount, out, 0, 0 };
+    TransactionOutput realOut = { amount, out };
     transaction.outputs.emplace_back(realOut);
     invalidateHash();
     return outputIndex;
   }
 
-  size_t TransactionImpl::addOutput(uint64_t amount, const TokenOutput& out, uint64_t& token_id, uint64_t& token_amount) {
+  size_t TransactionImpl::addOutput(uint64_t amount, const TokenOutput& out, TokenBase& token) {
     checkIfSigning();
     size_t outputIndex = transaction.outputs.size();
-    TransactionOutput realOut = { amount, out, token_id, token_amount };
+    TransactionOutput realOut = { amount, out };
     transaction.outputs.emplace_back(realOut);
     invalidateHash();
     return outputIndex;
@@ -548,8 +533,8 @@ namespace cn {
     input = boost::get<MultisignatureInput>(getInputChecked(transaction, index, transaction_types::InputType::Multisignature));
   }
 
-  void TransactionImpl::getInput(size_t index, TokenInput& input, TokenSummary& token_details) const {
-    input = boost::get<TokenInput>(getInputChecked(transaction, index, transaction_types::InputType::Token, token_details));
+  void TransactionImpl::getInput(size_t index, TokenInput& input) const {
+    input = boost::get<TokenInput>(getInputChecked(transaction, index, transaction_types::InputType::Token));
   }
 
   size_t TransactionImpl::getOutputCount() const {
@@ -582,11 +567,9 @@ namespace cn {
     amount = out.amount;
   }
 
-  void TransactionImpl::getOutput(size_t index, TokenOutput& output, uint64_t& amount, TokenSummary& token_details) const {
-    const auto& out = getOutputChecked(transaction, index, transaction_types::OutputType::Token, token_details);
+  void TransactionImpl::getOutput(size_t index, TokenOutput& output, TokenBase& token) const {
+    const auto& out = getOutputChecked(transaction, index, transaction_types::OutputType::Token);
     output = boost::get<TokenOutput>(out.target);
-    amount = out.amount;
-    token_details = get_token_details();
   }
 
   bool TransactionImpl::findOutputsToAccount(const AccountPublicAddress& addr, const SecretKey& viewSecretKey, std::vector<uint32_t>& out, uint64_t& amount) const {
