@@ -351,7 +351,7 @@ namespace cn {
 
     TransactionOutput out = { amount, outToken };
     transaction.outputs.emplace_back(out);
-    transaction.version = TRANSACTION_VERSION_2;
+    transaction.version = TRANSACTION_VERSION_3;
     invalidateHash();
 
     return outputIndex;
