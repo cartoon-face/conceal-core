@@ -2000,12 +2000,11 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
 
   try
   {
-    uint64_t token_supply = boost::lexical_cast<uint64_t>(args[0]);
-    uint8_t decimals = boost::lexical_cast<uint8_t>(args[1]);
+    uint64_t token_supply = std::stoull(args[0]);
+    uint8_t decimals = std::stoi(args[1]);
     std::string ticker = args[2];
     std::string name = args[3];
 
-/*
     bool amt_ok = m_currency.parseAmount(args[0], token_supply, true, decimals);
 
     if (!amt_ok || 0 == token_supply)
@@ -2034,7 +2033,7 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
       logger(ERROR, BRIGHT_RED) << "Max name size is 20.";
       return true;
     }
-*/
+
     std::transform(ticker.begin(), ticker.end(), ticker.begin(),
       [](unsigned char c) { return std::toupper(c); });
 
