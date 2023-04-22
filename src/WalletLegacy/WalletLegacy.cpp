@@ -1358,7 +1358,7 @@ uint64_t WalletLegacy::calculateActualBalance(uint64_t token_id) {
 }
 
 uint64_t WalletLegacy::calculatePendingBalance(uint64_t token_id) {
-  uint64_t change = m_transactionsCache.unconfrimedOutsAmount() - m_transactionsCache.unconfirmedTransactionsAmount(token_id);
+  uint64_t change = m_transactionsCache.unconfrimedOutsAmount(token_id) - m_transactionsCache.unconfirmedTransactionsAmount(token_id);
   uint64_t container = m_transferDetails->balance(ITransfersContainer::IncludeKeyNotUnlocked, token_id);
   if (token_id == 0)
   {

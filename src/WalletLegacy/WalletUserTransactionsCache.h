@@ -118,6 +118,14 @@ private:
   TransferId insertTransfers(const std::vector<WalletLegacyTransfer>& transfers);
   void updateUnconfirmedTransactions();
 
+  std::vector<DepositId> createNewTokens(TransactionId creatingTransactionId,
+                                           const std::vector<TransactionOutputInformation>& tokenOutputs,
+                                           const Currency& currency,
+										   uint32_t height);
+  DepositId insertNewToken(const TransactionOutputInformation& tokenOutput,
+                             TransactionId creatingTransactionId,
+                             const Currency& currency, uint32_t height);
+
   void restoreTransactionOutputToDepositIndex();
   std::vector<DepositId> createNewDeposits(TransactionId creatingTransactionId,
                                            const std::vector<TransactionOutputInformation>& depositOutputs,

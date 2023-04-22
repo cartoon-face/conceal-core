@@ -2005,6 +2005,7 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
     std::string ticker = args[2];
     std::string name = args[3];
 
+/*
     bool amt_ok = m_currency.parseAmount(args[0], token_supply, true, decimals);
 
     if (!amt_ok || 0 == token_supply)
@@ -2033,11 +2034,11 @@ bool conceal_wallet::create_token(const std::vector<std::string> &args)
       logger(ERROR, BRIGHT_RED) << "Max name size is 20.";
       return true;
     }
-
+*/
     std::transform(ticker.begin(), ticker.end(), ticker.begin(),
       [](unsigned char c) { return std::toupper(c); });
 
-    std::string dec_str = decimals + "(." + std::string(decimals, '0') + ")";
+    std::string dec_str = "(." + std::string(decimals, '0') + ")";
     std::uint64_t tmp_id = m_node->get_known_token_ids().size();
 
     // should we prevent duplicated token names/tickers of known token map? they could

@@ -114,6 +114,11 @@ void serialize(DepositInfo& depositInfo, cn::ISerializer& serializer) {
   serializer(depositInfo.outputInTransaction, "output_in_transaction");
 }
 
+void serialize(TokenInfo& tokenInfo, cn::ISerializer& serializer) {
+  serializer(tokenInfo.token, "token");
+  serializer(tokenInfo.outputInTransaction, "output_in_transaction");
+}
+
 void serialize(Token& token, cn::ISerializer& serializer) {
   uint64_t token_generate_tx_id = static_cast<uint64_t>(token.token_generate_tx_id);
   serializer(token_generate_tx_id, "creating_transaction_id");

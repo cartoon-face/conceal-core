@@ -2142,10 +2142,10 @@ namespace cn
       {
         if (!isInCheckpointZone(getCurrentBlockchainHeight()))
         {
-          //if (!validateInput(::boost::get<TokenInput>(txin), transactionHash, tx_prefix_hash, tx.signatures[inputIndex]))
-          //{
-          //  return false;
-          //}
+          if (!validateInput(::boost::get<TokenInput>(txin), transactionHash, tx_prefix_hash, tx.signatures[inputIndex]))
+          {
+            return false;
+          }
         }
 
         ++inputIndex;
@@ -2582,12 +2582,15 @@ namespace cn
         isTransactionValid = false;
         logger(INFO, BRIGHT_WHITE) << "Block " << blockHash << " has at least one transaction with wrong inputs: " << tx_id;
       }
+      logger(INFO, BRIGHT_WHITE) << "Block " << blockHash << " inputs checked: PASS";
 
       if (!check_tx_outputs(transactions[i], block.height))
       {
         isTransactionValid = false;
         logger(INFO, BRIGHT_WHITE) << "Transaction " << tx_id << " has at least one invalid output";
       }
+
+      logger(INFO, BRIGHT_WHITE) << "Block " << blockHash << " outputs checked: PASS";
 
       /* 
       * From here, while checking the current pushed transaction, we look for its contained token id.
@@ -2600,6 +2603,8 @@ namespace cn
         m_tokens_map.insert(std::make_pair(token_id, transactions[i].token_details));
         m_known_token_ids.push_back(token_id);
       }
+
+      logger(INFO, BRIGHT_WHITE) << "Block " << blockHash << " tokens mapped: PASS";
 
       if (!isTransactionValid)
       {
@@ -3042,79 +3047,145 @@ namespace cn
     popTransaction(block.bl.baseTransaction, minerTransactionHash);
   }
 
-  bool Blockchain::validateInput(const MultisignatureInput &input, const crypto::Hash &transactionHash, const crypto::Hash &transactionPrefixHash, const std::vector<crypto::Signature> &transactionSignatures)
+  bool Blockchain::validateInput(const TransactionInput &input, const crypto::Hash &transactionHash, const crypto::Hash &transactionPrefixHash, const std::vector<crypto::Signature> &transactionSignatures)
   {
-    assert(input.signatureCount == transactionSignatures.size());
-    MultisignatureOutputsContainer::const_iterator amountOutputs = m_multisignatureOutputs.find(input.amount);
-    if (amountOutputs == m_multisignatureOutputs.end())
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid amount.";
+    // we don't validate base and key inputs here, skip to multisig
+    if (input.which() == 2) {
+      const auto& multisigInput = boost::get<MultisignatureInput>(input);
+      assert(multisigInput.signatureCount == transactionSignatures.size());
 
-      return false;
-    }
-
-    if (input.outputIndex >= amountOutputs->second.size())
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid outputIndex.";
-
-      return false;
-    }
-
-    const MultisignatureOutputUsage &outputIndex = amountOutputs->second[input.outputIndex];
-    if (outputIndex.isUsed)
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains double spending multisignature input.";
-
-      return false;
-    }
-
-    const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
-    if (!is_tx_spendtime_unlocked(outputTransaction.unlockTime))
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input which points to a locked transaction.";
-
-      return false;
-    }
-
-    assert(outputTransaction.outputs[outputIndex.outputIndex].amount == input.amount);
-    assert(outputTransaction.outputs[outputIndex.outputIndex].target.type() == typeid(MultisignatureOutput));
-    const MultisignatureOutput &output = ::boost::get<MultisignatureOutput>(outputTransaction.outputs[outputIndex.outputIndex].target);
-    if (input.signatureCount != output.requiredSignatureCount)
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signature count.";
-
-      return false;
-    }
-
-    if (input.term != output.term)
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid term.";
-      return false;
-    }
-
-    if (output.term != 0 && outputIndex.transactionIndex.block + output.term > getCurrentBlockchainHeight())
-    {
-      logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input that spends locked deposit output";
-      return false;
-    }
-
-    size_t inputSignatureIndex = 0;
-    size_t outputKeyIndex = 0;
-    while (inputSignatureIndex < input.signatureCount)
-    {
-      if (outputKeyIndex == output.keys.size())
+      MultisignatureOutputsContainer::const_iterator amountOutputs = m_multisignatureOutputs.find(multisigInput.amount);
+    
+      if (amountOutputs == m_multisignatureOutputs.end())
       {
-        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signatures.";
-
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid amount.";
         return false;
       }
 
-      if (crypto::check_signature(transactionPrefixHash, output.keys[outputKeyIndex], transactionSignatures[inputSignatureIndex]))
+      if (multisigInput.outputIndex >= amountOutputs->second.size())
       {
-        ++inputSignatureIndex;
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid outputIndex.";
+        return false;
       }
 
-      ++outputKeyIndex;
+      const MultisignatureOutputUsage &outputIndex = amountOutputs->second[multisigInput.outputIndex];
+      if (outputIndex.isUsed)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains double spending multisignature input.";
+        return false;
+      }
+
+      const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
+      if (!is_tx_spendtime_unlocked(outputTransaction.unlockTime))
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input which points to a locked transaction.";
+        return false;
+      }
+
+      assert(outputTransaction.outputs[outputIndex.outputIndex].amount == multisigInput.amount);
+      assert(outputTransaction.outputs[outputIndex.outputIndex].target.type() == typeid(MultisignatureOutput));
+      const MultisignatureOutput &output = ::boost::get<MultisignatureOutput>(outputTransaction.outputs[outputIndex.outputIndex].target);
+      if (multisigInput.signatureCount != output.requiredSignatureCount)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signature count.";
+        return false;
+      }
+
+      if (multisigInput.term != output.term)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid term.";
+        return false;
+      }
+
+      if (output.term != 0 && outputIndex.transactionIndex.block + output.term > getCurrentBlockchainHeight())
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input that spends locked deposit output";
+        return false;
+      }
+
+      size_t inputSignatureIndex = 0;
+      size_t outputKeyIndex = 0;
+      while (inputSignatureIndex < multisigInput.signatureCount)
+      {
+        if (outputKeyIndex == output.keys.size())
+        {
+          logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signatures.";
+          return false;
+        }
+
+        if (crypto::check_signature(transactionPrefixHash, output.keys[outputKeyIndex], transactionSignatures[inputSignatureIndex]))
+        {
+          ++inputSignatureIndex;
+        }
+
+        ++outputKeyIndex;
+      }
+    }
+    else if (input.which() == 3)
+    {
+      const auto& tokenInput = boost::get<TokenInput>(input);
+      assert(tokenInput.signatureCount == transactionSignatures.size());
+
+      TokenOutputsContainer::const_iterator amountOutputs = m_tokenOutputs.find(tokenInput.amount);
+    
+      if (amountOutputs == m_tokenOutputs.end())
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid amount.";
+        return false;
+      }
+
+      if (tokenInput.outputIndex >= amountOutputs->second.size())
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid outputIndex.";
+        return false;
+      }
+
+      const TokenOutputUsage &outputIndex = amountOutputs->second[tokenInput.outputIndex];
+      if (outputIndex.isUsed)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains double spending multisignature input.";
+        return false;
+      }
+
+      const Transaction &outputTransaction = m_blocks[outputIndex.transactionIndex.block].transactions[outputIndex.transactionIndex.transaction].tx;
+      if (!is_tx_spendtime_unlocked(outputTransaction.unlockTime))
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input which points to a locked transaction.";
+        return false;
+      }
+
+      assert(outputTransaction.outputs[outputIndex.outputIndex].amount == tokenInput.amount);
+      assert(outputTransaction.outputs[outputIndex.outputIndex].target.type() == typeid(TokenOutput));
+      const TokenOutput &output = ::boost::get<TokenOutput>(outputTransaction.outputs[outputIndex.outputIndex].target);
+      if (tokenInput.signatureCount != output.requiredSignatureCount)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signature count.";
+        return false;
+      }
+
+      if (tokenInput.token_details.token_id != output.token_details.token_id)
+      {
+        logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid id.";
+        return false;
+      }
+
+      size_t inputSignatureIndex = 0;
+      size_t outputKeyIndex = 0;
+      while (inputSignatureIndex < tokenInput.signatureCount)
+      {
+        if (outputKeyIndex == output.keys.size())
+        {
+          logger(DEBUGGING) << "Transaction << " << transactionHash << " contains multisignature input with invalid signatures.";
+          return false;
+        }
+
+        if (crypto::check_signature(transactionPrefixHash, output.keys[outputKeyIndex], transactionSignatures[inputSignatureIndex]))
+        {
+          ++inputSignatureIndex;
+        }
+
+        ++outputKeyIndex;
+      }
     }
 
     return true;

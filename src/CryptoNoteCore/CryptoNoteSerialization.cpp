@@ -206,6 +206,7 @@ void serialize(TransactionPrefix& txP, ISerializer& serializer) {
   serializer(txP.inputs, "vin");
   serializer(txP.outputs, "vout");
   serializeAsBinary(txP.extra, "extra", serializer);
+  serializer(txP.token_details, "token_details");
 }
 
 void serialize(Transaction& tx, ISerializer& serializer) {

@@ -603,6 +603,35 @@ uint64_t WalletUserTransactionsCache::insertToken(const Token& token, size_t tok
   return id;
 }
 
+std::vector<uint64_t> WalletUserTransactionsCache::createNewTokens(TransactionId creatingTransactionId, const std::vector<TransactionOutputInformation>& tokenOutputs,
+    const Currency& currency, uint32_t height) {
+  std::vector<uint64_t> tokens;
+
+  for (const auto &token : tokenOutputs)
+  {
+    auto id = insertNewToken(token, creatingTransactionId, currency, height);
+    tokens.push_back(id);
+  }
+  return tokens;
+}
+
+uint64_t WalletUserTransactionsCache::insertNewToken(const TransactionOutputInformation& tokenOutput, TransactionId creatingTransactionId,
+  const Currency& currency, uint32_t height) {
+  assert(tokenOutput.type == transaction_types::OutputType::Token);
+  assert(m_transactionOutputToTokenIndex.find(std::tie(tokenOutput.transactionHash, tokenOutput.outputInTransaction)) == m_transactionOutputToTokenIndex.end());
+
+  Token token;
+  token.ccx_amount = tokenOutput.amount;
+  token.token_generate_tx_id = creatingTransactionId;
+  token.spending_tx_id = WALLET_LEGACY_INVALID_TRANSACTION_ID;
+  token.height = height;
+  token.unlockHeight = height + 1;
+  token.locked = true;
+  token.token_details = tokenOutput.token_details;
+
+  return insertToken(token, tokenOutput.outputInTransaction, tokenOutput.transactionHash);
+}
+
 bool WalletUserTransactionsCache::getDepositInTransactionInfo(DepositId depositId, Hash& transactionHash, uint32_t& outputInTransaction) {
   if (depositId >= m_deposits.size()) {
     return false;

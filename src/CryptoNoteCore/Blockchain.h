@@ -371,7 +371,7 @@ namespace cn
     bool pushTransaction(BlockEntry &block, const crypto::Hash &transactionHash, TransactionIndex transactionIndex);
     void popTransaction(const Transaction &transaction, const crypto::Hash &transactionHash);
     void popTransactions(const BlockEntry &block, const crypto::Hash &minerTransactionHash);
-    bool validateInput(const MultisignatureInput &input, const crypto::Hash &transactionHash, const crypto::Hash &transactionPrefixHash, const std::vector<crypto::Signature> &transactionSignatures);
+    bool validateInput(const TransactionInput &input, const crypto::Hash &transactionHash, const crypto::Hash &transactionPrefixHash, const std::vector<crypto::Signature> &transactionSignatures);
     bool removeLastBlock();
     bool checkCheckpoints(uint32_t &lastValidCheckpointHeight);
     bool storeBlockchainIndices();
@@ -457,79 +457,82 @@ namespace cn
 
   public:
     check_tx_outputs_visitor(const Transaction &tx, uint32_t height, uint64_t amount, const Currency &currency, std::string &error) : m_tx(tx), m_height(height), m_amount(amount), m_currency(currency), m_error(error) {}
-    bool operator()(const KeyOutput &out) const
+    bool operator()(const TransactionOutputTarget& output) const
     {
-      if (m_amount == 0)
+      if (output.which() == 0)
       {
-        m_error = "zero amount output";
-        return false;
+        const auto& keyOutput = boost::get<KeyOutput>(output);
+        if (m_amount == 0)
+        {
+          m_error = "zero amount output";
+          return false;
+        }
+        if (!check_key(keyOutput.key))
+        {
+          m_error = "output with invalid key";
+          return false;
+        }
+        return true;
       }
-
-      if (!check_key(out.key))
+      else if (output.which() == 1)
       {
-        m_error = "output with invalid key";
-        return false;
-      }
+        const auto& mulsigOutput = boost::get<MultisignatureOutput>(output);
+        if (m_tx.version < TRANSACTION_VERSION_2)
+        {
+          m_error = "contains multisignature output but have version " + m_tx.version;
+          return false;
+        }
 
-      return true;
-    }
-    bool operator()(const MultisignatureOutput &out) const
-    {
-      if (m_tx.version < TRANSACTION_VERSION_2)
+        if (!m_currency.validateOutput(m_amount, output, m_height))
+        {
+          m_error = "contains invalid multisignature output";
+          return false;
+        }
+
+        if (mulsigOutput.requiredSignatureCount > mulsigOutput.keys.size())
+        {
+          m_error = "contains multisignature with invalid required signature count";
+          return false;
+        }
+        
+        if (std::any_of(mulsigOutput.keys.begin(), mulsigOutput.keys.end(), [](const crypto::PublicKey &key)
+          { return !check_key(key); }))
+        {
+          m_error = "contains multisignature output with invalid public key";
+          return false;
+        }
+        return true;
+      }
+      else if (output.which() == 2)
       {
-        m_error = "contains multisignature output but have version " + m_tx.version;
-        return false;
+        const auto& tokenOutput = boost::get<TokenOutput>(output);
+        if (m_tx.version < TRANSACTION_VERSION_3)
+        {
+          m_error = "contains token output but have version " + m_tx.version;
+          return false;
+        }
+
+        if (!m_currency.validateOutput(m_amount, output, m_height))
+        {
+          // not really computed yet because its m_currency related when validating these outputs
+          m_error = "contains invalid token output";
+          return false;
+        }
+
+        if (tokenOutput.requiredSignatureCount > tokenOutput.keys.size())
+        {
+          m_error = "contains token with invalid required signature count";
+          return false;
+        }
+
+        if (std::any_of(tokenOutput.keys.begin(), tokenOutput.keys.end(), [](const crypto::PublicKey &key)
+          { return !check_key(key); }))
+        {
+          m_error = "contains token output with invalid public key";
+          return false;
+        }
+        return true;
       }
-
-      if (!m_currency.validateOutput(m_amount, out, m_height))
-      {
-        m_error = "contains invalid multisignature output";
-        return false;
-      }
-
-      if (out.requiredSignatureCount > out.keys.size())
-      {
-        m_error = "contains multisignature with invalid required signature count";
-        return false;
-      }
-
-      if (std::any_of(out.keys.begin(), out.keys.end(), [](const crypto::PublicKey &key)
-                      { return !check_key(key); }))
-      {
-        m_error = "contains multisignature output with invalid public key";
-        return false;
-      }
-
-      return true;
-    }
-    bool operator()(const TokenOutput &out) const
-    {
-      if (m_tx.version < TRANSACTION_VERSION_3)
-      {
-        m_error = "contains token output but have version " + m_tx.version;
-        return false;
-      }
-
-      //if (!m_currency.validateOutput(m_amount, out, m_height))
-      //{
-      //  m_error = "contains invalid multisignature output";
-      //  return false;
-      //}
-
-      if (out.requiredSignatureCount > out.keys.size())
-      {
-        m_error = "contains token with invalid required signature count";
-        return false;
-      }
-
-      if (std::any_of(out.keys.begin(), out.keys.end(), [](const crypto::PublicKey &key)
-                      { return !check_key(key); }))
-      {
-        m_error = "contains token output with invalid public key";
-        return false;
-      }
-
-      return true;
     }
   };
 } // namespace cn
