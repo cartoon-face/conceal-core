@@ -75,6 +75,16 @@ struct TransactionOutput {
 
 using TransactionInputs = std::vector<TransactionInput>;
 
+/*
+The TransactionPrefix structure contains all the necessary information
+to determine the transaction hash and create the signature,
+except for the signatures themselves.
+Separating the transaction into two structures allows the signature
+to be calculated over the TransactionPrefix structure only, without
+including the signatures themselves.
+This is important for security reasons, as it helps prevent the signatures
+from being tampered with or invalidated.
+*/
 struct TransactionPrefix {
   uint8_t version;
   uint64_t unlockTime;
