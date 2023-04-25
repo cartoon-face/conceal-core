@@ -2,22 +2,16 @@
 // Copyright (c) 2017-2018 The Circle Foundation & Conceal Devs
 // Copyright (c) 2018-2023 Conceal Network & Conceal Devs
 //
-// Copyright (c) 2017-2018 The Circle Foundation - Conceal Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "IWallet.h"
+#pragma once
 
-namespace cn {
+#include <string>
+#include <vector>
+#include "CryptoNote.h"
+#include "crypto/crypto.h"
 
-struct DepositInfo {
-  Deposit deposit;
-  uint32_t outputInTransaction;
-};
-
-struct TokenInfo {
-  Token token;
-  uint32_t outputInTransaction;
-};
-
+namespace cn
+{
 }

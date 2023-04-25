@@ -266,6 +266,8 @@ bool get_inputs_money_amount(const Transaction& tx, uint64_t& money) {
       amount = boost::get<KeyInput>(in).amount;
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
+    } else if (in.type() == typeid(TokenInput)) {
+      amount = boost::get<TokenInput>(in).amount;
     }
 
     money += amount;
@@ -291,7 +293,11 @@ bool check_inputs_types_supported(const TransactionPrefix& tx) {
       if (tx.version < TRANSACTION_VERSION_2) {
         return false;
       }
-    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput)) {
+    } else if (inputType == typeid(TokenInput)) {
+      if (tx.version < TRANSACTION_VERSION_3) {
+        return false;
+      }
+    } else if (in.type() != typeid(KeyInput) && in.type() != typeid(MultisignatureInput) && in.type() != typeid(TokenInput)) {
       return false;
     }
   }
@@ -336,6 +342,27 @@ bool check_outs_valid(const TransactionPrefix& tx, std::string* error) {
           return false;
         }
       }
+    } else if (out.target.type() == typeid(TokenOutput)) {
+      if (tx.version < TRANSACTION_VERSION_3) {
+        *error = "Transaction contains token output but its version is less than 3";
+        return false;
+      }
+
+      const TokenOutput& tokenOutput = ::boost::get<TokenOutput>(out.target);
+      if (tokenOutput.requiredSignatureCount > tokenOutput.keys.size()) {
+        if (error) {
+          *error = "token output with invalid required signature count";
+        }
+        return false;
+      }
+      for (const PublicKey& key : tokenOutput.keys) {
+        if (!check_key(key)) {
+          if (error) {
+            *error = "token output with invalid public key";
+          }
+          return false;
+        }
+      }
     } else {
       if (error) {
         *error = "Output with invalid type";
@@ -352,6 +379,11 @@ bool checkMultisignatureInputsDiff(const TransactionPrefix& tx) {
   for (const auto& inv : tx.inputs) {
     if (inv.type() == typeid(MultisignatureInput)) {
       const MultisignatureInput& in = ::boost::get<MultisignatureInput>(inv);
+      if (!inputsUsage.insert(std::make_pair(in.amount, in.outputIndex)).second) {
+        return false;
+      }
+    } else if (inv.type() == typeid(TokenInput)) {
+      const TokenInput& in = ::boost::get<TokenInput>(inv);
       if (!inputsUsage.insert(std::make_pair(in.amount, in.outputIndex)).second) {
         return false;
       }
@@ -372,6 +404,9 @@ bool check_inputs_overflow(const TransactionPrefix &tx) {
 
     if (in.type() == typeid(KeyInput)) {
       amount = boost::get<KeyInput>(in).amount;
+    }
+    else if (in.type() == typeid(TokenInput)) {
+      amount = boost::get<TokenInput>(in).amount;
     } else if (in.type() == typeid(MultisignatureInput)) {
       amount = boost::get<MultisignatureInput>(in).amount;
       if (boost::get<MultisignatureInput>(in).term != 0) {
@@ -457,7 +492,7 @@ bool lookup_acc_outs(const AccountKeys& acc, const Transaction& tx, const Public
   generate_key_derivation(tx_pub_key, acc.viewSecretKey, derivation);
 
   for (const TransactionOutput& o : tx.outputs) {
-    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput));
+    assert(o.target.type() == typeid(KeyOutput) || o.target.type() == typeid(MultisignatureOutput) || o.target.type() == typeid(TokenOutput));
     if (o.target.type() == typeid(KeyOutput)) {
       if (is_out_to_acc(acc, boost::get<KeyOutput>(o.target), derivation, keyIndex)) {
         outs.push_back(outputIndex);
@@ -467,6 +502,8 @@ bool lookup_acc_outs(const AccountKeys& acc, const Transaction& tx, const Public
       ++keyIndex;
     } else if (o.target.type() == typeid(MultisignatureOutput)) {
       keyIndex += boost::get<MultisignatureOutput>(o.target).keys.size();
+    } else if (o.target.type() == typeid(TokenOutput)) {
+      keyIndex += boost::get<TokenOutput>(o.target).keys.size();
     }
 
     ++outputIndex;

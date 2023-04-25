@@ -53,6 +53,20 @@ struct WalletTransactionCreatedData
   size_t transactionIndex;
 };
 
+struct Token
+{
+  size_t token_generate_tx_id;
+  size_t spending_tx_id;
+  uint64_t ccx_amount;
+  uint64_t height;
+  uint64_t unlockHeight;
+  bool locked;
+  uint32_t outputInTransaction;
+  crypto::Hash transactionHash;
+  std::string address;
+  TokenBase token_details;
+};
+
 struct Deposit
 {
   size_t creatingTransactionId;
@@ -104,6 +118,15 @@ struct WalletTransaction
   size_t firstDepositId = WALLET_INVALID_DEPOSIT_ID;
   size_t depositCount = 0;
   bool isBase;
+
+  // Bind this to Token Base
+  uint64_t token_id;
+  uint64_t token_amount;
+  uint8_t decimals;
+  std::string ticker;
+  std::string token_name;
+  //
+  bool is_token_create;
 };
 
 enum class WalletTransferType : uint8_t
@@ -151,6 +174,7 @@ struct TransactionParameters
   uint64_t unlockTimestamp = 0;
   DonationSettings donation;
   std::string changeDestination;
+  TokenBase token_details;
 };
 
 struct WalletTransactionWithTransfers
@@ -169,6 +193,12 @@ struct DepositsInBlockInfo
 {
   crypto::Hash blockHash;
   std::vector<Deposit> deposits;
+};
+
+struct TokenTxsInBlockInfo
+{
+  crypto::Hash blockHash;
+  std::vector<Token> tokens_txs;
 };
 
 class IWallet

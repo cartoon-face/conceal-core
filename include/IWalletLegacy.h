@@ -71,6 +71,10 @@ struct WalletLegacyTransaction {
   std::string      extra;
   WalletLegacyTransactionState state;
   std::vector<std::string> messages;
+
+  uint64_t         first_token_tx_id;
+  size_t           token_tx_count;
+  TokenBase        token_details;
 };
 
 using PaymentId = crypto::Hash;
@@ -100,6 +104,7 @@ public:
   virtual void transactionUpdated(TransactionId transactionId) {}
   virtual void depositUpdated(const DepositId& depositId) {}
   virtual void depositsUpdated(const std::vector<DepositId>& depositIds) {}
+  virtual void tokenTxsUpdated(const std::vector<uint64_t>& tokenTxIds) {}
 };
 
 class IWalletLegacy {
@@ -134,6 +139,7 @@ public:
   virtual size_t getTransactionCount() = 0;
   virtual size_t getTransferCount() = 0;
   virtual size_t getDepositCount() = 0;
+  virtual size_t getTokenTxCount() = 0;
   virtual size_t getNumUnlockedOutputs() = 0;
   virtual std::vector<TransactionOutputInformation> getUnspentOutputs() = 0;
 
@@ -158,7 +164,12 @@ public:
   virtual std::error_code cancelTransaction(size_t transferId) = 0;
   virtual Deposit get_deposit(DepositId depositId) = 0;
 
-
+  virtual TransactionId create_token(TokenBase token_details) = 0;
+  virtual TransactionId withdraw_created_token(const uint64_t& token_id) = 0;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const WalletLegacyTransfer& transfer) = 0;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const std::vector<WalletLegacyTransfer>& transfers) = 0;
 };
 
 }

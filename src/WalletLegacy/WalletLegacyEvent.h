@@ -93,6 +93,19 @@ private:
   std::vector<DepositId> updatedDeposits;
 };
 
+class WalletTokenTxsUpdatedEvent : public WalletLegacyEvent {
+public:
+  WalletTokenTxsUpdatedEvent(std::vector<uint64_t>&& tokenTxsIds) : updatedTokenTxs(tokenTxsIds) {}
+
+  virtual ~WalletTokenTxsUpdatedEvent() {}
+
+  virtual void notify(tools::ObserverManager<cn::IWalletLegacyObserver>& observer) override {
+    observer.notify(&IWalletLegacyObserver::tokenTxsUpdated, updatedTokenTxs);
+  }
+private:
+  std::vector<uint64_t> updatedTokenTxs;
+};
+
 class WalletSynchronizationProgressUpdatedEvent : public WalletLegacyEvent
 {
 public:

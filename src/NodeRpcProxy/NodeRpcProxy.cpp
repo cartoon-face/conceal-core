@@ -303,11 +303,30 @@ uint64_t NodeRpcProxy::getLastLocalBlockTimestamp() const {
   return m_lastLocalBlockTimestamp;
 }
 
+std::vector<uint64_t> NodeRpcProxy::get_known_token_ids() const {
+  return m_known_token_ids;
+}
+
+std::map<uint64_t, TokenBase> NodeRpcProxy::get_token_map() const {
+  return m_tokens_map;
+}
+
 void NodeRpcProxy::relayTransaction(const cn::Transaction& transaction, const Callback& callback) {
   std::lock_guard<std::mutex> lock(m_mutex);
   if (m_state != STATE_INITIALIZED) {
     callback(make_error_code(error::NOT_INITIALIZED));
     return;
+  }
+
+  // TODO I dont think getTransaction is implemented correctly so we can get token data from relayed txs.
+  // We should verify new on-chain data in the frontend
+  if (transaction.token_details.value().token_id > 0 && transaction.token_details.value().token_id > m_known_token_ids.size())
+  {
+    m_known_token_ids.push_back(transaction.token_details.value().token_id);
+
+    uint64_t id = transaction.token_details.value().token_id;
+    TokenBase tb = transaction.token_details.value();
+    m_tokens_map.insert(std::make_pair(id, tb));
   }
 
   scheduleRequest(std::bind(&NodeRpcProxy::doRelayTransaction, this, transaction), callback);

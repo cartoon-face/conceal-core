@@ -69,6 +69,7 @@ public:
   virtual size_t getTransactionCount() override;
   virtual size_t getTransferCount() override;
   virtual size_t getDepositCount() override;
+  virtual size_t getTokenTxCount() override;
   virtual size_t getNumUnlockedOutputs() override;
   virtual std::vector<TransactionOutputInformation> getUnspentOutputs() override;
   virtual bool isTrackingWallet();
@@ -110,6 +111,13 @@ public:
 
   virtual Deposit get_deposit(DepositId depositId);
 
+  virtual TransactionId create_token(TokenBase token_details) override;
+  virtual TransactionId withdraw_created_token(const uint64_t& token_id) override;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const WalletLegacyTransfer& transfer) override;
+  virtual TransactionId transfer_token(const uint64_t& token_id, uint64_t token_amount, crypto::SecretKey& transactionSK,
+    const std::vector<WalletLegacyTransfer>& transfers) override;
+
 private:
 
   // IBlockchainSynchronizerObserver
@@ -141,8 +149,8 @@ private:
   std::unique_ptr<WalletLegacyEvent> getActualDepositBalanceChangedEvent();
   std::unique_ptr<WalletLegacyEvent> getPendingDepositBalanceChangedEvent();
 
-  std::unique_ptr<WalletLegacyEvent> getActualBalanceChangedEvent();
-  std::unique_ptr<WalletLegacyEvent> getPendingBalanceChangedEvent();
+  std::unique_ptr<WalletLegacyEvent> getActualBalanceChangedEvent(uint64_t token_id = 0);
+  std::unique_ptr<WalletLegacyEvent> getPendingBalanceChangedEvent(uint64_t token_id = 0);
 
   uint64_t calculateActualDepositBalance();
   uint64_t calculateActualInvestmentBalance();
@@ -151,10 +159,10 @@ private:
   uint64_t getWalletMaximum();
   uint64_t dustBalance();
 
-  uint64_t calculateActualBalance();
-  uint64_t calculatePendingBalance();
+  uint64_t calculateActualBalance(uint64_t token_id = 0);
+  uint64_t calculatePendingBalance(uint64_t token_id = 0);
 
-  void pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue);
+  void pushBalanceUpdatedEvents(std::deque<std::unique_ptr<WalletLegacyEvent>>& eventsQueue, uint64_t token_id = 0);
 
   std::vector<TransactionId> deleteOutdatedUnconfirmedTransactions();
 

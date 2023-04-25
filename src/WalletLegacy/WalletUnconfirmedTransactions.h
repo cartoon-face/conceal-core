@@ -58,6 +58,13 @@ struct UnconfirmedSpentDepositDetails {
   uint64_t fee;
 };
 
+struct UnconfirmedSpentTokenDetails {
+  TransactionId transactionId;
+  uint64_t ccxSum;
+  uint64_t fee;
+  TokenBase token_details;
+};
+
 class WalletUnconfirmedTransactions
 {
 public:
@@ -74,7 +81,10 @@ public:
   void updateTransactionId(const crypto::Hash& hash, TransactionId id);
 
   void addCreatedDeposit(DepositId id, uint64_t totalAmount);
+  void addCreatedTokenTx(uint64_t id, uint64_t totalAmount);
   void addDepositSpendingTransaction(const crypto::Hash& transactionHash, const UnconfirmedSpentDepositDetails& details);
+
+  void addTokenSpendingTransaction(const crypto::Hash& transactionHash, const UnconfirmedSpentTokenDetails& details);
 
   void eraseCreatedDeposit(DepositId id);
 
@@ -82,8 +92,8 @@ public:
   uint64_t countSpentDepositsProfit() const;
   uint64_t countSpentDepositsTotalAmount() const;
 
-  uint64_t countUnconfirmedOutsAmount() const;
-  uint64_t countUnconfirmedTransactionsAmount() const;
+  uint64_t countUnconfirmedOutsAmount(uint64_t token_id = 0) const;
+  uint64_t countUnconfirmedTransactionsAmount(uint64_t token_id = 0) const;
   bool isUsed(const TransactionOutputInformation& out) const;
   void reset();
 
@@ -100,6 +110,8 @@ private:
   bool findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id);
   bool findUnconfirmedDepositSpendingTransactionId(const crypto::Hash& hash, TransactionId& id);
 
+  bool findUnconfirmeTokenSpendingTransactionId(const crypto::Hash& hash, TransactionId& id);
+
   typedef std::unordered_map<crypto::Hash, UnconfirmedTransferDetails, boost::hash<crypto::Hash>> UnconfirmedTxsContainer;
   typedef std::unordered_set<TransactionOutputId> UsedOutputsContainer;
 
@@ -109,6 +121,8 @@ private:
 
   std::unordered_map<DepositId, uint64_t> m_createdDeposits;
   std::unordered_map<crypto::Hash, UnconfirmedSpentDepositDetails> m_spentDeposits;
+  std::unordered_map<crypto::Hash, UnconfirmedSpentTokenDetails> m_spentCreatedTokens;//m_spentCreatedTokens?
+  std::unordered_map<uint64_t, uint64_t> m_createdTokens;
 };
 
 } // namespace cn

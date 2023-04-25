@@ -13,6 +13,7 @@
 #include "CryptoNoteCore/CryptoNoteBasic.h"
 #include "IWalletLegacy.h"
 #include "ITransfersContainer.h"
+#include "CryptoNote.h"
 
 namespace cn {
 
@@ -37,6 +38,7 @@ struct SendTransactionContext
   std::vector<tx_message_entry> messages;
   uint64_t ttl;
   uint32_t depositTerm;
+  TokenBase token_details;
 };
 
 } //namespace cn

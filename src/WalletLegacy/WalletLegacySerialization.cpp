@@ -38,6 +38,16 @@ void serialize(UnconfirmedSpentDepositDetails& details, ISerializer& serializer)
   serializer(details.fee, "fee");
 }
 
+void serialize(UnconfirmedSpentTokenDetails& details, ISerializer& serializer) {
+  uint64_t txId = details.transactionId;
+  serializer(txId, "spendingTransactionId");
+  details.transactionId = txId;
+
+  serializer(details.ccxSum, "ccxSum");
+  serializer(details.fee, "fee");
+  serializer(details.token_details, "token_details");
+}
+
 void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
   uint64_t trId = static_cast<uint64_t>(txi.firstTransferId);
   serializer(trId, "first_transfer_id");
@@ -73,6 +83,14 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
 
   serializer(txi.messages, "messages");
 
+  uint64_t tId = static_cast<uint64_t>(txi.first_token_tx_id);
+  serializer(dtId, "first_token_tx_id");
+  txi.first_token_tx_id = static_cast<size_t>(tId);
+  uint64_t tCount = static_cast<uint64_t>(txi.token_tx_count);
+  serializer(dtCount, "deposit_count");
+  txi.token_tx_count = static_cast<size_t>(tCount);
+  serializer(txi.token_details, "token_details");
+
   //this field has been added later in the structure.
   //in order to not break backward binary compatibility
   // we just set it to zero
@@ -102,6 +120,30 @@ void serialize(Deposit& deposit, cn::ISerializer& serializer) {
 void serialize(DepositInfo& depositInfo, cn::ISerializer& serializer) {
   serializer(depositInfo.deposit, "deposit");
   serializer(depositInfo.outputInTransaction, "output_in_transaction");
+}
+
+void serialize(TokenInfo& tokenInfo, cn::ISerializer& serializer) {
+  serializer(tokenInfo.token, "token");
+  serializer(tokenInfo.outputInTransaction, "output_in_transaction");
+}
+
+void serialize(Token& token, cn::ISerializer& serializer) {
+  uint64_t token_generate_tx_id = static_cast<uint64_t>(token.token_generate_tx_id);
+  serializer(token_generate_tx_id, "creating_transaction_id");
+  token.token_generate_tx_id = static_cast<size_t>(token_generate_tx_id);
+
+  uint64_t spendingTxIx = static_cast<uint64_t>(token.spending_tx_id);
+  serializer(spendingTxIx, "spending_transaction_id");
+  token.spending_tx_id = static_cast<size_t>(spendingTxIx);
+
+  serializer(token.ccx_amount, "ccx_amount");
+  serializer(token.height, "height");
+  serializer(token.unlockHeight, "unlockHeight");
+  serializer(token.locked, "locked");
+  serializer(token.outputInTransaction, "outputInTransaction");
+  serializer(token.transactionHash, "transactionHash");
+  serializer(token.address, "address");
+  serializer(token.token_details, "token_details");
 }
 
 } //namespace cn

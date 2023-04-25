@@ -13,6 +13,7 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include <CryptoNote.h>
 #include "CryptoNoteCore/Difficulty.h"
@@ -38,6 +39,7 @@ struct core_stat_info;
 struct i_cryptonote_protocol;
 struct Transaction;
 struct MultisignatureInput;
+struct TokenInput;
 struct KeyInput;
 struct TransactionPrefixInfo;
 struct tx_verification_context;
@@ -114,6 +116,9 @@ public:
 
   virtual bool addMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) = 0;
   virtual bool removeMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) = 0;
+
+  virtual std::vector<uint64_t> known_token_ids() = 0;
+  virtual std::map<uint64_t, TokenBase> get_token_map() = 0;
 };
 
 } //namespace cn

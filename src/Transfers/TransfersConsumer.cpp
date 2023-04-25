@@ -88,6 +88,14 @@ void findMyOutputs(
         checkOutputKey(derivation, key, idx, idx, spendKeys, outputs);
         ++keyIndex;
      }
+    } else if (outType == transaction_types::OutputType::Token) {
+      TokenBase token;
+      TokenOutput out;
+      tx.getOutput(idx, out, token);
+      for (const auto& key : out.keys) {
+        checkOutputKey(derivation, key, idx, idx, spendKeys, outputs);
+        ++keyIndex;
+     }
     }
   }
 }
@@ -402,7 +410,8 @@ std::error_code createTransfers(
 
     if (
       outType != transaction_types::OutputType::Key &&
-      outType != transaction_types::OutputType::Multisignature) {
+      outType != transaction_types::OutputType::Multisignature &&
+      outType != transaction_types::OutputType::Token) {
       continue;
     }
 
@@ -466,6 +475,30 @@ std::error_code createTransfers(
       info.amount = amount;
       info.requiredSignatures = out.requiredSignatureCount;
       info.term = out.term;
+    } else if (outType == transaction_types::OutputType::Token) {
+      TokenBase token;
+      TokenOutput out;
+      uint64_t amount = tx.getOutputTotalAmount();
+      tx.getOutput(idx, out, token);
+
+		  for (const auto& key : out.keys) {
+        std::unordered_set<crypto::Hash>::iterator it = transactions_hash_seen.find(txHash);
+        if (it == transactions_hash_seen.end()) {
+          std::unordered_set<crypto::PublicKey>::iterator key_it = public_keys_seen.find(key);
+          if (key_it != public_keys_seen.end()) {
+			 // m_logger(ERROR, BRIGHT_RED) << "Failed to process transaction " << common::podToHex(txHash) << ": duplicate multisignature output key is found";
+            return std::error_code();
+          }
+          if (std::find(temp_keys.begin(), temp_keys.end(), key) != temp_keys.end()) {
+          //  m_logger(ERROR, BRIGHT_RED) << "Failed to process transaction " << common::podToHex(txHash) << ": the same multisignature output key is present more than once";
+            return std::error_code();
+          }
+          temp_keys.push_back(key);
+        }
+      }
+      info.amount = amount;
+      info.requiredSignatures = out.requiredSignatureCount;
+      info.token_details = out.token_details;
     }
     
    transfers.push_back(info);

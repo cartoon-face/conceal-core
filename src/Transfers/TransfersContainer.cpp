@@ -127,6 +127,9 @@ SpentOutputDescriptor::SpentOutputDescriptor(const TransactionOutputInformationI
   } else if (m_type == transaction_types::OutputType::Multisignature) {
     m_amount = transactionInfo.amount;
     m_globalOutputIndex = transactionInfo.globalOutputIndex;
+  } else if (m_type == transaction_types::OutputType::Token) {
+    m_amount = transactionInfo.amount;
+    m_globalOutputIndex = transactionInfo.globalOutputIndex;
   } else {
     assert(false);
   }
@@ -139,14 +142,20 @@ SpentOutputDescriptor::SpentOutputDescriptor(const KeyImage* keyImage) {
 SpentOutputDescriptor::SpentOutputDescriptor(uint64_t amount, uint32_t globalOutputIndex) {
   assign(amount, globalOutputIndex);
 }
+SpentOutputDescriptor::SpentOutputDescriptor(uint64_t amount, uint32_t globalOutputIndex, bool is_token) {
+  assign(amount, globalOutputIndex, is_token);
+}
 
 void SpentOutputDescriptor::assign(const KeyImage* keyImage) {
   m_type = transaction_types::OutputType::Key;
   m_keyImage = keyImage;
 }
 
-void SpentOutputDescriptor::assign(uint64_t amount, uint32_t globalOutputIndex) {
-  m_type = transaction_types::OutputType::Multisignature;
+void SpentOutputDescriptor::assign(uint64_t amount, uint32_t globalOutputIndex, bool is_token) {
+  if (is_token == true)
+    m_type = transaction_types::OutputType::Token;
+  else
+    m_type = transaction_types::OutputType::Multisignature;
   m_amount = amount;
   m_globalOutputIndex = globalOutputIndex;
 }
@@ -160,6 +169,8 @@ bool SpentOutputDescriptor::operator==(const SpentOutputDescriptor& other) const
     return other.m_type == m_type && *other.m_keyImage == *m_keyImage;
   } else if (m_type == transaction_types::OutputType::Multisignature) {
     return other.m_type == m_type && other.m_amount == m_amount && other.m_globalOutputIndex == m_globalOutputIndex;
+  } else if (m_type == transaction_types::OutputType::Token) {
+    return other.m_type == m_type && other.m_amount == m_amount && other.m_globalOutputIndex == m_globalOutputIndex;
   } else {
     assert(false);
     return false;
@@ -171,6 +182,10 @@ size_t SpentOutputDescriptor::hash() const {
     static_assert(sizeof(size_t) < sizeof(*m_keyImage), "sizeof(size_t) < sizeof(*m_keyImage)");
     return *reinterpret_cast<const size_t*>(m_keyImage->data);
   } else if (m_type == transaction_types::OutputType::Multisignature) {
+    size_t hashValue = boost::hash_value(m_amount);
+    boost::hash_combine(hashValue, m_globalOutputIndex);
+    return hashValue;
+  } else if (m_type == transaction_types::OutputType::Token) {
     size_t hashValue = boost::hash_value(m_amount);
     boost::hash_combine(hashValue, m_globalOutputIndex);
     return hashValue;
@@ -277,7 +292,7 @@ bool TransfersContainer::addTransactionOutputs(const TransactionBlockInfo& block
       (void)result; // Disable unused warning
       assert(result.second);
     } else {
-      if (info.type == transaction_types::OutputType::Multisignature) {
+      if (info.type == transaction_types::OutputType::Multisignature || info.type == transaction_types::OutputType::Token ) {
         SpentOutputDescriptor descriptor(transfer);
         if (m_availableTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
             m_spentTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
@@ -368,6 +383,20 @@ bool TransfersContainer::addTransactionInputs(const TransactionBlockInfo& block,
 
         inputsAdded = true;
       }
+    } else if (inputType == transaction_types::InputType::Token) {
+      TokenInput input;
+      tx.getInput(i, input);
+
+      auto& outputDescriptorIndex = m_availableTransfers.get<SpentOutputDescriptorIndex>();
+      auto availableOutputIt = outputDescriptorIndex.find(SpentOutputDescriptor(input.amount, input.outputIndex, true));
+      if (availableOutputIt != outputDescriptorIndex.end()) {
+        deleteUnlockJob(*availableOutputIt);
+        copyToSpent(block, tx, i, *availableOutputIt);
+        // erase from available outputs
+        outputDescriptorIndex.erase(availableOutputIt);
+
+        inputsAdded = true;
+      }
     } else {
       assert(inputType == transaction_types::InputType::Generating);
     }
@@ -426,7 +455,7 @@ bool TransfersContainer::markTransactionConfirmed(const TransactionBlockInfo& bl
     transfer.transactionIndex = block.transactionIndex;
     transfer.globalOutputIndex = globalIndices[transfer.outputInTransaction];
 
-    if (transfer.type == transaction_types::OutputType::Multisignature) {
+    if (transfer.type == transaction_types::OutputType::Multisignature || transfer.type == transaction_types::OutputType::Token) {
       SpentOutputDescriptor descriptor(transfer);
       if (m_availableTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
           m_spentTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
@@ -647,20 +676,39 @@ size_t TransfersContainer::transactionsCount() const {
   return m_transactions.size();
 }
 
-uint64_t TransfersContainer::balance(uint32_t flags) const {
+uint64_t TransfersContainer::balance(uint32_t flags, uint64_t token_id) const {
   std::lock_guard<std::mutex> lk(m_mutex);
   uint64_t amount = 0;
 
-  for (const auto& t : m_availableTransfers) {
-    if (t.visible && isIncluded(t, flags)) {
-      amount += t.amount;
+  if (token_id > 0)
+  {
+    for (const auto& t : m_availableTransfers) {
+      if ((t.visible && isIncluded(t, flags) && token_id == t.token_details.token_id)) {
+        amount += t.token_details.token_amount;
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTransfers) {
+        if ((t.visible && isIncluded(t, IncludeStateLocked, flags) && token_id == t.token_details.token_id)) {
+          amount += t.token_details.token_amount;
+       }
+      }
     }
   }
-
-  if ((flags & IncludeStateLocked) != 0) {
-    for (const auto& t : m_unconfirmedTransfers) {
-      if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+  else
+  {
+    for (const auto& t : m_availableTransfers) {
+      if (t.visible && isIncluded(t, flags)) {
         amount += t.amount;
+      }
+    }
+
+    if ((flags & IncludeStateLocked) != 0) {
+      for (const auto& t : m_unconfirmedTransfers) {
+        if (t.visible && isIncluded(t, IncludeStateLocked, flags)) {
+          amount += t.amount;
+        }
       }
     }
   }
@@ -958,7 +1006,8 @@ bool TransfersContainer::isIncluded(const TransactionOutputInformationEx& output
     (
     ((flags & IncludeTypeKey) != 0            && output.type == transaction_types::OutputType::Key) ||
     ((flags & IncludeTypeMultisignature) != 0 && output.type == transaction_types::OutputType::Multisignature && output.term == 0) ||
-    ((flags & IncludeTypeDeposit) != 0        && output.type == transaction_types::OutputType::Multisignature && output.term > 0)
+    ((flags & IncludeTypeDeposit) != 0        && output.type == transaction_types::OutputType::Multisignature && output.term > 0) ||
+    ((flags & IncludeTypeToken) != 0          && output.type == transaction_types::OutputType::Token && output.token_details.token_id > 0)
     )
     &&
     // filter by state

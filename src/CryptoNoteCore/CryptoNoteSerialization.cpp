@@ -20,6 +20,7 @@
 #include "Serialization/BinaryOutputStreamSerializer.h"
 
 #include "Common/StringOutputStream.h"
+#include "Common/Optional.hpp"
 #include "crypto/crypto.h"
 
 #include "Account.h"
@@ -46,6 +47,7 @@ size_t getSignaturesCount(const TransactionInput& input) {
     size_t operator()(const BaseInput &) const { return 0; }
     size_t operator()(const KeyInput &txin) const { return txin.outputIndexes.size(); }
     size_t operator()(const MultisignatureInput& txin) const { return txin.signatureCount; }
+    size_t operator()(const TokenInput& txin) const { return txin.signatureCount; }
   };
 
   return boost::apply_visitor(txin_signature_size_visitor(), input);
@@ -56,8 +58,10 @@ struct BinaryVariantTagGetter : boost::static_visitor<uint8_t>
   uint8_t operator()(const cn::BaseInput &) const { return 0xff; }
   uint8_t operator()(const cn::KeyInput &) const { return 0x2; }
   uint8_t operator()(const cn::MultisignatureInput &) const { return 0x3; }
+  uint8_t operator()(const cn::TokenInput &) const { return 0x4; }
   uint8_t operator()(const cn::KeyOutput &) const { return 0x2; }
   uint8_t operator()(const cn::MultisignatureOutput &) const { return 0x3; }
+  uint8_t operator()(const cn::TokenOutput &) const { return 0x4; }
   uint8_t operator()(const cn::Transaction &) const { return 0xcc; }
   uint8_t operator()(const cn::Block &) const { return 0xbb; }
 };
@@ -92,6 +96,12 @@ void getVariantValue(cn::ISerializer& serializer, uint8_t tag, cn::TransactionIn
     in = v;
     break;
   }
+  case 0x4: {
+    cn::TokenInput v;
+    serializer(v, "value");
+    in = v;
+    break;
+  }
   default:
     throw serialization_error("Unknown variant tag");
   }
@@ -107,6 +117,12 @@ void getVariantValue(cn::ISerializer& serializer, uint8_t tag, cn::TransactionOu
   }
   case 0x3: {
     cn::MultisignatureOutput v;
+    serializer(v, "data");
+    out = v;
+    break;
+  }
+  case 0x4: {
+    cn::TokenOutput v;
     serializer(v, "data");
     out = v;
     break;
@@ -191,6 +207,7 @@ void serialize(TransactionPrefix& txP, ISerializer& serializer) {
   serializer(txP.inputs, "vin");
   serializer(txP.outputs, "vout");
   serializeAsBinary(txP.extra, "extra", serializer);
+  serializer(txP.token_details, "token_details");
 }
 
 void serialize(Transaction& tx, ISerializer& serializer) {
@@ -253,6 +270,28 @@ void serialize(TransactionInput& in, ISerializer& serializer) {
   }
 }
 
+void serialize(TokenBase& token_details, ISerializer& serializer) {
+  serializer(token_details.token_id, "token_id");
+  serializer(token_details.token_amount, "token_amount");
+  serializer(token_details.decimals, "decimals");
+  serializer(token_details.ticker, "ticker");
+  serializer(token_details.token_name, "token_name");
+}
+
+void serialize(optional<TokenBase>& token_details, ISerializer& serializer) {
+  uint64_t id = token_details.value().token_id;
+  uint64_t amt = token_details.value().token_amount;
+  uint8_t dec = token_details.value().decimals;
+  std::string tic = token_details.value().ticker;
+  std::string nam = token_details.value().token_name;
+
+  serializer(id, "token_id");
+  serializer(amt, "token_amount");
+  serializer(dec, "decimals");
+  serializer(tic, "ticker");
+  serializer(nam, "token_name");
+}
+
 void serialize(BaseInput& gen, ISerializer& serializer) {
   serializer(gen.blockIndex, "height");
 }
@@ -270,6 +309,12 @@ void serialize(MultisignatureInput& multisignature, ISerializer& serializer) {
   serializer(multisignature.term, "term");
 }
 
+void serialize(TokenInput& token, ISerializer& serializer) {
+  serializer(token.amount, "amount");
+  serializer(token.signatureCount, "signatures");
+  serializer(token.outputIndex, "outputIndex");
+  serializer(token.token_details, "token_details");
+}
 
 void serialize(TransactionInputs & inputs, ISerializer & serializer) {
   serializer(inputs, "vin");
@@ -305,6 +350,12 @@ void serialize(MultisignatureOutput& multisignature, ISerializer& serializer) {
   serializer(multisignature.keys, "keys");
   serializer(multisignature.requiredSignatureCount, "required_signatures");
   serializer(multisignature.term, "term");
+}
+
+void serialize(TokenOutput& token, ISerializer& serializer) {
+  serializer(token.keys, "keys");
+  serializer(token.requiredSignatureCount, "required_signatures");
+  serializer(token.token_details, "token_details");
 }
 
 void serializeBlockHeader(BlockHeader& header, ISerializer& serializer) {

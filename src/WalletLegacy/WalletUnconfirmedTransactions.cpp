@@ -8,6 +8,7 @@
 #include "WalletUnconfirmedTransactions.h"
 #include "WalletLegacy/WalletLegacySerialization.h"
 
+#include "Common/Optional.hpp"
 #include "CryptoNoteCore/CryptoNoteTools.h"
 #include "Serialization/ISerializer.h"
 #include "Serialization/SerializationOverloads.h"
@@ -29,6 +30,8 @@ bool WalletUnconfirmedTransactions::serialize(ISerializer& s) {
   s(m_unconfirmedTxs, "transactions");
   s(m_createdDeposits, "unconfirmedCreatedDeposits");
   s(m_spentDeposits, "unconfirmedSpentDeposits");
+  s(m_spentCreatedTokens, "spentCreatedTokens");
+  s(m_createdTokens, "createdTokens");
 
   if (s.type() == ISerializer::INPUT) {
     collectUsedOutputs();
@@ -48,7 +51,7 @@ bool WalletUnconfirmedTransactions::deserializeV1(ISerializer& s) {
 }
 
 bool WalletUnconfirmedTransactions::findTransactionId(const Hash& hash, TransactionId& id) {
-  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id);
+  return findUnconfirmedTransactionId(hash, id) || findUnconfirmedDepositSpendingTransactionId(hash, id)  || findUnconfirmeTokenSpendingTransactionId(hash, id);
 }
 
 bool WalletUnconfirmedTransactions::findUnconfirmedTransactionId(const crypto::Hash& hash, TransactionId& id) {
@@ -64,6 +67,16 @@ bool WalletUnconfirmedTransactions::findUnconfirmedTransactionId(const crypto::H
 bool WalletUnconfirmedTransactions::findUnconfirmedDepositSpendingTransactionId(const crypto::Hash& hash, TransactionId& id) {
   auto it = m_spentDeposits.find(hash);
   if (it == m_spentDeposits.end()) {
+    return false;
+  }
+
+  id = it->second.transactionId;
+  return true;
+}
+
+bool WalletUnconfirmedTransactions::findUnconfirmeTokenSpendingTransactionId(const crypto::Hash& hash, TransactionId& id) {
+  auto it = m_spentCreatedTokens.find(hash);
+  if (it == m_spentCreatedTokens.end()) {
     return false;
   }
 
@@ -132,9 +145,18 @@ void WalletUnconfirmedTransactions::addCreatedDeposit(DepositId id, uint64_t tot
   m_createdDeposits[id] = totalAmount;
 }
 
+void WalletUnconfirmedTransactions::addCreatedTokenTx(uint64_t id, uint64_t totalAmount) {
+  m_createdTokens[id] = totalAmount;
+}
+
 void WalletUnconfirmedTransactions::addDepositSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentDepositDetails& details) {
   assert(m_spentDeposits.count(transactionHash) == 0);
   m_spentDeposits.emplace(transactionHash, details);
+}
+
+void WalletUnconfirmedTransactions::addTokenSpendingTransaction(const Hash& transactionHash, const UnconfirmedSpentTokenDetails& details) {
+  assert(m_spentCreatedTokens.count(transactionHash) == 0);
+  m_spentCreatedTokens.emplace(transactionHash, details);
 }
 
 void WalletUnconfirmedTransactions::eraseCreatedDeposit(DepositId id) {
@@ -171,20 +193,46 @@ uint64_t WalletUnconfirmedTransactions::countSpentDepositsTotalAmount() const {
   return sum;
 }
 
-uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount() const {
+uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount(uint64_t token_id) const {
   uint64_t amount = 0;
 
-  for (auto& utx: m_unconfirmedTxs)
-    amount+= utx.second.outsAmount;
+  if (token_id > 0)
+  {
+    for (auto& utx: m_unconfirmedTxs)
+    {
+      if (utx.second.tx.token_details.has_value() && token_id == utx.second.tx.token_details.value().token_id)
+      {
+        amount += utx.second.tx.token_details.value().token_amount;
+      }
+    }
+  }
+  else
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.outsAmount;
+  }
 
   return amount;
 }
 
-uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount() const {
+uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount(uint64_t token_id) const {
   uint64_t amount = 0;
 
-  for (auto& utx: m_unconfirmedTxs)
-    amount+= utx.second.amount;
+  if (token_id > 0)
+  {
+    for (auto& utx: m_unconfirmedTxs)
+    {
+      if (utx.second.tx.token_details.has_value() && token_id == utx.second.tx.token_details.value().token_id)
+      {
+        amount += utx.second.tx.token_details.value().token_amount;
+      }
+    }
+  }
+  else
+  {
+    for (auto& utx: m_unconfirmedTxs)
+      amount+= utx.second.amount;
+  }
 
   return amount;
 }

@@ -25,6 +25,7 @@ bool isOutToKey(const crypto::PublicKey& spendPublicKey, const crypto::PublicKey
 transaction_types::OutputType getTransactionOutputType(const TransactionOutputTarget& out);
 const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index);
 const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type);
+const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transaction, size_t index, transaction_types::OutputType type, TokenBase token_details);
 
 bool findOutputsToAccount(const cn::TransactionPrefix& transaction, const AccountPublicAddress& addr,
         const crypto::SecretKey& viewSecretKey, std::vector<uint32_t>& out, uint64_t& amount);

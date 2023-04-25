@@ -43,6 +43,7 @@ public:
   virtual transaction_types::InputType getInputType(size_t index) const override;
   virtual void getInput(size_t index, KeyInput& input) const override;
   virtual void getInput(size_t index, MultisignatureInput& input) const override;
+  virtual void getInput(size_t index, TokenInput& input) const override;
   virtual std::vector<TransactionInput> getInputs() const override;
 
   // outputs
@@ -51,6 +52,7 @@ public:
   virtual transaction_types::OutputType getOutputType(size_t index) const override;
   virtual void getOutput(size_t index, KeyOutput& output, uint64_t& amount) const override;
   virtual void getOutput(size_t index, MultisignatureOutput& output, uint64_t& amount) const override;
+  virtual void getOutput(size_t index, TokenOutput& output, TokenBase& token) const override;
 
   // signatures
   virtual size_t getRequiredSignaturesCount(size_t inputIndex) const override;
@@ -155,6 +157,10 @@ void TransactionPrefixImpl::getInput(size_t index, MultisignatureInput& input) c
   input = boost::get<MultisignatureInput>(getInputChecked(m_txPrefix, index, transaction_types::InputType::Multisignature));
 }
 
+void TransactionPrefixImpl::getInput(size_t index, TokenInput& input) const {
+  input = boost::get<TokenInput>(getInputChecked(m_txPrefix, index, transaction_types::InputType::Token));
+}
+
 size_t TransactionPrefixImpl::getOutputCount() const {
   return m_txPrefix.outputs.size();
 }
@@ -183,6 +189,12 @@ void TransactionPrefixImpl::getOutput(size_t index, MultisignatureOutput& output
   const auto& out = getOutputChecked(m_txPrefix, index, transaction_types::OutputType::Multisignature);
   output = boost::get<MultisignatureOutput>(out.target);
   amount = out.amount;
+}
+
+void TransactionPrefixImpl::getOutput(size_t index, TokenOutput& output, TokenBase& token) const {
+  const auto& out = getOutputChecked(m_txPrefix, index, transaction_types::OutputType::Token, token);
+  output = boost::get<TokenOutput>(out.target);
+  //amount = out.amount;
 }
 
 size_t TransactionPrefixImpl::getRequiredSignaturesCount(size_t inputIndex) const {

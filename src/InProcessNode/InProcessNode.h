@@ -17,6 +17,7 @@
 #include "BlockchainExplorer/BlockchainExplorerDataBuilder.h"
 
 #include <thread>
+#include <map>
 #include <boost/asio.hpp>
 
 namespace cn {
@@ -47,6 +48,9 @@ public:
   virtual uint32_t getLocalBlockCount() const override;
   virtual uint32_t getKnownBlockCount() const override;
   virtual uint64_t getLastLocalBlockTimestamp() const override;
+
+  virtual std::vector<uint64_t> get_known_token_ids() const override;
+  virtual std::map<uint64_t, TokenBase> get_token_map() const override;
 
   virtual void getNewBlocks(std::vector<crypto::Hash>&& knownBlockIds, std::vector<cn::block_complete_entry>& newBlocks, uint32_t& startHeight, const Callback& callback) override;
   virtual void getTransactionOutsGlobalIndices(const crypto::Hash& transactionHash, std::vector<uint32_t>& outsGlobalIndices, const Callback& callback) override;

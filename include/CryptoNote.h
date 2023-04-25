@@ -9,9 +9,19 @@
 
 #include <vector>
 #include <boost/variant.hpp>
+#include <../src/Common/Optional.hpp>
 #include "CryptoTypes.h"
 
 namespace cn {
+
+struct TokenBase
+{
+  uint64_t token_id = 0;
+  uint64_t token_amount = 0;
+  uint8_t decimals = 0;
+  std::string ticker = "";
+  std::string token_name = "";
+};
 
 struct BaseInput {
   uint32_t blockIndex;
@@ -30,6 +40,14 @@ struct MultisignatureInput {
   uint32_t term;
 };
 
+struct TokenInput
+{
+  uint64_t amount;
+  uint32_t outputIndex;
+  uint8_t signatureCount;
+  TokenBase token_details;
+};
+
 struct KeyOutput {
   crypto::PublicKey key;
 };
@@ -40,9 +58,16 @@ struct MultisignatureOutput {
   uint32_t term;
 };
 
-typedef boost::variant<BaseInput, KeyInput, MultisignatureInput> TransactionInput;
+struct TokenOutput
+{
+  std::vector<crypto::PublicKey> keys;
+  uint8_t requiredSignatureCount;
+  TokenBase token_details;
+};
 
-typedef boost::variant<KeyOutput, MultisignatureOutput> TransactionOutputTarget;
+typedef boost::variant<BaseInput, KeyInput, MultisignatureInput, TokenInput> TransactionInput;
+
+typedef boost::variant<KeyOutput, MultisignatureOutput, TokenOutput> TransactionOutputTarget;
 
 struct TransactionOutput {
   uint64_t amount;
@@ -51,12 +76,23 @@ struct TransactionOutput {
 
 using TransactionInputs = std::vector<TransactionInput>;
 
+/*
+The TransactionPrefix structure contains all the necessary information
+to determine the transaction hash and create the signature,
+except for the signatures themselves.
+Separating the transaction into two structures allows the signature
+to be calculated over the TransactionPrefix structure only, without
+including the signatures themselves.
+This is important for security reasons, as it helps prevent the signatures
+from being tampered with or invalidated.
+*/
 struct TransactionPrefix {
   uint8_t version;
   uint64_t unlockTime;
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
+  optional<TokenBase> token_details;
 };
 
 struct Transaction : public TransactionPrefix {

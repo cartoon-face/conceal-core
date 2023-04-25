@@ -1135,4 +1135,12 @@ bool core::removeMessageQueue(MessageQueue<BlockchainMessage>& messageQueue) {
   return m_blockchain.removeMessageQueue(messageQueue);
 }
 
+std::vector<uint64_t> core::known_token_ids() {
+  return m_blockchain.known_token_ids();
+}
+
+std::map<uint64_t, TokenBase> core::get_token_map() {
+  return m_blockchain.get_token_map();
+}
+
 }

@@ -55,7 +55,8 @@ enum WalletErrorCodes {
   DEPOSIT_WRONG_TERM,
   DESTINATION_ADDRESS_REQUIRED,
   DESTINATION_ADDRESS_NOT_FOUND,
-  DAEMON_NOT_SYNCED
+  DAEMON_NOT_SYNCED,
+  INVALID_TOKEN_ID
 };
 
 // custom category:
@@ -113,6 +114,7 @@ public:
     case DEPOSIT_LOCKED:           return "Deposit is locked";
     case DEPOSIT_WRONG_TERM:       return "Incorrect term";
     case DAEMON_NOT_SYNCED:        return "Daemon is not synchronized";
+    case INVALID_TOKEN_ID:         return "Token could not be found within the token map";
         default:
       return "Unknown error";
     }

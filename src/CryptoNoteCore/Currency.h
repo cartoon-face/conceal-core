@@ -181,9 +181,9 @@ namespace cn
     std::string accountAddressAsString(const AccountPublicAddress &accountPublicAddress) const;
     bool parseAccountAddressString(const std::string &str, AccountPublicAddress &addr) const;
 
-    std::string formatAmount(uint64_t amount) const;
-    std::string formatAmount(int64_t amount) const;
-    bool parseAmount(const std::string &str, uint64_t &amount) const;
+    std::string formatAmount(uint64_t amount, bool is_token = false, uint64_t token_decimals = 0) const;
+    std::string formatAmount(int64_t amount, bool is_token = false, uint64_t token_decimals = 0) const;
+    bool parseAmount(const std::string &str, uint64_t &amount, bool is_token = false, uint64_t token_decimals = 0) const;
 
     difficulty_type nextDifficulty(std::vector<uint64_t> timestamps, std::vector<difficulty_type> cumulativeDifficulties) const;
     difficulty_type nextDifficulty(uint8_t version, uint32_t blockIndex, std::vector<uint64_t> timestamps, std::vector<difficulty_type> cumulativeDifficulties) const;
@@ -194,7 +194,7 @@ namespace cn
 
     size_t getApproximateMaximumInputCount(size_t transactionSize, size_t outputCount, size_t mixinCount) const;
 
-    bool validateOutput(uint64_t amount, const MultisignatureOutput &output, uint32_t height) const;
+    bool validateOutput(uint64_t amount, const TransactionOutputTarget& output, uint32_t height) const;
 
     uint64_t getGenesisTimestamp() const;
 
@@ -680,6 +680,10 @@ namespace cn
     uint64_t operator()(const KeyInput &keyInput) const
     {
       return keyInput.amount;
+    }
+    uint64_t operator()(const TokenInput &tokenInput) const
+    {
+      return tokenInput.amount;
     }
     uint64_t operator()(const MultisignatureInput &multisignatureInput) const
     {
