@@ -140,6 +140,8 @@ private:
   void setSpendingTransactionToDeposit(TransactionId transactionId, const DepositId& depositId);
   void setSpendingTransactionToDeposits(TransactionId transactionId, const std::vector<DepositId>& depositIds);
 
+  void setSpendingTransactionToTokenGen(TransactionId transactionId, const uint64_t& ids);
+
   const Currency& m_currency;
   AccountKeys m_keys;
   WalletUserTransactionsCache& m_transactionsCache;

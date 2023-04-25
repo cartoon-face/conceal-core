@@ -9,6 +9,7 @@
 
 #include "CryptoNoteBasic.h"
 #include "crypto/chacha8.h"
+#include "Common/Optional.hpp"
 #include "Serialization/ISerializer.h"
 #include "crypto/crypto.h"
 
@@ -34,6 +35,8 @@ void serialize(TransactionPrefix& txP, ISerializer& serializer);
 void serialize(Transaction& tx, ISerializer& serializer);
 void serialize(TransactionInput& in, ISerializer& serializer);
 void serialize(TransactionOutput& in, ISerializer& serializer);
+
+void serialize(optional<TokenBase>& token_details, ISerializer& serializer);
 void serialize(TokenBase& token_details, ISerializer& serializer);
 
 void serialize(BaseInput& gen, ISerializer& serializer);

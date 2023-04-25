@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <boost/variant.hpp>
+#include <../src/Common/Optional.hpp>
 #include "CryptoTypes.h"
 
 namespace cn {
@@ -81,7 +82,7 @@ struct TransactionPrefix {
   TransactionInputs inputs;
   std::vector<TransactionOutput> outputs;
   std::vector<uint8_t> extra;
-  TokenBase token_details;
+  optional<TokenBase> token_details;
 };
 
 struct Transaction : public TransactionPrefix {

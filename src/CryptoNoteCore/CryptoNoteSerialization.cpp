@@ -20,6 +20,7 @@
 #include "Serialization/BinaryOutputStreamSerializer.h"
 
 #include "Common/StringOutputStream.h"
+#include "Common/Optional.hpp"
 #include "crypto/crypto.h"
 
 #include "Account.h"
@@ -275,6 +276,20 @@ void serialize(TokenBase& token_details, ISerializer& serializer) {
   serializer(token_details.decimals, "decimals");
   serializer(token_details.ticker, "ticker");
   serializer(token_details.token_name, "token_name");
+}
+
+void serialize(optional<TokenBase>& token_details, ISerializer& serializer) {
+  uint64_t id = token_details.value().token_id;
+  uint64_t amt = token_details.value().token_amount;
+  uint8_t dec = token_details.value().decimals;
+  std::string tic = token_details.value().ticker;
+  std::string nam = token_details.value().token_name;
+
+  serializer(id, "token_id");
+  serializer(amt, "token_amount");
+  serializer(dec, "decimals");
+  serializer(tic, "ticker");
+  serializer(nam, "token_name");
 }
 
 void serialize(BaseInput& gen, ISerializer& serializer) {

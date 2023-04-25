@@ -8,6 +8,7 @@
 #include "WalletUnconfirmedTransactions.h"
 #include "WalletLegacy/WalletLegacySerialization.h"
 
+#include "Common/Optional.hpp"
 #include "CryptoNoteCore/CryptoNoteTools.h"
 #include "Serialization/ISerializer.h"
 #include "Serialization/SerializationOverloads.h"
@@ -199,9 +200,9 @@ uint64_t WalletUnconfirmedTransactions::countUnconfirmedOutsAmount(uint64_t toke
   {
     for (auto& utx: m_unconfirmedTxs)
     {
-      if (token_id == utx.second.tx.token_details.token_id)
+      if (utx.second.tx.token_details.has_value() && token_id == utx.second.tx.token_details.value().token_id)
       {
-        amount += utx.second.tx.token_details.token_amount;
+        amount += utx.second.tx.token_details.value().token_amount;
       }
     }
   }
@@ -221,9 +222,9 @@ uint64_t WalletUnconfirmedTransactions::countUnconfirmedTransactionsAmount(uint6
   {
     for (auto& utx: m_unconfirmedTxs)
     {
-      if (token_id == utx.second.tx.token_details.token_id)
+      if (utx.second.tx.token_details.has_value() && token_id == utx.second.tx.token_details.value().token_id)
       {
-        amount += utx.second.tx.token_details.token_amount;
+        amount += utx.second.tx.token_details.value().token_amount;
       }
     }
   }

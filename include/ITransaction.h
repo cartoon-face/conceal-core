@@ -125,7 +125,6 @@ public:
 
   // signing
   virtual void signInputKey(size_t input, const transaction_types::InputKeyInfo& info, const KeyPair& ephKeys) = 0;
-  // TODO rename next 2 functions to "signAlternativeInput"
   virtual void signInputMultisignature(size_t input, const crypto::PublicKey& sourceTransactionKey, size_t outputIndex, const AccountKeys& accountKeys) = 0;
   virtual void signInputMultisignature(size_t input, const KeyPair& ephemeralKeys) = 0;
 };

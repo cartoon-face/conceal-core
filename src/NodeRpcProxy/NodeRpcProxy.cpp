@@ -320,10 +320,13 @@ void NodeRpcProxy::relayTransaction(const cn::Transaction& transaction, const Ca
 
   // TODO I dont think getTransaction is implemented correctly so we can get token data from relayed txs.
   // We should verify new on-chain data in the frontend
-  if (transaction.token_details.token_id > 0 && transaction.token_details.token_id > m_known_token_ids.size())
+  if (transaction.token_details.value().token_id > 0 && transaction.token_details.value().token_id > m_known_token_ids.size())
   {
-    m_known_token_ids.push_back(transaction.token_details.token_id);
-    m_tokens_map.insert(std::make_pair(transaction.token_details.token_id, transaction.token_details));
+    m_known_token_ids.push_back(transaction.token_details.value().token_id);
+
+    uint64_t id = transaction.token_details.value().token_id;
+    TokenBase tb = transaction.token_details.value();
+    m_tokens_map.insert(std::make_pair(id, tb));
   }
 
   scheduleRequest(std::bind(&NodeRpcProxy::doRelayTransaction, this, transaction), callback);

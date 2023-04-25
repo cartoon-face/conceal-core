@@ -109,6 +109,9 @@ public:
   uint64_t insertToken(const Token& token, size_t tokenIndexInTransaction, const crypto::Hash& transactionHash);
   //bool getTokenInTransactionInfo(uint64_t tokenTxId, crypto::Hash& transactionHash, uint32_t& outputInTransaction);
 
+  bool getTokenTx(uint64_t id, Token& token) const;
+  Token& getTokenTx(uint64_t id);
+
   std::vector<Payments> getTransactionsByPaymentIds(const std::vector<PaymentId>& paymentIds) const;
   TransactionId findTransactionByHash(const crypto::Hash& hash);
 private:

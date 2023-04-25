@@ -72,7 +72,7 @@ struct WalletLegacyTransaction {
   WalletLegacyTransactionState state;
   std::vector<std::string> messages;
 
-  DepositId        first_token_tx_id;
+  uint64_t         first_token_tx_id;
   size_t           token_tx_count;
   TokenBase        token_details;
 };

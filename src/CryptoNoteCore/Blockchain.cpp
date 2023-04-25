@@ -724,11 +724,15 @@ namespace cn
         * 0 would always be known as $CCX. This is where we also build up our known token ids
         * and our token map.
         */
-        if (transaction.tx.token_details.token_id > 0 && transaction.tx.token_details.token_id > m_known_token_ids.size())
+        if (transaction.tx.token_details.has_value() && transaction.tx.token_details.value().token_id > m_known_token_ids.size())
         {
           logger(INFO) << "New token ID found, adding to list of known token IDs"; 
-          m_known_token_ids.push_back(transaction.tx.token_details.token_id);
-          m_tokens_map.insert(std::make_pair(transaction.tx.token_details.token_id, transaction.tx.token_details));
+          m_known_token_ids.push_back(transaction.tx.token_details.value().token_id);
+
+          logger(INFO) << "New token ID found, adding to token map"; 
+          uint64_t id = transaction.tx.token_details.value().token_id;
+          TokenBase tb = transaction.tx.token_details.value();
+          m_tokens_map.insert(std::make_pair(id, tb));
         }
       }
 
@@ -2597,10 +2601,11 @@ namespace cn
       * 0 would always be known as $CCX. This is where we also build upon our currently known token ids
       * and our token map found from syncing.
       */
-      uint64_t token_id = transactions[i].token_details.token_id;
+      uint64_t token_id = transactions[i].token_details.value().token_id;
+      TokenBase tb = transactions[i].token_details.value();
       if (token_id > 0 && token_id > m_known_token_ids.size())
       {
-        m_tokens_map.insert(std::make_pair(token_id, transactions[i].token_details));
+        m_tokens_map.insert(std::make_pair(token_id, tb));
         m_known_token_ids.push_back(token_id);
       }
 

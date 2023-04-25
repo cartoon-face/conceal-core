@@ -1105,6 +1105,12 @@ namespace cn
     deposit.spendingTransactionId = transactionId;
   }
 
+  void WalletTransactionSender::setSpendingTransactionToTokenGen(TransactionId transactionId, const uint64_t &id)
+  {
+    Token &token = m_transactionsCache.getTokenTx(id);
+    token.spending_tx_id = transactionId;
+  }
+
   void WalletTransactionSender::setSpendingTransactionToDeposits(TransactionId transactionId, const std::vector<DepositId> &depositIds)
   {
     for (auto id : depositIds)
@@ -1160,7 +1166,7 @@ namespace cn
     context->transactionId = transactionId;
     context->mixIn = 0;
 
-    setSpendingTransactionToDeposit(transactionId, token_id);
+    setSpendingTransactionToTokenGen(transactionId, token_id);
 
     return do_send_withdraw_create_token_tx(std::move(context), events, token_id);
   }

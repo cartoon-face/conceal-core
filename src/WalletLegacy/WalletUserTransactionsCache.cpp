@@ -505,6 +505,21 @@ Deposit& WalletUserTransactionsCache::getDeposit(DepositId depositId) {
   return m_deposits[depositId].deposit;
 }
 
+bool WalletUserTransactionsCache::getTokenTx(uint64_t id, Token& token) const {
+  if (id >= m_token_txs.size()) {
+    return false;
+  }
+
+  token = m_token_txs[id].token;
+  return true;
+}
+
+Token& WalletUserTransactionsCache::getTokenTx(uint64_t id) {
+  assert(id < m_token_txs.size());
+
+  return m_token_txs[id].token;
+}
+
 TransactionId WalletUserTransactionsCache::insertTransaction(WalletLegacyTransaction&& Transaction) {
   m_transactions.emplace_back(std::move(Transaction));
   return m_transactions.size() - 1;

@@ -124,7 +124,7 @@ const TransactionOutput& getOutputChecked(const cn::TransactionPrefix& transacti
   if (getTransactionOutputType(output.target) != type) {
     throw std::runtime_error("Unexpected transaction output target type");
   }
-  if (!(transaction.token_details.token_id == token_details.token_id))
+  if (!(transaction.token_details.value().token_id == token_details.token_id))
   {
     throw std::runtime_error("Unexpected transaction output token ID");
   }

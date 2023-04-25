@@ -83,6 +83,14 @@ void serialize(WalletLegacyTransaction& txi, cn::ISerializer& serializer) {
 
   serializer(txi.messages, "messages");
 
+  uint64_t tId = static_cast<uint64_t>(txi.first_token_tx_id);
+  serializer(dtId, "first_token_tx_id");
+  txi.first_token_tx_id = static_cast<size_t>(tId);
+  uint64_t tCount = static_cast<uint64_t>(txi.token_tx_count);
+  serializer(dtCount, "deposit_count");
+  txi.token_tx_count = static_cast<size_t>(tCount);
+  serializer(txi.token_details, "token_details");
+
   //this field has been added later in the structure.
   //in order to not break backward binary compatibility
   // we just set it to zero
